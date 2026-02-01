@@ -11,7 +11,8 @@
 		{ name: 'YouTube 영상', path: '/youtube', icon: '📺' },
 		{ name: 'AI 논문', path: '/papers', icon: '📄' },
 		{ name: 'AI 뉴스', path: '/news', icon: '📰' },
-		{ name: 'GitHub 프로젝트', path: '/github', icon: '⭐' }
+		{ name: 'GitHub 프로젝트', path: '/github', icon: '⭐' },
+		{ name: '시스템 상태', path: '/system', icon: '⚙️' }
 	];
 
 	let isAuthenticated = false;
