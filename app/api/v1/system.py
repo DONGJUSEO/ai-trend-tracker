@@ -1,5 +1,5 @@
 """시스템 상태 API 엔드포인트"""
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
 from datetime import datetime
@@ -670,7 +670,7 @@ async def list_log_files() -> Dict[str, Any]:
 
 
 @router.post("/collect")
-async def trigger_data_collection() -> Dict[str, Any]:
+async def trigger_data_collection(background_tasks: BackgroundTasks) -> Dict[str, Any]:
     """
     수동으로 전체 데이터 수집 트리거
 
@@ -679,8 +679,8 @@ async def trigger_data_collection() -> Dict[str, Any]:
     - 백그라운드에서 실행되므로 즉시 응답이 반환됩니다
     """
 
-    # 백그라운드 태스크로 실행
-    asyncio.create_task(collect_all_data())
+    # FastAPI BackgroundTasks로 실행
+    background_tasks.add_task(collect_all_data)
 
     return {
         "status": "started",
