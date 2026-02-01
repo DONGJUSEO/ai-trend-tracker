@@ -19,6 +19,8 @@ from app.models.leaderboard import AILeaderboard
 from app.models.job_trend import AIJobTrend
 from app.models.policy import AIPolicy
 from app.models.startup import AIStartup
+from app.services.scheduler import collect_all_data
+import asyncio
 
 router = APIRouter()
 
@@ -664,4 +666,24 @@ async def list_log_files() -> Dict[str, Any]:
         "exists": True,
         "total_files": len(log_files),
         "log_files": log_files
+    }
+
+
+@router.post("/collect")
+async def trigger_data_collection() -> Dict[str, Any]:
+    """
+    수동으로 전체 데이터 수집 트리거
+
+    - 모든 카테고리의 데이터를 즉시 수집합니다
+    - 이 작업은 1-2분 정도 소요됩니다
+    - 백그라운드에서 실행되므로 즉시 응답이 반환됩니다
+    """
+
+    # 백그라운드 태스크로 실행
+    asyncio.create_task(collect_all_data())
+
+    return {
+        "status": "started",
+        "message": "데이터 수집이 시작되었습니다. 1-2분 후 시스템 상태를 확인하세요.",
+        "timestamp": datetime.utcnow().isoformat()
     }
