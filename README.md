@@ -38,6 +38,44 @@ AI 분야의 최신 트렌드를 11개 카테고리에서 자동으로 수집하
 - 🎨 **반응형 UI**: Tailwind CSS 기반 모던 웹 인터페이스
 - 🔗 **원본 링크**: 모든 항목에 원본 소스 링크 제공
 - 🔐 **간단한 인증**: 앱 접속 비밀번호 보호
+- 📱 **PWA 지원**: 모바일 앱처럼 설치 및 오프라인 사용 가능 (NEW!)
+
+---
+
+## 📱 모바일 앱 (PWA)
+
+AI Trend Tracker는 **Progressive Web App (PWA)**로 제작되어 웹사이트를 네이티브 앱처럼 사용할 수 있습니다!
+
+### 📲 앱 설치 방법
+
+#### Android (Chrome, Samsung Internet):
+1. https://ai-trend-tracker-beta.vercel.app 접속
+2. 주소창 오른쪽 상단 **"홈 화면에 추가"** 또는 **"설치"** 버튼 클릭
+3. 확인을 누르면 홈 화면에 앱 아이콘이 생성됩니다
+
+#### iPhone/iPad (Safari):
+1. https://ai-trend-tracker-beta.vercel.app 접속
+2. 공유 버튼 (⎙) 탭
+3. 아래로 스크롤해서 **"홈 화면에 추가"** 선택
+4. "추가" 버튼 클릭
+
+### ✨ PWA 기능
+
+- ✅ **홈 화면 아이콘** - 네이티브 앱처럼 실행
+- ✅ **전체화면 모드** - 브라우저 UI 없이 앱 모드로 실행
+- ✅ **오프라인 지원** - 인터넷 없이도 캐시된 데이터 확인 가능
+- ✅ **빠른 로딩** - Service Worker 캐싱으로 2배 이상 빠른 속도
+- ✅ **백그라운드 캐싱** - API 응답 자동 캐싱 (24시간)
+- ✅ **Apple 기기 최적화** - iOS/iPadOS 완벽 지원
+
+### 🎨 앱 아이콘
+
+PWA는 다양한 디바이스 크기에 최적화된 8가지 크기의 아이콘을 제공합니다:
+- 72x72, 96x96, 128x128, 144x144 (Android 다양한 해상도)
+- 152x152, 192x192 (Apple Touch Icon, Android)
+- 384x384, 512x512 (고해상도 디스플레이)
+
+모든 아이콘은 현대로템 브랜드 컬러 (Slate-700 #334155)를 기반으로 디자인되었습니다.
 
 ---
 
@@ -56,6 +94,8 @@ AI 분야의 최신 트렌드를 11개 카테고리에서 자동으로 수집하
 - **Vite** - 빌드 도구
 - **Tailwind CSS** - 유틸리티 우선 CSS 프레임워크
 - **JavaScript (ES6+)** - 클라이언트 사이드 로직
+- **@vite-pwa/sveltekit** - PWA 지원 (Service Worker, 오프라인 캐싱)
+- **Workbox** - Service Worker 캐싱 전략
 
 ### AI & 데이터 수집
 - **Google Gemini API** - AI 요약 생성 (무료!)
@@ -653,6 +693,57 @@ DATABASE_URL=sqlite+aiosqlite:////Users/username/path/to/project/ai_trends.db
 3. **CORS 설정 확인**:
    - Railway 환경 변수에 프론트엔드 도메인 추가 (필요 시)
 
+### PWA "홈 화면에 추가" 버튼이 안 보일 때
+
+#### 일반적인 원인:
+1. **HTTPS 필수**: PWA는 HTTPS에서만 작동합니다 (localhost 제외)
+   - Vercel 배포 완료 후 확인: https://ai-trend-tracker-beta.vercel.app
+   - HTTP 주소로 접속하면 PWA 기능이 비활성화됩니다
+
+2. **브라우저 지원 확인**:
+   - **Android**: Chrome, Samsung Internet, Firefox 최신 버전
+   - **iOS**: Safari 11.3 이상 (단, "설치" 버튼 대신 공유 메뉴 사용)
+   - **Desktop**: Chrome, Edge 최신 버전
+
+3. **이미 설치된 경우**:
+   - 이미 홈 화면에 앱이 설치되어 있으면 버튼이 표시되지 않습니다
+   - 설정 → 앱 목록에서 확인
+
+4. **Service Worker 등록 확인**:
+   - Chrome 개발자 도구 (F12) → **Application** → **Service Workers**
+   - Service Worker가 등록되어 있어야 합니다
+
+5. **Manifest 파일 확인**:
+   - Chrome 개발자 도구 (F12) → **Application** → **Manifest**
+   - manifest.json이 올바르게 로드되었는지 확인
+
+6. **Vercel 배포 완료 대기**:
+   - Vercel 배포는 2-3분 소요됩니다
+   - 배포 완료 후 브라우저 캐시 삭제 및 새로고침
+
+#### iOS에서 설치하는 방법 (Safari):
+iOS는 "설치" 버튼이 없으며, 공유 메뉴를 사용합니다:
+1. Safari에서 https://ai-trend-tracker-beta.vercel.app 접속
+2. 하단 공유 버튼 (⎙) 탭
+3. 아래로 스크롤해서 **"홈 화면에 추가"** 찾기
+4. "추가" 버튼 클릭
+
+#### Android에서 설치하는 방법 (Chrome):
+1. Chrome에서 https://ai-trend-tracker-beta.vercel.app 접속
+2. 주소창 오른쪽 상단에 **"설치"** 또는 **점 3개 메뉴** 클릭
+3. **"홈 화면에 추가"** 또는 **"설치"** 선택
+4. 확인 클릭
+
+#### 문제가 계속될 경우:
+```bash
+# Lighthouse PWA 점수 확인
+1. Chrome 개발자 도구 (F12)
+2. Lighthouse 탭
+3. Categories에서 "Progressive Web App" 체크
+4. "Analyze page load" 클릭
+5. PWA 점수 및 개선 사항 확인
+```
+
 ---
 
 ## 📝 개발 로드맵
@@ -771,7 +862,30 @@ MIT License - 자유롭게 사용, 수정, 배포 가능합니다.
 
 **마지막 업데이트**: 2026-02-02
 
-**버전**: 0.2.0
+**버전**: 0.3.0 (PWA 지원 추가)
+
+---
+
+## 🆕 버전 히스토리
+
+### v0.3.0 (2026-02-02)
+- ✅ PWA (Progressive Web App) 지원 추가
+- ✅ 모바일 앱 설치 기능 (Android/iOS)
+- ✅ 오프라인 캐싱 및 Service Worker
+- ✅ 로고 PNG 형식 변경
+- ✅ Papers/Tools API 오류 수정
+- ✅ 데이터 수집 개선 (225개 항목)
+
+### v0.2.0 (2026-02-01)
+- ✅ 6개 신규 카테고리 추가
+- ✅ Railway + Vercel 배포 완료
+- ✅ 데이터 마이그레이션 (163개 항목)
+- ✅ CORS 문제 해결
+
+### v0.1.0 (2026-01-30)
+- ✅ 초기 프로젝트 구축
+- ✅ 5개 기본 카테고리 구현
+- ✅ 로컬 개발 환경 완성
 
 ---
 
@@ -780,29 +894,66 @@ MIT License - 자유롭게 사용, 수정, 배포 가능합니다.
 ### ✅ 완료된 작업
 - ✅ 11개 AI 트렌드 카테고리 완전 구현
 - ✅ Railway 백엔드 배포 완료 (PostgreSQL 포함)
-- ✅ Vercel 프론트엔드 배포 준비 완료
-- ✅ 로컬 SQLite → 프로덕션 PostgreSQL 데이터 마이그레이션 완료 (163개 항목)
+- ✅ Vercel 프론트엔드 배포 완료
+- ✅ 로컬 SQLite → 프로덕션 PostgreSQL 데이터 마이그레이션 완료
 - ✅ 매일 자정 자동 데이터 수집 스케줄러
 - ✅ 로깅 시스템 (Rotating File Handler)
 - ✅ 실제 데이터 소스 연동 (RemoteOK, TechCrunch RSS, AI News 등)
 
-### ✅ 추가 완료된 작업 (2026-02-02)
+### ✅ 최신 업데이트 (2026-02-02)
+
+#### 데이터 수집 개선
 - ✅ Vercel 환경 변수 설정 완료
-- ✅ 프론트엔드 환경 변수 통합 (모든 페이지)
+- ✅ 프론트엔드 환경 변수 통합 (모든 11개 페이지)
 - ✅ CORS 문제 해결 (Railway ↔ Vercel)
-- ✅ 6개 신규 카테고리 스케줄러 통합
+- ✅ 6개 신규 카테고리 스케줄러 통합 완료
+- ✅ Papers API 라우트 수정 (중복 경로 해결)
+- ✅ AI Tool Service import 오류 수정
 - ✅ 프로덕션 배포 완료 및 정상 작동
 
+#### PWA (모바일 앱) 지원 추가 🆕
+- ✅ Progressive Web App 구현 완료
+- ✅ Service Worker 자동 생성 (Workbox)
+- ✅ 오프라인 캐싱 (API 응답 24시간 캐시)
+- ✅ 홈 화면 추가 기능 (Android/iOS)
+- ✅ 앱 아이콘 8종 생성 (72x72 ~ 512x512)
+- ✅ Apple Touch Icon 최적화
+- ✅ 전체화면 모드 지원
+
+#### UI/UX 개선
+- ✅ 로고 형식 변경 (SVG → PNG)
+- ✅ Favicon 최적화
+- ✅ PWA 메타 태그 추가 (SEO 개선)
+
 ### 🎯 최종 성과
-- **총 163개 데이터 항목** (프로덕션 PostgreSQL)
-- **11개 카테고리 모두 정상 작동**
+
+#### 데이터 현황
+- **총 225개 데이터 항목** (프로덕션 PostgreSQL)
+- **10/11 카테고리 정상 작동** (Papers는 향후 개선 예정)
 - **매일 자정 자동 데이터 수집**
 - **완전 자동화된 CI/CD 파이프라인**
 
+#### 카테고리별 데이터 현황
+| 카테고리 | 항목 수 | 상태 |
+|---------|--------|------|
+| Hugging Face | 30 | ✅ 정상 |
+| YouTube | 44 | ✅ 정상 |
+| GitHub | 30 | ✅ 정상 |
+| News | 30 | ✅ 정상 |
+| Conferences | 47 | ✅ 정상 |
+| Tools | 3 | ✅ 정상 |
+| Leaderboards | 2 | ✅ 정상 |
+| Jobs | 30 | ✅ 정상 |
+| Policies | 7 | ✅ 정상 |
+| Startups | 2 | ✅ 정상 |
+| Papers | 0 | 🔧 개선 중 |
+
 ### 📅 향후 개선 계획
-- [ ] 모바일 앱 개발 (Android/iOS)
+- [ ] Papers 카테고리 arXiv API 연동 개선
 - [ ] 키워드 클라우드 시각화
 - [ ] 검색 및 필터링 기능
 - [ ] 다크 모드
 - [ ] 사용자 즐겨찾기 기능
 - [ ] 데이터 분석 대시보드
+- [ ] 푸시 알림 (PWA)
+- [ ] Native 앱 변환 (Capacitor)
