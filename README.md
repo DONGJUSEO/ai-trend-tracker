@@ -4,7 +4,7 @@
 
 실시간으로 AI 업계의 최신 트렌드를 자동 수집하고, AI가 요약한 정보를 한눈에 확인할 수 있는 웹 서비스입니다.
 
-**데모**: [프론트엔드](https://vercel.app) | [API 문서](https://railway.app/docs)
+**데모**: [프론트엔드](https://ai-trend-tracker-beta.vercel.app) | [백엔드 API](https://ai-trend-tracker-production.up.railway.app/docs)
 
 ---
 
@@ -524,16 +524,52 @@ tail -f logs/collection.log
    - Root Directory: `web`
    - Build Command: `npm run build`
    - Output Directory: `.svelte-kit`
-4. **환경 변수 설정**:
-   - `VITE_API_URL`: Railway 백엔드 URL
-   - `VITE_API_KEY`: 앱 접속 비밀번호
-5. **배포 완료**: https://your-app.vercel.app
+4. **환경 변수 설정** (중요!):
+   - Vercel 대시보드 → **Settings** → **Environment Variables**
+   - 다음 2개 변수 추가:
+     ```
+     VITE_API_URL=https://ai-trend-tracker-production.up.railway.app
+     VITE_API_KEY=your_app_password
+     ```
+   - **Environment**: Production, Preview, Development 모두 체크
+   - **Save** 후 **Deployments** → 최신 배포 → **Redeploy**
+5. **배포 완료**: https://ai-trend-tracker-beta.vercel.app
+
+> ⚠️ **주의**: Vercel 환경 변수를 설정하지 않으면 프론트엔드에서 "Failed to fetch" 오류가 발생합니다!
 
 ### GitHub Actions (CI/CD)
 
 - **main** 브랜치에 push 시 자동 배포
 - Railway: 백엔드 자동 재배포
 - Vercel: 프론트엔드 자동 재배포
+
+### 데이터 마이그레이션 (로컬 → 프로덕션)
+
+로컬 SQLite 데이터를 프로덕션 PostgreSQL로 마이그레이션하려면:
+
+1. **마이그레이션 스크립트 준비**
+   ```bash
+   # migrate_to_production.py 파일 확인
+   # LOCAL_DB_URL과 PROD_DB_URL이 올바른지 확인
+   ```
+
+2. **Railway PostgreSQL 공용 URL 확인**
+   - Railway 대시보드 → PostgreSQL 서비스 → **Networking** → **Public Networking**
+   - 연결 문자열을 `migrate_to_production.py`의 `PROD_DB_URL`에 입력
+
+3. **마이그레이션 실행**
+   ```bash
+   python migrate_to_production.py
+   ```
+
+4. **결과 확인**
+   ```bash
+   # 시스템 상태 API로 확인
+   curl -H "X-API-Key: your_password" https://ai-trend-tracker-production.up.railway.app/api/v1/system/status
+   ```
+
+   - 중복 항목은 자동으로 건너뛰기
+   - 새 항목만 추가됨
 
 ---
 
@@ -600,9 +636,22 @@ DATABASE_URL=sqlite+aiosqlite:////Users/username/path/to/project/ai_trends.db
 
 ### "Failed to fetch" 프론트엔드 오류
 
+#### 로컬 개발 환경:
 1. **백엔드가 실행 중인지 확인**: http://localhost:8000/docs
 2. **CORS 설정 확인**: `app/main.py`의 CORS 설정
-3. **API 키 확인**: `web/vite.config.js`의 프록시 설정
+3. **API 프록시 확인**: `web/vite.config.js`의 프록시 설정
+
+#### 프로덕션 환경 (Vercel):
+1. **Vercel 환경 변수 미설정** (가장 흔한 원인!):
+   - Vercel 대시보드 → **Settings** → **Environment Variables**
+   - `VITE_API_URL`과 `VITE_API_KEY` 추가
+   - **Redeploy** 실행
+
+2. **백엔드 URL 확인**:
+   - Railway 백엔드가 실행 중인지 확인: https://ai-trend-tracker-production.up.railway.app/docs
+
+3. **CORS 설정 확인**:
+   - Railway 환경 변수에 프론트엔드 도메인 추가 (필요 시)
 
 ---
 
@@ -720,6 +769,29 @@ MIT License - 자유롭게 사용, 수정, 배포 가능합니다.
 
 ---
 
-**마지막 업데이트**: 2026-02-01
+**마지막 업데이트**: 2026-02-02
 
 **버전**: 0.2.0
+
+---
+
+## 🎯 현재 상태 (2026-02-02)
+
+### ✅ 완료된 작업
+- ✅ 11개 AI 트렌드 카테고리 완전 구현
+- ✅ Railway 백엔드 배포 완료 (PostgreSQL 포함)
+- ✅ Vercel 프론트엔드 배포 준비 완료
+- ✅ 로컬 SQLite → 프로덕션 PostgreSQL 데이터 마이그레이션 완료 (163개 항목)
+- ✅ 매일 자정 자동 데이터 수집 스케줄러
+- ✅ 로깅 시스템 (Rotating File Handler)
+- ✅ 실제 데이터 소스 연동 (RemoteOK, TechCrunch RSS, AI News 등)
+
+### 🚧 진행 중
+- 🚧 Vercel 환경 변수 설정 및 재배포
+- 🚧 프로덕션 프론트엔드 "Failed to fetch" 오류 수정
+
+### 📅 다음 단계
+- [ ] 모바일 앱 개발 (Android/iOS)
+- [ ] 키워드 클라우드 시각화
+- [ ] 검색 및 필터링 기능
+- [ ] 다크 모드
