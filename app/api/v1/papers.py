@@ -9,7 +9,7 @@ from app.schemas.paper import AIPaper, AIPaperList
 router = APIRouter()
 
 
-@router.get("/papers", response_model=AIPaperList)
+@router.get("/", response_model=AIPaperList)
 async def get_papers(
     skip: int = 0,
     limit: int = 20,
@@ -36,7 +36,7 @@ async def get_papers(
     return {"total": len(papers), "papers": papers}
 
 
-@router.get("/papers/{arxiv_id}", response_model=AIPaper)
+@router.get("/{arxiv_id}", response_model=AIPaper)
 async def get_paper(
     arxiv_id: str,
     db: AsyncSession = Depends(get_db),
