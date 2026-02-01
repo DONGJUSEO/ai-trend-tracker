@@ -10,7 +10,7 @@
 			loading = true;
 			const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 			const apiKey = import.meta.env.VITE_API_KEY || 'test1234';
-			const response = await fetch(`${apiUrl}/api/v1/papers/papers?limit=30`, {
+			const response = await fetch(`${apiUrl}/api/v1/papers/?limit=30`, {
 				headers: {
 					'X-API-Key': apiKey
 				}
