@@ -8,9 +8,11 @@
 	async function fetchPapers() {
 		try {
 			loading = true;
-			const response = await fetch('/api/v1/papers/papers?limit=30', {
+			const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+			const apiKey = import.meta.env.VITE_API_KEY || 'test1234';
+			const response = await fetch(`${apiUrl}/api/v1/papers/papers?limit=30`, {
 				headers: {
-					'X-API-Key': 'test1234'
+					'X-API-Key': apiKey
 				}
 			});
 

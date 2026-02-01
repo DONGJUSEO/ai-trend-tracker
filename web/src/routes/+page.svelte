@@ -9,14 +9,16 @@
 	async function fetchDashboardData() {
 		try {
 			loading = true;
+			const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+			const apiKey = import.meta.env.VITE_API_KEY || 'test1234';
 
 			// Fetch system status and keywords in parallel
 			const [statusResponse, keywordsResponse] = await Promise.all([
-				fetch('/api/v1/system/status', {
-					headers: { 'X-API-Key': 'test1234' }
+				fetch(`${apiUrl}/api/v1/system/status`, {
+					headers: { 'X-API-Key': apiKey }
 				}),
-				fetch('/api/v1/system/keywords?limit=30', {
-					headers: { 'X-API-Key': 'test1234' }
+				fetch(`${apiUrl}/api/v1/system/keywords?limit=30`, {
+					headers: { 'X-API-Key': apiKey }
 				})
 			]);
 
