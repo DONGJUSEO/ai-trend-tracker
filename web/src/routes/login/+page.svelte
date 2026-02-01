@@ -37,7 +37,7 @@
 		<div class="mb-6 flex justify-center">
 			<div class="bg-white px-8 py-4 rounded-lg shadow-lg">
 				<img
-					src="/images/hyundai-rotem-logo.svg"
+					src="/images/hyundai-rotem-logo.png"
 					alt="Hyundai Rotem"
 					class="h-14 md:h-16 object-contain"
 					on:error={(e) => {

@@ -175,7 +175,7 @@
 			<div class="mb-4 flex justify-center">
 				<div class="bg-white px-6 py-3 rounded-lg shadow-lg">
 					<img
-						src="/images/hyundai-rotem-logo.svg"
+						src="/images/hyundai-rotem-logo.png"
 						alt="Hyundai Rotem"
 						class="h-10 object-contain"
 						on:error={(e) => {
