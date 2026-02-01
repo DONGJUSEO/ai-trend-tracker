@@ -5,6 +5,8 @@
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 
+	let sidebarOpen = false; // 모바일 사이드바 토글 상태
+
 	const navItems = [
 		{
 			name: '대시보드',
@@ -166,9 +168,17 @@
 	<!-- 로그인 페이지는 레이아웃 없이 -->
 	<slot />
 {:else}
-	<div class="flex h-screen bg-gray-50">
+	<div class="flex h-screen bg-gray-50 overflow-hidden">
+		<!-- Mobile Overlay -->
+		{#if sidebarOpen}
+			<div
+				class="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+				on:click={() => sidebarOpen = false}
+			></div>
+		{/if}
+
 		<!-- Sidebar -->
-		<aside class="w-72 bg-white shadow-lg flex flex-col border-r border-gray-200">
+		<aside class="fixed md:static inset-y-0 left-0 z-50 w-72 bg-white shadow-lg flex flex-col border-r border-gray-200 transform transition-transform duration-300 ease-in-out {sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}">
 			<!-- Logo & Title -->
 			<div class="p-6 border-b border-gray-200 bg-gradient-to-r from-slate-700 to-gray-800">
 			<!-- Hyundai Rotem Logo -->
@@ -199,6 +209,7 @@
 				{#each navItems as item}
 					<a
 						href={item.path}
+						on:click={() => sidebarOpen = false}
 						class="group mb-2 flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 {$page.url.pathname === item.path
 							? 'bg-gradient-to-r ' + item.color + ' text-white shadow-lg transform scale-105'
 							: 'text-gray-700 hover:bg-gray-100 hover:shadow-md'}"
@@ -241,27 +252,39 @@
 		<!-- Main Content -->
 		<main class="flex-1 flex flex-col overflow-hidden bg-gray-50">
 			<!-- Top Header Bar -->
-			<div class="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center shadow-sm">
-				<div>
-					<h2 class="text-2xl font-bold text-gray-900">
+			<div class="bg-white border-b border-gray-200 px-4 md:px-8 py-4 md:py-5 flex justify-between items-center shadow-sm">
+				<div class="flex items-center gap-3">
+					<!-- Hamburger Menu Button (Mobile Only) -->
+					<button
+						on:click={() => sidebarOpen = !sidebarOpen}
+						class="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+						aria-label="메뉴"
+					>
+						<svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+						</svg>
+					</button>
+
+					<h2 class="text-xl md:text-2xl font-bold text-gray-900">
 						{navItems.find(item => item.path === $page.url.pathname)?.name || '대시보드'}
 					</h2>
 				</div>
 
 				<button
 					on:click={handleRefresh}
-					class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl transition-all duration-200 shadow-md hover:shadow-lg"
+					class="flex items-center gap-2 px-3 md:px-5 py-2 md:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl transition-all duration-200 shadow-md hover:shadow-lg text-sm md:text-base"
 				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
 					</svg>
-					<span>새로고침</span>
+					<span class="hidden sm:inline">새로고침</span>
+					<span class="sm:hidden">↻</span>
 				</button>
 			</div>
 
 			<!-- Content Area -->
 			<div class="flex-1 overflow-auto">
-				<div class="p-8">
+				<div class="p-4 md:p-8">
 					<slot />
 				</div>
 			</div>
