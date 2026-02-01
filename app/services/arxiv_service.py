@@ -12,7 +12,7 @@ from app.schemas.paper import AIPaperCreate
 class ArxivService:
     """arXiv API 서비스 (API 키 불필요)"""
 
-    BASE_URL = "http://export.arxiv.org/api/query"
+    BASE_URL = "https://export.arxiv.org/api/query"
 
     async def search_ai_papers(
         self,
