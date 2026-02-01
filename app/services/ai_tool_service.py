@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
 from app.models.ai_tool import AITool
-from app.config import settings
+from app.config import get_settings
 
 
 class AIToolService:
