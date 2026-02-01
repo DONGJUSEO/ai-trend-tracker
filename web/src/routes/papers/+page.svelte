@@ -8,7 +8,7 @@
 	async function fetchPapers() {
 		try {
 			loading = true;
-			const response = await fetch('/api/v1/papers?limit=30', {
+			const response = await fetch('/api/v1/papers/papers?limit=30', {
 				headers: {
 					'X-API-Key': 'test1234'
 				}

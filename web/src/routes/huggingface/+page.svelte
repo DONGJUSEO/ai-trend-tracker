@@ -8,7 +8,7 @@
 	async function fetchModels() {
 		try {
 			loading = true;
-			const response = await fetch('/api/v1/huggingface/models?limit=30', {
+			const response = await fetch('/api/v1/huggingface/?page=1&page_size=30', {
 				headers: {
 					'X-API-Key': 'test1234'
 				}
@@ -17,7 +17,7 @@
 			if (!response.ok) throw new Error('Failed to fetch models');
 
 			const data = await response.json();
-			models = data.models || [];
+			models = data.items || [];
 		} catch (e) {
 			error = e.message;
 		} finally {

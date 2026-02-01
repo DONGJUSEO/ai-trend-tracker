@@ -8,7 +8,7 @@
 	async function fetchNews() {
 		try {
 			loading = true;
-			const response = await fetch('/api/v1/news?limit=30', {
+			const response = await fetch('/api/v1/news/news?limit=30', {
 				headers: {
 					'X-API-Key': 'test1234'
 				}
