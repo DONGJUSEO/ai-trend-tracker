@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # FastAPI 백엔드
+  api:
+    build: .
+    container_name: ai-trend-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ai_trends
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+    depends_on:
+      - db
+      - redis
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - ai-trend-network
+
+  # PostgreSQL 데이터베이스
+  db:
+    image: postgres:15-alpine
+    container_name: ai-trend-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ai_trends
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ai-trend-network
+
+  # Redis (캐싱 & 작업 큐)
+  redis:
+    image: redis:7-alpine
+    container_name: ai-trend-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ai-trend-network
+
+  # pgAdmin (데이터베이스 관리 툴 - 선택사항)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ai-trend-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - ai-trend-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  ai-trend-network:
+    driver: bridge
