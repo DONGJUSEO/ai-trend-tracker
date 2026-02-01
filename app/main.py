@@ -68,8 +68,8 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)  # 압축
 allowed_origins = [
     "http://localhost:5173",  # 개발 환경
     "http://localhost:3000",
-    "https://*.vercel.app",  # Vercel 배포
-    "https://*.railway.app",  # Railway 배포
+    "https://ai-trend-tracker-beta.vercel.app",  # Vercel 프론트엔드
+    "https://ai-trend-tracker-production.up.railway.app",  # Railway 백엔드
 ]
 
 # DEBUG 모드가 아닐 때는 특정 origin만 허용
