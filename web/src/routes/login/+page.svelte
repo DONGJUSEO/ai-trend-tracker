@@ -36,7 +36,7 @@
 			<!-- Hyundai Rotem Logo -->
 			<div class="mb-6 flex justify-center">
 				<img
-					src="/images/hyundai-rotem-logo.png"
+					src="/images/hyundai-rotem-logo.svg"
 					alt="Hyundai Rotem"
 					class="h-16 md:h-20 object-contain"
 					on:error={(e) => {

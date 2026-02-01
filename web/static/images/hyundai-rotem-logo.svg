@@ -1,0 +1,14 @@
+<svg width="400" height="120" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- HYUNDAI 텍스트 -->
+  <text x="20" y="45" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#002C5F">
+    HYUNDAI
+  </text>
+
+  <!-- 빨간색 사선 -->
+  <path d="M 320 15 L 380 60" stroke="#E60012" stroke-width="25" stroke-linecap="round"/>
+
+  <!-- Rotem 텍스트 -->
+  <text x="145" y="95" font-family="Arial, sans-serif" font-size="48" font-weight="900" fill="#002C5F">
+    Rotem
+  </text>
+</svg>

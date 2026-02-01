@@ -126,7 +126,7 @@
 				<!-- Hyundai Rotem Logo -->
 				<div class="mb-4 flex justify-center">
 					<img
-						src="/images/hyundai-rotem-logo.png"
+						src="/images/hyundai-rotem-logo.svg"
 						alt="Hyundai Rotem"
 						class="h-12 object-contain"
 						on:error={(e) => {
