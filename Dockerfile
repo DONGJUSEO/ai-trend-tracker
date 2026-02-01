@@ -19,6 +19,8 @@ COPY . .
 # 포트 노출
 EXPOSE 8000
 
+# start.sh에 실행 권한 부여
+RUN chmod +x start.sh
+
 # 애플리케이션 실행
-# Railway의 Custom Start Command를 사용하므로 CMD는 주석 처리
-# CMD는 Railway Settings의 "Custom Start Command"에서 설정됨
+CMD ["./start.sh"]
