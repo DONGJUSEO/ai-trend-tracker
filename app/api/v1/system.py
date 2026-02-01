@@ -13,6 +13,12 @@ from app.models.github import GitHubProject
 from app.models.youtube import YouTubeVideo
 from app.models.paper import AIPaper
 from app.models.news import AINews
+from app.models.conference import AIConference
+from app.models.ai_tool import AITool
+from app.models.leaderboard import AILeaderboard
+from app.models.job_trend import AIJobTrend
+from app.models.policy import AIPolicy
+from app.models.startup import AIStartup
 
 router = APIRouter()
 
@@ -183,6 +189,180 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
             "error": str(e)
         }
 
+    # AI Conferences
+    try:
+        conf_count = await db.execute(select(func.count()).select_from(AIConference))
+        conf_total = conf_count.scalar()
+
+        conf_latest = await db.execute(
+            select(AIConference.created_at)
+            .order_by(AIConference.created_at.desc())
+            .limit(1)
+        )
+        conf_last_update = conf_latest.scalar_one_or_none()
+
+        categories_status["conferences"] = {
+            "name": "AI 컨퍼런스",
+            "icon": "📅",
+            "total": conf_total,
+            "last_update": conf_last_update.isoformat() if conf_last_update else None,
+            "status": "healthy" if conf_total > 0 else "no_data"
+        }
+    except Exception as e:
+        categories_status["conferences"] = {
+            "name": "AI 컨퍼런스",
+            "icon": "📅",
+            "total": 0,
+            "last_update": None,
+            "status": "error",
+            "error": str(e)
+        }
+
+    # AI Tools
+    try:
+        tool_count = await db.execute(select(func.count()).select_from(AITool))
+        tool_total = tool_count.scalar()
+
+        tool_latest = await db.execute(
+            select(AITool.created_at)
+            .order_by(AITool.created_at.desc())
+            .limit(1)
+        )
+        tool_last_update = tool_latest.scalar_one_or_none()
+
+        categories_status["tools"] = {
+            "name": "AI 도구",
+            "icon": "🛠️",
+            "total": tool_total,
+            "last_update": tool_last_update.isoformat() if tool_last_update else None,
+            "status": "healthy" if tool_total > 0 else "no_data"
+        }
+    except Exception as e:
+        categories_status["tools"] = {
+            "name": "AI 도구",
+            "icon": "🛠️",
+            "total": 0,
+            "last_update": None,
+            "status": "error",
+            "error": str(e)
+        }
+
+    # AI Leaderboards
+    try:
+        lb_count = await db.execute(select(func.count()).select_from(AILeaderboard))
+        lb_total = lb_count.scalar()
+
+        lb_latest = await db.execute(
+            select(AILeaderboard.created_at)
+            .order_by(AILeaderboard.created_at.desc())
+            .limit(1)
+        )
+        lb_last_update = lb_latest.scalar_one_or_none()
+
+        categories_status["leaderboards"] = {
+            "name": "AI 리더보드",
+            "icon": "🏆",
+            "total": lb_total,
+            "last_update": lb_last_update.isoformat() if lb_last_update else None,
+            "status": "healthy" if lb_total > 0 else "no_data"
+        }
+    except Exception as e:
+        categories_status["leaderboards"] = {
+            "name": "AI 리더보드",
+            "icon": "🏆",
+            "total": 0,
+            "last_update": None,
+            "status": "error",
+            "error": str(e)
+        }
+
+    # AI Jobs
+    try:
+        job_count = await db.execute(select(func.count()).select_from(AIJobTrend))
+        job_total = job_count.scalar()
+
+        job_latest = await db.execute(
+            select(AIJobTrend.created_at)
+            .order_by(AIJobTrend.created_at.desc())
+            .limit(1)
+        )
+        job_last_update = job_latest.scalar_one_or_none()
+
+        categories_status["jobs"] = {
+            "name": "AI 채용",
+            "icon": "💼",
+            "total": job_total,
+            "last_update": job_last_update.isoformat() if job_last_update else None,
+            "status": "healthy" if job_total > 0 else "no_data"
+        }
+    except Exception as e:
+        categories_status["jobs"] = {
+            "name": "AI 채용",
+            "icon": "💼",
+            "total": 0,
+            "last_update": None,
+            "status": "error",
+            "error": str(e)
+        }
+
+    # AI Policies
+    try:
+        policy_count = await db.execute(select(func.count()).select_from(AIPolicy))
+        policy_total = policy_count.scalar()
+
+        policy_latest = await db.execute(
+            select(AIPolicy.created_at)
+            .order_by(AIPolicy.created_at.desc())
+            .limit(1)
+        )
+        policy_last_update = policy_latest.scalar_one_or_none()
+
+        categories_status["policies"] = {
+            "name": "AI 정책",
+            "icon": "📜",
+            "total": policy_total,
+            "last_update": policy_last_update.isoformat() if policy_last_update else None,
+            "status": "healthy" if policy_total > 0 else "no_data"
+        }
+    except Exception as e:
+        categories_status["policies"] = {
+            "name": "AI 정책",
+            "icon": "📜",
+            "total": 0,
+            "last_update": None,
+            "status": "error",
+            "error": str(e)
+        }
+
+    # AI Startups
+    try:
+        startup_count = await db.execute(select(func.count()).select_from(AIStartup))
+        startup_total = startup_count.scalar()
+
+        startup_latest = await db.execute(
+            select(AIStartup.created_at)
+            .order_by(AIStartup.created_at.desc())
+            .limit(1)
+        )
+        startup_last_update = startup_latest.scalar_one_or_none()
+
+        categories_status["startups"] = {
+            "name": "AI 스타트업",
+            "icon": "🚀",
+            "total": startup_total,
+            "last_update": startup_last_update.isoformat() if startup_last_update else None,
+            "status": "healthy" if startup_total > 0 else "no_data"
+        }
+    except Exception as e:
+        categories_status["startups"] = {
+            "name": "AI 스타트업",
+            "icon": "🚀",
+            "total": 0,
+            "last_update": None,
+            "status": "error",
+            "error": str(e)
+        }
+
     # Overall system status
     total_items = sum(cat.get("total", 0) for cat in categories_status.values())
     healthy_categories = sum(1 for cat in categories_status.values() if cat.get("status") == "healthy")
@@ -273,6 +453,84 @@ async def get_keywords(
             ).limit(100)
         )
         for row in news_result.scalars():
+            if row and isinstance(row, list):
+                all_keywords.extend(row)
+    except Exception:
+        pass
+
+    # AI Conference keywords
+    try:
+        conf_result = await db.execute(
+            select(AIConference.topics).where(
+                AIConference.topics.isnot(None)
+            ).limit(100)
+        )
+        for row in conf_result.scalars():
+            if row and isinstance(row, list):
+                all_keywords.extend(row)
+    except Exception:
+        pass
+
+    # AI Tool keywords
+    try:
+        tool_result = await db.execute(
+            select(AITool.key_features).where(
+                AITool.key_features.isnot(None)
+            ).limit(100)
+        )
+        for row in tool_result.scalars():
+            if row and isinstance(row, list):
+                all_keywords.extend(row)
+    except Exception:
+        pass
+
+    # AI Leaderboard keywords
+    try:
+        lb_result = await db.execute(
+            select(AILeaderboard.keywords).where(
+                AILeaderboard.keywords.isnot(None)
+            ).limit(100)
+        )
+        for row in lb_result.scalars():
+            if row and isinstance(row, list):
+                all_keywords.extend(row)
+    except Exception:
+        pass
+
+    # AI Job keywords
+    try:
+        job_result = await db.execute(
+            select(AIJobTrend.required_skills).where(
+                AIJobTrend.required_skills.isnot(None)
+            ).limit(100)
+        )
+        for row in job_result.scalars():
+            if row and isinstance(row, list):
+                all_keywords.extend(row)
+    except Exception:
+        pass
+
+    # AI Policy keywords
+    try:
+        policy_result = await db.execute(
+            select(AIPolicy.impact_areas).where(
+                AIPolicy.impact_areas.isnot(None)
+            ).limit(100)
+        )
+        for row in policy_result.scalars():
+            if row and isinstance(row, list):
+                all_keywords.extend(row)
+    except Exception:
+        pass
+
+    # AI Startup keywords
+    try:
+        startup_result = await db.execute(
+            select(AIStartup.industry_tags).where(
+                AIStartup.industry_tags.isnot(None)
+            ).limit(100)
+        )
+        for row in startup_result.scalars():
             if row and isinstance(row, list):
                 all_keywords.extend(row)
     except Exception:
