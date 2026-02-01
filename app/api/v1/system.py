@@ -672,7 +672,7 @@ async def list_log_files() -> Dict[str, Any]:
 @router.post("/collect")
 async def trigger_data_collection(background_tasks: BackgroundTasks) -> Dict[str, Any]:
     """
-    수동으로 전체 데이터 수집 트리거
+    수동으로 전체 데이터 수집 트리거 (백그라운드)
 
     - 모든 카테고리의 데이터를 즉시 수집합니다
     - 이 작업은 1-2분 정도 소요됩니다
@@ -687,3 +687,31 @@ async def trigger_data_collection(background_tasks: BackgroundTasks) -> Dict[str
         "message": "데이터 수집이 시작되었습니다. 1-2분 후 시스템 상태를 확인하세요.",
         "timestamp": datetime.utcnow().isoformat()
     }
+
+
+@router.post("/collect/sync")
+async def trigger_data_collection_sync() -> Dict[str, Any]:
+    """
+    수동으로 전체 데이터 수집 트리거 (동기 - 완료까지 대기)
+
+    - 모든 카테고리의 데이터를 즉시 수집합니다
+    - 완료될 때까지 대기하므로 1-2분 소요됩니다
+    - 에러 발생 시 즉시 확인 가능합니다
+    """
+
+    try:
+        # 동기적으로 실행 (완료까지 대기)
+        await collect_all_data()
+
+        return {
+            "status": "completed",
+            "message": "데이터 수집이 완료되었습니다.",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"데이터 수집 중 오류 발생: {str(e)}",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e)
+        }
