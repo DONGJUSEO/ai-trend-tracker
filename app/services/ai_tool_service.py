@@ -25,7 +25,7 @@ class AIToolService:
     ]
 
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or getattr(settings, "product_hunt_api_key", "")
+        self.api_key = api_key or getattr(get_settings(), "product_hunt_api_key", "")
 
     async def fetch_trending_tools(self, max_results: int = 30) -> List[Dict[str, Any]]:
         """
