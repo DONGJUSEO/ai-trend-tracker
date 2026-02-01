@@ -36,7 +36,7 @@
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-3xl font-bold text-white flex items-center gap-3">
+			<h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
 				<span class="text-4xl">⭐</span>
 				GitHub 트렌딩 프로젝트
 			</h1>

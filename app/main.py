@@ -8,9 +8,11 @@ from starlette.responses import Response
 
 from app.config import get_settings
 from app.database import init_db
-from app.api.v1 import huggingface, collect, scheduler, youtube, papers, news, github, system, conferences, tools
+from app.api.v1 import huggingface, collect, scheduler, youtube, papers, news, github, system, conferences, tools, leaderboard, jobs, policies, startups
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.auth import verify_api_key
+from app.logging_config import setup_logging
+import logging
 
 settings = get_settings()
 
@@ -32,18 +34,22 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """애플리케이션 시작/종료 시 실행되는 이벤트"""
+    # 로깅 시스템 초기화
+    setup_logging()
+    logger = logging.getLogger(__name__)
+
     # 시작 시: 데이터베이스 초기화 및 스케줄러 시작
     await init_db()
-    print("✅ 데이터베이스 초기화 완료")
+    logger.info("✅ 데이터베이스 초기화 완료")
 
     start_scheduler()
-    print("✅ 스케줄러 시작 완료")
+    logger.info("✅ 스케줄러 시작 완료")
 
     yield
 
     # 종료 시: 스케줄러 정리
     stop_scheduler()
-    print("👋 애플리케이션 종료")
+    logger.info("👋 애플리케이션 종료")
 
 
 # FastAPI 앱 생성
@@ -165,6 +171,34 @@ app.include_router(
     conferences.router,
     prefix="/api/v1/conferences",
     tags=["AI Conferences"],
+    dependencies=[Depends(verify_api_key)],
+)
+
+app.include_router(
+    jobs.router,
+    prefix="/api/v1/jobs",
+    tags=["AI Jobs"],
+    dependencies=[Depends(verify_api_key)],
+)
+
+app.include_router(
+    policies.router,
+    prefix="/api/v1/policies",
+    tags=["AI Policies"],
+    dependencies=[Depends(verify_api_key)],
+)
+
+app.include_router(
+    startups.router,
+    prefix="/api/v1/startups",
+    tags=["AI Startups"],
+    dependencies=[Depends(verify_api_key)],
+)
+
+app.include_router(
+    leaderboard.router,
+    prefix="/api/v1/leaderboards",
+    tags=["AI Leaderboards"],
     dependencies=[Depends(verify_api_key)],
 )
 

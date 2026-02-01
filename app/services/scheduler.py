@@ -1,8 +1,10 @@
 """스케줄러 서비스 - 정기적 데이터 수집"""
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 import asyncio
+import logging
 
 from app.config import get_settings
 from app.database import AsyncSessionLocal
@@ -467,19 +469,19 @@ async def collect_all_data():
 
 def start_scheduler():
     """스케줄러 시작"""
-    # 수집 작업 스케줄 등록
-    interval_hours = settings.scheduler_interval_hours
+    logger = logging.getLogger(__name__)
 
-    # 통합 수집 작업 (Hugging Face + YouTube + Papers)
+    # 매일 자정(00:00)에 전체 데이터 수집
     scheduler.add_job(
         collect_all_data,
-        trigger=IntervalTrigger(hours=interval_hours),
+        trigger=CronTrigger(hour=0, minute=0),  # 매일 00:00
         id="collect_all_data",
         name="전체 AI 트렌드 데이터 수집",
         replace_existing=True,
     )
 
-    print(f"⏰ 스케줄러 시작: {interval_hours}시간마다 전체 데이터 수집 (HuggingFace + YouTube + Papers + News + GitHub)")
+    logger.info("⏰ 스케줄러 시작: 매일 00:00에 전체 데이터 수집 (HuggingFace + YouTube + Papers + News + GitHub)")
+    print("⏰ 스케줄러 시작: 매일 00:00에 전체 데이터 수집")
     scheduler.start()
 
 

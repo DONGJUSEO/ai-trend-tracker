@@ -1,10 +1,11 @@
 """시스템 상태 API 엔드포인트"""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
 from datetime import datetime
 from typing import Dict, Any, List
 from collections import Counter
+from pathlib import Path
 
 from app.database import get_db
 from app.models.huggingface import HuggingFaceModel
@@ -310,4 +311,99 @@ async def get_keywords(
         "unique_keywords": len(keyword_counts),
         "top_keywords": top_keywords,
         "all_keywords": all_keywords_normalized[:limit]
+    }
+
+
+@router.get("/logs")
+async def get_logs(
+    log_type: str = Query("app", description="로그 타입: app, error, collection"),
+    lines: int = Query(100, ge=1, le=1000, description="읽을 라인 수"),
+) -> Dict[str, Any]:
+    """
+    로그 파일 내용 조회
+
+    - **log_type**: 로그 타입 (app, error, collection)
+    - **lines**: 읽을 라인 수 (기본값: 100, 최대: 1000)
+    """
+
+    # 로그 파일 경로 매핑
+    log_files = {
+        "app": Path("logs/app.log"),
+        "error": Path("logs/error.log"),
+        "collection": Path("logs/collection.log")
+    }
+
+    if log_type not in log_files:
+        raise HTTPException(status_code=400, detail=f"Invalid log type. Must be one of: {', '.join(log_files.keys())}")
+
+    log_file = log_files[log_type]
+
+    if not log_file.exists():
+        return {
+            "log_type": log_type,
+            "file_path": str(log_file),
+            "exists": False,
+            "lines": [],
+            "total_lines": 0,
+            "message": "로그 파일이 아직 생성되지 않았습니다."
+        }
+
+    try:
+        # 파일의 마지막 N줄 읽기
+        with open(log_file, 'r', encoding='utf-8') as f:
+            all_lines = f.readlines()
+
+        # 마지막 N줄만 가져오기
+        recent_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+
+        return {
+            "log_type": log_type,
+            "file_path": str(log_file),
+            "exists": True,
+            "lines": [line.rstrip() for line in recent_lines],
+            "total_lines": len(all_lines),
+            "returned_lines": len(recent_lines),
+            "file_size_kb": round(log_file.stat().st_size / 1024, 2)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"로그 읽기 실패: {str(e)}")
+
+
+@router.get("/logs/list")
+async def list_log_files() -> Dict[str, Any]:
+    """
+    사용 가능한 로그 파일 목록 조회
+    """
+
+    logs_dir = Path("logs")
+
+    if not logs_dir.exists():
+        return {
+            "logs_directory": str(logs_dir),
+            "exists": False,
+            "log_files": []
+        }
+
+    log_files = []
+    for log_file in logs_dir.glob("*.log*"):
+        try:
+            stat = log_file.stat()
+            log_files.append({
+                "filename": log_file.name,
+                "path": str(log_file),
+                "size_kb": round(stat.st_size / 1024, 2),
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
+            })
+        except Exception:
+            continue
+
+    # 수정 시간 기준으로 정렬 (최신순)
+    log_files.sort(key=lambda x: x["modified"], reverse=True)
+
+    return {
+        "logs_directory": str(logs_dir.absolute()),
+        "exists": True,
+        "total_files": len(log_files),
+        "log_files": log_files
     }
