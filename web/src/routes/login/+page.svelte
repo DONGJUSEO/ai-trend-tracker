@@ -29,7 +29,7 @@
 	<title>로그인 - AI Trend Tracker</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 flex items-center justify-center p-4">
+<div class="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-slate-200 flex items-center justify-center p-4">
 	<div class="max-w-md w-full">
 		<!-- Logo & Title -->
 		<div class="text-center mb-8">
@@ -54,17 +54,17 @@
 			</div>
 		</div>
 
-			<h1 class="text-4xl font-bold text-white mb-2">AI Trend Tracker</h1>
-			<p class="text-blue-200">AI 트렌드를 한눈에 보는 큐레이션 서비스</p>
+			<h1 class="text-4xl font-bold text-gray-900 mb-2">AI Trend Tracker</h1>
+			<p class="text-gray-600">AI 트렌드를 한눈에 보는 큐레이션 서비스</p>
 		</div>
 
 		<!-- Login Form -->
-		<div class="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8 shadow-2xl">
-			<h2 class="text-2xl font-bold text-white mb-6">로그인</h2>
+		<div class="bg-white border border-gray-200 rounded-2xl p-8 shadow-2xl">
+			<h2 class="text-2xl font-bold text-gray-900 mb-6">로그인</h2>
 
 			<form on:submit={handleLogin} class="space-y-4">
 				<div>
-					<label for="password" class="block text-sm font-medium text-blue-100 mb-2">
+					<label for="password" class="block text-sm font-medium text-gray-700 mb-2">
 						비밀번호
 					</label>
 					<input
@@ -72,14 +72,14 @@
 						id="password"
 						bind:value={password}
 						placeholder="비밀번호를 입력하세요"
-						class="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-300/50 backdrop-blur"
+						class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50"
 						required
 					/>
 				</div>
 
 				{#if error}
-					<div class="bg-red-500/20 border border-red-400/50 rounded-lg p-3 backdrop-blur">
-						<p class="text-red-100 text-sm">❌ {error}</p>
+					<div class="bg-red-50 border border-red-300 rounded-lg p-3">
+						<p class="text-red-600 font-semibold text-sm">❌ {error}</p>
 					</div>
 				{/if}
 
@@ -92,8 +92,8 @@
 				</button>
 			</form>
 
-			<div class="mt-6 pt-6 border-t border-white/20">
-				<p class="text-sm text-blue-200 text-center">
+			<div class="mt-6 pt-6 border-t border-gray-200">
+				<p class="text-sm text-gray-600 text-center">
 					💡 관리자에게 비밀번호를 문의하세요
 				</p>
 			</div>
@@ -101,7 +101,7 @@
 
 		<!-- Footer -->
 		<div class="text-center mt-8">
-			<p class="text-sm text-blue-200">
+			<p class="text-sm text-gray-600">
 				Powered by AI Perspicio
 			</p>
 		</div>

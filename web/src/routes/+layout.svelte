@@ -61,7 +61,23 @@
 			color: 'from-cyan-600 to-blue-700',
 			bgColor: 'bg-cyan-100',
 			iconColor: 'text-cyan-600'
-		}
+		},
+	{
+		name: '컨퍼런스',
+		path: '/conferences',
+		svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />',
+		color: 'from-indigo-600 to-violet-600',
+		bgColor: 'bg-indigo-100',
+		iconColor: 'text-indigo-600'
+	},
+	{
+		name: 'AI 도구',
+		path: '/tools',
+		svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />',
+		color: 'from-teal-600 to-cyan-600',
+		bgColor: 'bg-teal-100',
+		iconColor: 'text-teal-600'
+	},
 	];
 
 	let isAuthenticated = false;
@@ -122,7 +138,7 @@
 		<!-- Sidebar -->
 		<aside class="w-72 bg-white shadow-lg flex flex-col border-r border-gray-200">
 			<!-- Logo & Title -->
-			<div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600">
+			<div class="p-6 border-b border-gray-200 bg-gradient-to-r from-slate-700 to-gray-800">
 			<!-- Hyundai Rotem Logo -->
 			<div class="mb-4 flex justify-center">
 				<div class="bg-white px-6 py-3 rounded-lg shadow-lg">

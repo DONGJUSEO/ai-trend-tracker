@@ -33,3 +33,4 @@ feedparser==6.0.11
 # 유틸리티
 aiofiles==24.1.0
 pydantic-core==2.41.5
+python-dateutil==2.9.0

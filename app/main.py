@@ -8,7 +8,7 @@ from starlette.responses import Response
 
 from app.config import get_settings
 from app.database import init_db
-from app.api.v1 import huggingface, collect, scheduler, youtube, papers, news, github, system
+from app.api.v1 import huggingface, collect, scheduler, youtube, papers, news, github, system, conferences, tools
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.auth import verify_api_key
 
@@ -158,6 +158,20 @@ app.include_router(
     system.router,
     prefix="/api/v1/system",
     tags=["System"],
+    dependencies=[Depends(verify_api_key)],
+)
+
+app.include_router(
+    conferences.router,
+    prefix="/api/v1/conferences",
+    tags=["AI Conferences"],
+    dependencies=[Depends(verify_api_key)],
+)
+
+app.include_router(
+    tools.router,
+    prefix="/api/v1/tools",
+    tags=["AI Tools"],
     dependencies=[Depends(verify_api_key)],
 )
 
