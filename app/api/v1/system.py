@@ -72,8 +72,8 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
         gh_total = gh_count.scalar()
 
         gh_latest = await db.execute(
-            select(GitHubProject.collected_at)
-            .order_by(GitHubProject.collected_at.desc())
+            select(GitHubProject.created_at)
+            .order_by(GitHubProject.created_at.desc())
             .limit(1)
         )
         gh_last_update = gh_latest.scalar_one_or_none()
@@ -101,8 +101,8 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
         yt_total = yt_count.scalar()
 
         yt_latest = await db.execute(
-            select(YouTubeVideo.collected_at)
-            .order_by(YouTubeVideo.collected_at.desc())
+            select(YouTubeVideo.created_at)
+            .order_by(YouTubeVideo.created_at.desc())
             .limit(1)
         )
         yt_last_update = yt_latest.scalar_one_or_none()
@@ -130,8 +130,8 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
         paper_total = paper_count.scalar()
 
         paper_latest = await db.execute(
-            select(AIPaper.collected_at)
-            .order_by(AIPaper.collected_at.desc())
+            select(AIPaper.created_at)
+            .order_by(AIPaper.created_at.desc())
             .limit(1)
         )
         paper_last_update = paper_latest.scalar_one_or_none()
@@ -159,8 +159,8 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
         news_total = news_count.scalar()
 
         news_latest = await db.execute(
-            select(AINews.collected_at)
-            .order_by(AINews.collected_at.desc())
+            select(AINews.created_at)
+            .order_by(AINews.created_at.desc())
             .limit(1)
         )
         news_last_update = news_latest.scalar_one_or_none()

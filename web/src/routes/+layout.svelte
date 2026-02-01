@@ -123,22 +123,25 @@
 		<aside class="w-72 bg-white shadow-lg flex flex-col border-r border-gray-200">
 			<!-- Logo & Title -->
 			<div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600">
-				<!-- Hyundai Rotem Logo -->
-				<div class="mb-4 flex justify-center">
+			<!-- Hyundai Rotem Logo -->
+			<div class="mb-4 flex justify-center">
+				<div class="bg-white px-6 py-3 rounded-lg shadow-lg">
 					<img
 						src="/images/hyundai-rotem-logo.svg"
 						alt="Hyundai Rotem"
-						class="h-12 object-contain"
+						class="h-10 object-contain"
 						on:error={(e) => {
 							e.target.style.display = 'none';
-							e.target.nextElementSibling.style.display = 'block';
+							e.target.parentElement.style.display = 'none';
+							e.target.parentElement.nextElementSibling.style.display = 'block';
 						}}
 					/>
-					<div style="display: none;" class="bg-white px-4 py-2 rounded-lg shadow-md">
-						<div class="text-lg font-bold text-blue-900">HYUNDAI</div>
-						<div class="text-2xl font-bold text-blue-800">Rotem</div>
-					</div>
 				</div>
+				<div style="display: none;" class="bg-white px-4 py-2 rounded-lg shadow-md">
+					<div class="text-lg font-bold text-blue-900">HYUNDAI</div>
+					<div class="text-2xl font-bold text-blue-800">Rotem</div>
+				</div>
+			</div>
 				<h1 class="text-2xl font-bold text-white">AI Trend Tracker</h1>
 				<p class="text-blue-100 text-sm mt-1">AI 트렌드 한눈에 보기</p>
 			</div>

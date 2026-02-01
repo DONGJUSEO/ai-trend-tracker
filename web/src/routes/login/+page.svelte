@@ -33,23 +33,26 @@
 	<div class="max-w-md w-full">
 		<!-- Logo & Title -->
 		<div class="text-center mb-8">
-			<!-- Hyundai Rotem Logo -->
-			<div class="mb-6 flex justify-center">
+		<!-- Hyundai Rotem Logo -->
+		<div class="mb-6 flex justify-center">
+			<div class="bg-white px-8 py-4 rounded-lg shadow-lg">
 				<img
 					src="/images/hyundai-rotem-logo.svg"
 					alt="Hyundai Rotem"
-					class="h-16 md:h-20 object-contain"
+					class="h-14 md:h-16 object-contain"
 					on:error={(e) => {
 						// Fallback to text if image not found
 						e.target.style.display = 'none';
-						e.target.nextElementSibling.style.display = 'block';
+						e.target.parentElement.style.display = 'none';
+						e.target.parentElement.nextElementSibling.style.display = 'block';
 					}}
 				/>
-				<div style="display: none;" class="bg-white px-8 py-4 rounded-lg shadow-lg">
-					<div class="text-3xl font-bold text-blue-900">HYUNDAI</div>
-					<div class="text-4xl font-bold text-blue-800">Rotem</div>
-				</div>
 			</div>
+			<div style="display: none;" class="bg-white px-8 py-4 rounded-lg shadow-lg">
+				<div class="text-3xl font-bold text-blue-900">HYUNDAI</div>
+				<div class="text-4xl font-bold text-blue-800">Rotem</div>
+			</div>
+		</div>
 
 			<h1 class="text-4xl font-bold text-white mb-2">AI Trend Tracker</h1>
 			<p class="text-blue-200">AI 트렌드를 한눈에 보는 큐레이션 서비스</p>
