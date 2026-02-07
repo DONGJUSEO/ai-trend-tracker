@@ -16,6 +16,7 @@ async def list_conferences(
     page_size: int = Query(20, ge=1, le=100, description="페이지당 항목 수"),
     upcoming: bool = Query(None, description="다가오는 컨퍼런스만 조회"),
     tier: str = Query(None, description="등급 필터 (A*, A, B)"),
+    year: int = Query(None, description="연도 필터 (예: 2026)"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -25,6 +26,7 @@ async def list_conferences(
     - **page_size**: 페이지당 항목 수 (최대 100)
     - **upcoming**: True시 다가오는 컨퍼런스만 반환
     - **tier**: 등급 필터 (A*, A, B)
+    - **year**: 연도 필터 (예: 2026)
     """
     query = select(AIConference)
 
@@ -34,6 +36,10 @@ async def list_conferences(
 
     if tier:
         query = query.where(AIConference.tier == tier)
+
+    # Phase 2: 연도 필터
+    if year is not None:
+        query = query.where(AIConference.year == year)
 
     # 총 개수 조회
     count_query = select(func.count()).select_from(query.subquery())

@@ -13,7 +13,18 @@ class NewsService:
     """AI 뉴스 RSS 피드 서비스"""
 
     # AI 관련 주요 RSS 피드 소스
+    # Phase 2: 한국 뉴스 소스 우선 배치
+    # Updated based on Gemini deep research (2026-02): ZDNet Korea RSS deprecated, added confirmed active feeds
     RSS_FEEDS = {
+        # ── 한국 AI 뉴스 소스 (우선) ──────────────────────
+        "전자신문": "https://rss.etnews.com/Section901.xml",
+        "전자신문 AI": "http://rss.etnews.com/04046.xml",  # AI-specific feed
+        "AI타임스": "https://www.aitimes.com/rss/allArticle.xml",
+        "블로터": "https://www.bloter.net/feed",  # fallback attempt
+        "데일리안": "https://www.dailian.co.kr/rss/all.xml",
+        "한국경제 IT": "https://www.hankyung.com/feed/it",
+        "매일경제 과학기술": "https://www.mk.co.kr/rss/30500001/",
+        # ── 글로벌 AI 뉴스 소스 ────────────────────────────
         "TechCrunch AI": "https://techcrunch.com/tag/artificial-intelligence/feed/",
         "VentureBeat AI": "https://venturebeat.com/category/ai/feed/",
         "MIT Technology Review AI": "https://www.technologyreview.com/topic/artificial-intelligence/feed",

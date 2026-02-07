@@ -1,980 +1,286 @@
-# AI Trend Tracker 🚀
+# Ain싸 - AI Trending
 
-> **11개 카테고리로 보는 AI 트렌드 큐레이션 서비스**
+> **9개 카테고리로 보는 AI 트렌드 큐레이션 서비스**
 
-실시간으로 AI 업계의 최신 트렌드를 자동 수집하고, AI가 요약한 정보를 한눈에 확인할 수 있는 웹 서비스입니다.
+AI 업계의 최신 트렌드를 자동 수집하고, Gemini AI로 한글 요약하여 제공하는 풀스택 웹 서비스입니다.
 
-**데모**: [프론트엔드](https://ai-trend-tracker-beta.vercel.app) | [백엔드 API](https://ai-trend-tracker-production.up.railway.app/docs)
+**Demo**: [프론트엔드](https://ai-trend-tracker-beta.vercel.app) | [백엔드 API](https://ai-trend-tracker-production.up.railway.app/docs)
 
 ---
 
-## 📋 프로젝트 개요
+## 프로젝트 개요
 
-AI 분야의 최신 트렌드를 11개 카테고리에서 자동으로 수집하고, Gemini AI로 요약하여 제공하는 풀스택 웹 애플리케이션입니다.
-
-### ✨ 11개 AI 트렌드 카테고리
+### 9개 AI 트렌드 카테고리
 
 | 카테고리 | 아이콘 | 설명 | 데이터 소스 |
 |---------|-------|------|-----------|
-| **Hugging Face 모델** | 🤗 | 최신 AI 모델 정보 및 성능 분석 | Hugging Face API |
-| **YouTube 영상** | 📺 | AI 관련 영상/쇼츠 요약 | YouTube Data API |
-| **AI 논문** | 📄 | arXiv 최신 논문 요약 | arXiv API |
-| **AI 뉴스** | 📰 | AI 업계 뉴스 및 블로그 | RSS Feeds |
-| **GitHub 프로젝트** | ⭐ | AI 오픈소스 트렌딩 프로젝트 | GitHub API |
-| **AI 리더보드** | 🏆 | 모델 벤치마크 순위 | Hugging Face Leaderboards |
-| **AI 도구** | 🛠️ | 신규 AI 도구 및 서비스 | Product Hunt, Web Scraping |
-| **AI 컨퍼런스** | 📅 | 학회, 세미나, 마감일 정보 | WikiCFP, AI Deadlines |
-| **AI 채용** | 💼 | AI/ML 직무 채용 공고 | RemoteOK API, RSS |
-| **AI 정책/규제** | 📜 | 정부 정책 및 규제 동향 | 정부 RSS, AI News |
-| **AI 스타트업/투자** | 🚀 | 펀딩 뉴스 및 투자 동향 | TechCrunch RSS |
+| **Hugging Face** | 🤗 | 최신 AI 모델 트렌드, 태스크별 분류 | Hugging Face API |
+| **YouTube** | 📺 | 큐레이팅된 AI 유튜버 채널 영상 요약 | YouTube Data API |
+| **AI 논문** | 📄 | arXiv 최신 논문 한글 요약 | arXiv API |
+| **AI 뉴스** | 📰 | 한국 뉴스 중심 (전자신문, AI타임스 등) | RSS Feeds |
+| **GitHub** | 💻 | 3개월 이내 AI 오픈소스 트렌딩 | GitHub API |
+| **컨퍼런스** | 🎤 | 2026년 AI 학회/세미나 캘린더 | WikiCFP, AI Deadlines |
+| **AI 플랫폼** | 🤖 | ChatGPT, Gemini, Claude 등 주요 서비스 | 구조화 데이터 |
+| **AI 채용** | 💼 | AI/ML 채용 공고 (직무별/지역별) | RemoteOK API, RSS |
+| **AI 정책** | 📜 | 한국/EU/미국/중국 AI 정책 동향 | 정부 RSS, AI News |
 
-### 🎯 주요 기능
+### 주요 기능
 
-- ⏰ **자동 수집**: 매일 자정(00:00)에 자동으로 최신 데이터 수집
-- 🤖 **AI 요약**: Google Gemini API로 한글 요약 자동 생성
-- 🔍 **키워드 추출**: 모든 카테고리에서 주요 키워드 자동 추출
-- 📊 **시스템 상태**: 실시간 데이터 수집 상태 및 통계 확인
-- 📝 **로깅 시스템**: 앱, 에러, 수집 로그 분리 기록 (Rotating File Handler)
-- 🎨 **반응형 UI**: Tailwind CSS 기반 모던 웹 인터페이스
-- 🔗 **원본 링크**: 모든 항목에 원본 소스 링크 제공
-- 🔐 **간단한 인증**: 앱 접속 비밀번호 보호
-- 📱 **PWA 지원**: 모바일 앱처럼 설치 및 오프라인 사용 가능 (NEW!)
+- **프리미엄 대시보드**: 키워드 모멘텀, 카테고리 통계, 위클리 다이제스트, 한국 AI 하이라이트
+- **자동 수집**: APScheduler 크론 기반 데이터 자동 수집
+- **AI 요약**: Google Gemini API로 한글 요약 자동 생성
+- **Redis 캐싱**: API 응답 캐싱으로 빠른 로딩
+- **관리자 인증**: JWT 기반 관리자 전용 시스템 페이지
+- **PWA 지원**: 모바일 앱처럼 설치 가능
+- **반응형 UI**: 글래스모피즘 다크 테마, Framer Motion 애니메이션
 
 ---
 
-## 📱 모바일 앱 (PWA)
+## 기술 스택
 
-AI Trend Tracker는 **Progressive Web App (PWA)**로 제작되어 웹사이트를 네이티브 앱처럼 사용할 수 있습니다!
-
-### 📲 앱 설치 방법
-
-#### Android (Chrome, Samsung Internet):
-1. https://ai-trend-tracker-beta.vercel.app 접속
-2. 주소창 오른쪽 상단 **"홈 화면에 추가"** 또는 **"설치"** 버튼 클릭
-3. 확인을 누르면 홈 화면에 앱 아이콘이 생성됩니다
-
-#### iPhone/iPad (Safari):
-1. https://ai-trend-tracker-beta.vercel.app 접속
-2. 공유 버튼 (⎙) 탭
-3. 아래로 스크롤해서 **"홈 화면에 추가"** 선택
-4. "추가" 버튼 클릭
-
-### ✨ PWA 기능
-
-- ✅ **홈 화면 아이콘** - 네이티브 앱처럼 실행
-- ✅ **전체화면 모드** - 브라우저 UI 없이 앱 모드로 실행
-- ✅ **오프라인 지원** - 인터넷 없이도 캐시된 데이터 확인 가능
-- ✅ **빠른 로딩** - Service Worker 캐싱으로 2배 이상 빠른 속도
-- ✅ **백그라운드 캐싱** - API 응답 자동 캐싱 (24시간)
-- ✅ **Apple 기기 최적화** - iOS/iPadOS 완벽 지원
-
-### 🎨 앱 아이콘
-
-PWA는 다양한 디바이스 크기에 최적화된 8가지 크기의 아이콘을 제공합니다:
-- 72x72, 96x96, 128x128, 144x144 (Android 다양한 해상도)
-- 152x152, 192x192 (Apple Touch Icon, Android)
-- 384x384, 512x512 (고해상도 디스플레이)
-
-**커스텀 로봇 아이콘**: 미래지향적인 AI/로봇 테마의 아이콘으로 현대로템의 첨단 기술 이미지를 표현합니다.
-
-### 📱 모바일 최적화
-
-완벽한 모바일 경험을 위한 반응형 디자인:
-- ✅ **햄버거 메뉴**: 모바일에서 사이드바 슬라이드 인/아웃
-- ✅ **터치 최적화**: 큰 터치 영역, 부드러운 애니메이션
-- ✅ **반응형 그리드**: 화면 크기에 따라 자동 조정 (1-4열)
-- ✅ **작은 화면 최적화**: 패딩, 폰트 크기 자동 조정
-- ✅ **오버레이 효과**: 메뉴 외부 클릭 시 자동 닫힘
-
----
-
-## 🛠️ 기술 스택
+### 프론트엔드 (v2.0 - Next.js)
+| 기술 | 용도 |
+|------|------|
+| **Next.js 14** (App Router) | SSR/SSG 프레임워크 |
+| **TypeScript** | 타입 안정성 |
+| **Tailwind CSS** | 유틸리티 CSS |
+| **shadcn/ui** | UI 컴포넌트 |
+| **Framer Motion** | 애니메이션 |
 
 ### 백엔드
-- **FastAPI** 0.115.12 - 고성능 비동기 Python 웹 프레임워크
-- **SQLAlchemy** 2.0.38 - 비동기 ORM
-- **SQLite** (로컬) / **PostgreSQL** (프로덕션) - 데이터베이스
-- **APScheduler** 3.11.0 - 크론 기반 스케줄링
-- **Alembic** - 데이터베이스 마이그레이션
-- **Pydantic** v2 - 데이터 검증 및 스키마
+| 기술 | 용도 |
+|------|------|
+| **FastAPI** | 비동기 Python API |
+| **PostgreSQL 15** | 데이터베이스 |
+| **Redis** | 캐싱 |
+| **SQLAlchemy 2.0** | 비동기 ORM |
+| **Alembic** | DB 마이그레이션 |
+| **APScheduler** | 크론 스케줄링 |
+| **Google Gemini** | AI 한글 요약 |
 
-### 프론트엔드
-- **SvelteKit** - 고성능 웹 프레임워크
-- **Vite** - 빌드 도구
-- **Tailwind CSS** - 유틸리티 우선 CSS 프레임워크
-- **JavaScript (ES6+)** - 클라이언트 사이드 로직
-- **@vite-pwa/sveltekit** - PWA 지원 (Service Worker, 오프라인 캐싱)
-- **Workbox** - Service Worker 캐싱 전략
-
-### AI & 데이터 수집
-- **Google Gemini API** - AI 요약 생성 (무료!)
-- **YouTube Data API** - 영상 정보
-- **Hugging Face API** - 모델 및 리더보드 정보
-- **GitHub API** - 트렌딩 프로젝트
-- **RemoteOK API** - AI/ML 채용 공고
-- **RSS Feeds** - 뉴스, 정책, 스타트업 펀딩 정보
-- **feedparser** - RSS 파싱
-- **httpx** - 비동기 HTTP 클라이언트
-
-### 배포 & 인프라
-- **Railway** - 백엔드 API 호스팅 (PostgreSQL 포함)
-- **Vercel** - 프론트엔드 호스팅
-- **GitHub** - 소스 코드 관리 및 CI/CD
+### 배포
+| 서비스 | 용도 |
+|--------|------|
+| **Railway** | 백엔드 API + PostgreSQL + Redis |
+| **Vercel** | 프론트엔드 호스팅 |
+| **Docker Compose** | 로컬 개발 환경 |
 
 ---
 
-## 🚀 빠른 시작
-
-### 사전 요구사항
-
-- **Python** 3.11 이상
-- **Node.js** 18 이상 (프론트엔드용)
-- **Git**
-- **API 키**:
-  - Google Gemini API (무료) - [발급받기](https://ai.google.dev/gemini-api/docs/api-key)
-  - YouTube Data API - [발급받기](https://console.cloud.google.com/apis/library/youtube.googleapis.com)
-  - GitHub Personal Access Token - [발급받기](https://github.com/settings/tokens)
-  - Hugging Face API Key - [발급받기](https://huggingface.co/settings/tokens)
-
-### 로컬 개발 환경 구축
-
-#### 1. 프로젝트 클론
-
-```bash
-git clone https://github.com/your-username/fastapi-starter.git
-cd fastapi-starter
-```
-
-#### 2. 백엔드 설정
-
-```bash
-# Python 가상환경 생성 및 활성화
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 패키지 설치
-pip install -r requirements.txt
-
-# 환경 변수 설정
-cp .env.example .env
-# .env 파일을 편집하여 API 키 입력
-
-# 데이터베이스 마이그레이션
-alembic upgrade head
-
-# 백엔드 서버 실행
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-**백엔드 접속**: http://localhost:8000/docs
-
-#### 3. 프론트엔드 설정
-
-```bash
-# 프론트엔드 디렉토리로 이동
-cd web
-
-# 패키지 설치
-npm install
-
-# 개발 서버 실행
-npm run dev
-```
-
-**프론트엔드 접속**: http://localhost:5173
-
-#### 4. 초기 데이터 수집 (선택사항)
-
-```bash
-# Python 셸에서 수동 수집 실행
-python
->>> from app.services.scheduler import collect_all_data
->>> import asyncio
->>> asyncio.run(collect_all_data())
-```
-
----
-
-## 📁 프로젝트 구조
+## 프로젝트 구조
 
 ```
 fastapi-starter/
-├── app/                                # 백엔드 애플리케이션
-│   ├── main.py                         # FastAPI 앱 진입점
-│   ├── config.py                       # 환경 변수 설정
-│   ├── database.py                     # 데이터베이스 연결
-│   ├── logging_config.py               # 로깅 설정
-│   │
-│   ├── models/                         # SQLAlchemy 모델 (11개)
-│   │   ├── huggingface.py              # 🤗 Hugging Face 모델
-│   │   ├── youtube.py                  # 📺 YouTube 영상
-│   │   ├── paper.py                    # 📄 AI 논문
-│   │   ├── news.py                     # 📰 AI 뉴스
-│   │   ├── github.py                   # ⭐ GitHub 프로젝트
-│   │   ├── leaderboard.py              # 🏆 AI 리더보드
-│   │   ├── ai_tool.py                  # 🛠️ AI 도구
-│   │   ├── conference.py               # 📅 AI 컨퍼런스
-│   │   ├── job_trend.py                # 💼 AI 채용
-│   │   ├── policy.py                   # 📜 AI 정책
-│   │   └── startup.py                  # 🚀 AI 스타트업
-│   │
-│   ├── schemas/                        # Pydantic 스키마 (11개)
+├── app/                          # 백엔드 (FastAPI)
+│   ├── main.py                   # 앱 진입점
+│   ├── config.py                 # 환경 변수
+│   ├── database.py               # DB 연결
+│   ├── cache.py                  # Redis 캐싱
+│   ├── api/v1/                   # API 라우터
+│   │   ├── dashboard.py          # 대시보드 통계 API
+│   │   ├── admin.py              # 관리자 인증 API
 │   │   ├── huggingface.py
 │   │   ├── youtube.py
-│   │   ├── paper.py
+│   │   ├── papers.py
 │   │   ├── news.py
 │   │   ├── github.py
-│   │   ├── leaderboard.py
-│   │   ├── ai_tool.py
-│   │   ├── conference.py
-│   │   ├── job_trend.py
-│   │   ├── policy.py
-│   │   └── startup.py
-│   │
-│   ├── api/v1/                         # API 라우터 (11개 + 시스템)
-│   │   ├── huggingface.py              # Hugging Face API
-│   │   ├── youtube.py                  # YouTube API
-│   │   ├── papers.py                   # Papers API
-│   │   ├── news.py                     # News API
-│   │   ├── github.py                   # GitHub API
-│   │   ├── leaderboard.py              # Leaderboard API
-│   │   ├── tools.py                    # Tools API
-│   │   ├── conferences.py              # Conferences API
-│   │   ├── jobs.py                     # Jobs API
-│   │   ├── policies.py                 # Policies API
-│   │   ├── startups.py                 # Startups API
-│   │   └── system.py                   # System Status & Logs API
-│   │
-│   └── services/                       # 비즈니스 로직
-│       ├── scheduler.py                # 스케줄링 (크론)
-│       ├── ai_summary_service.py       # Gemini AI 요약
-│       ├── huggingface_service.py      # Hugging Face 수집
-│       ├── youtube_service.py          # YouTube 수집
-│       ├── paper_service.py            # arXiv 수집
-│       ├── news_service.py             # 뉴스 RSS 수집
-│       ├── github_service.py           # GitHub 수집
-│       ├── leaderboard_service.py      # 리더보드 수집
-│       ├── ai_tool_service.py          # AI 도구 수집
-│       ├── conference_service.py       # 컨퍼런스 수집
-│       ├── job_trend_service.py        # 채용 공고 수집
-│       ├── policy_service.py           # 정책 뉴스 수집
-│       └── startup_service.py          # 스타트업 펀딩 수집
+│   │   ├── conferences.py
+│   │   ├── tools.py              # AI 플랫폼
+│   │   ├── jobs.py
+│   │   ├── policies.py
+│   │   └── system.py             # 시스템 상태
+│   ├── models/                   # SQLAlchemy 모델 (9개)
+│   ├── schemas/                  # Pydantic 스키마
+│   └── services/                 # 데이터 수집 서비스
 │
-├── web/                                # 프론트엔드 (SvelteKit)
+├── web-next/                     # 프론트엔드 (Next.js 14)
 │   ├── src/
-│   │   ├── routes/                     # 페이지 라우트
-│   │   │   ├── +page.svelte            # 홈/대시보드
-│   │   │   ├── +layout.svelte          # 레이아웃 (네비게이션)
-│   │   │   ├── login/                  # 로그인 페이지
-│   │   │   ├── huggingface/            # Hugging Face 페이지
-│   │   │   ├── youtube/                # YouTube 페이지
-│   │   │   ├── papers/                 # Papers 페이지
-│   │   │   ├── news/                   # News 페이지
-│   │   │   ├── github/                 # GitHub 페이지
-│   │   │   ├── leaderboards/           # Leaderboards 페이지
-│   │   │   ├── tools/                  # Tools 페이지
-│   │   │   ├── conferences/            # Conferences 페이지
-│   │   │   ├── jobs/                   # Jobs 페이지
-│   │   │   ├── policies/               # Policies 페이지
-│   │   │   ├── startups/               # Startups 페이지
-│   │   │   └── system/                 # System Status 페이지
-│   │   └── lib/                        # 공통 컴포넌트
-│   ├── static/                         # 정적 파일
-│   └── vite.config.js                  # Vite 설정 (API 프록시)
+│   │   ├── app/                  # App Router 페이지
+│   │   │   ├── page.tsx          # 대시보드 (홈)
+│   │   │   ├── login/            # 관리자 로그인
+│   │   │   ├── huggingface/
+│   │   │   ├── youtube/
+│   │   │   ├── papers/
+│   │   │   ├── news/
+│   │   │   ├── github/
+│   │   │   ├── conferences/
+│   │   │   ├── platforms/
+│   │   │   ├── jobs/
+│   │   │   ├── policies/
+│   │   │   └── system/           # 관리자 전용
+│   │   ├── components/
+│   │   │   ├── dashboard/        # 대시보드 위젯
+│   │   │   ├── layout/           # Sidebar, TopBar, MobileNav
+│   │   │   ├── shared/           # 공통 컴포넌트
+│   │   │   └── ui/               # shadcn/ui
+│   │   └── lib/                  # API 클라이언트, 타입, 유틸
+│   ├── public/
+│   │   ├── logo.png              # Ain싸 로고
+│   │   ├── manifest.json         # PWA 매니페스트
+│   │   └── icons/                # PWA 아이콘
+│   └── vercel.json               # Vercel API 프록시 설정
 │
-├── alembic/                            # 데이터베이스 마이그레이션
-│   └── versions/                       # 마이그레이션 파일
-│
-├── logs/                               # 로그 파일 (gitignore)
-│   ├── app.log                         # 전체 앱 로그
-│   ├── error.log                       # 에러 로그만
-│   └── collection.log                  # 데이터 수집 로그만
-│
-├── .env                                # 환경 변수 (gitignore)
-├── .env.example                        # 환경 변수 예시
-├── requirements.txt                    # Python 패키지
-├── ai_trends.db                        # SQLite 데이터베이스 (로컬)
-└── README.md                           # 이 파일
+├── alembic/                      # DB 마이그레이션
+├── docker-compose.yml
+├── Dockerfile
+└── requirements.txt
 ```
 
 ---
 
-## 📚 API 엔드포인트
+## 빠른 시작
 
-모든 API는 `/api/v1/` 프리픽스를 사용하며, `X-API-Key` 헤더 인증이 필요합니다.
+### 사전 요구사항
 
-### 인증
+- Python 3.11+
+- Node.js 18+
+- Docker & Docker Compose (권장)
+
+### Docker로 실행 (권장)
 
 ```bash
-# 헤더에 API 키 포함
-curl -H "X-API-Key: your_password" http://localhost:8000/api/v1/huggingface/
+# 프로젝트 클론
+git clone https://github.com/DONGJUSEO/ai-trend-tracker.git
+cd ai-trend-tracker
+
+# 환경 변수 설정
+cp .env.example .env
+# .env 파일 편집하여 API 키 입력
+
+# Docker 컨테이너 실행 (API + PostgreSQL + Redis)
+docker compose up -d
+
+# 프론트엔드 실행
+cd web-next
+npm install
+npm run dev
 ```
 
-### 카테고리별 엔드포인트
+- 백엔드 API: http://localhost:8000/docs
+- 프론트엔드: http://localhost:3000
 
-각 카테고리는 공통 패턴을 따릅니다:
+### 수동 실행
 
-```http
-GET /api/v1/{category}/?page=1&page_size=20
+```bash
+# 백엔드
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+
+# 프론트엔드
+cd web-next
+npm install
+npm run dev
 ```
-
-**카테고리 목록**:
-- `huggingface` - Hugging Face 모델
-- `youtube` - YouTube 영상
-- `papers` - AI 논문
-- `news` - AI 뉴스
-- `github` - GitHub 프로젝트
-- `leaderboards` - AI 리더보드
-- `tools` - AI 도구
-- `conferences` - AI 컨퍼런스
-- `jobs` - AI 채용
-- `policies` - AI 정책
-- `startups` - AI 스타트업
-
-**공통 쿼리 파라미터**:
-- `page`: 페이지 번호 (기본값: 1)
-- `page_size`: 페이지당 항목 수 (기본값: 20, 최대: 100)
-
-**응답 형식**:
-```json
-{
-  "total": 150,
-  "items": [
-    {
-      "id": 1,
-      "title": "...",
-      "summary": "...",
-      "keywords": ["키워드1", "키워드2"],
-      "created_at": "2026-02-01T10:00:00",
-      ...
-    }
-  ]
-}
-```
-
-### 시스템 API
-
-#### 시스템 상태 조회
-```http
-GET /api/v1/system/status
-```
-
-**응답**:
-```json
-{
-  "backend_status": "online",
-  "database_status": "connected",
-  "timestamp": "2026-02-01T10:00:00",
-  "total_items": 1500,
-  "healthy_categories": 11,
-  "total_categories": 11,
-  "categories": {
-    "huggingface": {
-      "name": "Hugging Face 모델",
-      "icon": "🤗",
-      "total": 200,
-      "last_update": "2026-02-01T00:00:00",
-      "status": "healthy"
-    },
-    ...
-  }
-}
-```
-
-#### 키워드 집계
-```http
-GET /api/v1/system/keywords?limit=50
-```
-
-#### 로그 조회
-```http
-GET /api/v1/system/logs?log_type=app&lines=100
-```
-
-**로그 타입**:
-- `app` - 전체 앱 로그
-- `error` - 에러 로그만
-- `collection` - 데이터 수집 로그만
 
 ---
 
-## ⚙️ 환경 변수 설정
+## API 엔드포인트
 
-`.env` 파일 예시:
+모든 API는 `/api/v1/` 프리픽스, `X-API-Key` 헤더 인증 필요.
 
+### 대시보드 API
+| 엔드포인트 | 설명 |
+|-----------|------|
+| `GET /api/v1/dashboard/summary` | 전체 카테고리 통계 |
+| `GET /api/v1/dashboard/trending-keywords` | 트렌딩 키워드 |
+| `GET /api/v1/dashboard/category-stats` | 카테고리별 트렌드 |
+
+### 카테고리 API
+| 엔드포인트 | 응답 키 |
+|-----------|---------|
+| `GET /api/v1/huggingface/` | `items` |
+| `GET /api/v1/youtube/videos` | `videos` |
+| `GET /api/v1/papers/` | `papers` |
+| `GET /api/v1/news/news` | `news` |
+| `GET /api/v1/github/projects` | `items` |
+| `GET /api/v1/conferences/` | `items` |
+| `GET /api/v1/tools/` | `items` |
+| `GET /api/v1/jobs/` | `items` |
+| `GET /api/v1/policies/` | `items` |
+
+### 관리자 API
+| 엔드포인트 | 설명 |
+|-----------|------|
+| `POST /api/v1/admin/login` | 관리자 로그인 (JWT 발급) |
+| `GET /api/v1/admin/verify` | 토큰 유효성 확인 |
+| `GET /api/v1/system/status` | 시스템 상태 |
+
+---
+
+## 환경 변수
+
+### 백엔드 (.env)
 ```env
-# 데이터베이스 (로컬: SQLite, 프로덕션: PostgreSQL)
-DATABASE_URL=sqlite+aiosqlite:////absolute/path/to/ai_trends.db
-# DATABASE_URL=postgresql://user:password@host:5432/ai_trends
-
-# Redis (선택사항)
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/ai_trends
 REDIS_URL=redis://localhost:6379/0
-
-# OpenAI API (선택사항)
-OPENAI_API_KEY=
-
-# Hugging Face API
-HUGGINGFACE_API_KEY=your_hf_token
-
-# Gemini API (무료!)
 GEMINI_API_KEY=your_gemini_key
-
-# YouTube Data API
 YOUTUBE_API_KEY=your_youtube_key
-
-# GitHub Personal Access Token
 GITHUB_TOKEN=your_github_token
+HUGGINGFACE_API_KEY=your_hf_token
+APP_PASSWORD=your_api_key
+ADMIN_PASSWORD=admin1234
+JWT_SECRET_KEY=your_secret_key
+```
 
-# 스케줄링 (기본값: 12시간마다)
-SCHEDULER_INTERVAL_HOURS=12
-
-# 애플리케이션 설정
-APP_NAME=AI Trend Tracker
-APP_VERSION=0.2.0
-DEBUG=True
-
-# 앱 접속 비밀번호
-APP_PASSWORD=your_password
+### 프론트엔드 (.env.development)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_KEY=test1234
 ```
 
 ---
 
-## 🔄 데이터 수집 스케줄러
-
-### 스케줄링 설정
-
-- **수집 시간**: 매일 자정 00:00 (KST)
-- **수집 방식**: APScheduler CronTrigger
-- **자동 실행**: 백엔드 서버 시작 시 자동 활성화
-
-### 수동 수집
-
-```python
-# Python 셸에서
-from app.services.scheduler import collect_all_data
-import asyncio
-
-# 전체 카테고리 수집
-asyncio.run(collect_all_data())
-```
-
-### 카테고리별 수집 함수
-
-```python
-from app.services.scheduler import (
-    collect_huggingface_data,
-    collect_youtube_data,
-    collect_papers_data,
-    collect_news_data,
-    collect_github_data,
-    collect_leaderboard_data,
-    collect_tool_data,
-    collect_conference_data,
-    collect_job_data,
-    collect_policy_data,
-    collect_startup_data,
-)
-
-# 특정 카테고리만 수집
-asyncio.run(collect_huggingface_data())
-```
-
-### 수집 프로세스
-
-1. **데이터 수집**: 각 카테고리별 서비스에서 외부 API/RSS 호출
-2. **중복 제거**: unique 필드로 기존 데이터와 비교
-3. **AI 요약**: Gemini API로 한글 요약 및 키워드 생성 (최대 10개/카테고리)
-4. **데이터베이스 저장**: 새 항목만 저장
-5. **로그 기록**: `logs/collection.log`에 수집 결과 기록
-
----
-
-## 📊 로깅 시스템
-
-### 로그 파일 구조
-
-- **logs/app.log**: 전체 애플리케이션 로그 (INFO 레벨)
-- **logs/error.log**: 에러 로그만 (ERROR 레벨)
-- **logs/collection.log**: 데이터 수집 로그만 (INFO 레벨)
-
-### 로그 로테이션
-
-- **최대 파일 크기**: 10MB
-- **백업 파일 개수**: 5개
-- **자동 로테이션**: 파일 크기 초과 시 자동
-
-### 로그 확인
-
-```bash
-# 전체 앱 로그
-tail -f logs/app.log
-
-# 에러 로그만
-tail -f logs/error.log
-
-# 수집 로그만
-tail -f logs/collection.log
-```
-
----
-
-## 🎨 프론트엔드 기능
-
-### 페이지 구성
-
-1. **홈/대시보드** (`/`)
-   - 전체 카테고리 통계
-   - 최신 업데이트 정보
-   - 키워드 클라우드 (예정)
-
-2. **카테고리 페이지** (`/{category}`)
-   - 카드 형식 데이터 표시
-   - 페이지네이션
-   - 원본 링크 제공
-   - AI 요약 및 키워드 표시
-
-3. **시스템 상태** (`/system`)
-   - 각 카테고리별 데이터 개수
-   - 최신 업데이트 시간
-   - 헬스 체크 상태
-   - 로그 조회 (예정)
-
-4. **로그인** (`/login`)
-   - 간단한 비밀번호 인증
-   - 세션 관리 (localStorage)
-
-### 네비게이션
-
-- **사이드바 메뉴**: 11개 카테고리 + 시스템 상태
-- **반응형 디자인**: 모바일/태블릿/데스크톱 지원
-- **아이콘 및 색상**: 카테고리별 고유 아이콘 및 그라데이션
-
----
-
-## 🚢 배포
+## 배포
 
 ### Railway (백엔드)
-
-1. **Railway 프로젝트 생성**
-2. **GitHub 연동** (자동 배포)
-3. **PostgreSQL 서비스 추가**
-4. **환경 변수 설정**:
-   - `DATABASE_URL`: Railway PostgreSQL 연결 문자열 (자동)
-   - `GEMINI_API_KEY`, `YOUTUBE_API_KEY`, `GITHUB_TOKEN`, `HUGGINGFACE_API_KEY`
-   - `APP_PASSWORD`
-5. **배포 완료**: https://your-app.railway.app
+1. GitHub 연동 (main 푸시 시 자동 배포)
+2. PostgreSQL + Redis 서비스 추가
+3. 환경 변수 설정
 
 ### Vercel (프론트엔드)
+1. GitHub 연동
+2. 설정:
+   - **Root Directory**: `web-next`
+   - **Framework Preset**: Next.js
+   - **Build Command**: `npm run build`
+3. 환경 변수 (선택):
+   - `NEXT_PUBLIC_API_KEY`: API 키
+   - `NEXT_PUBLIC_API_URL`은 설정하지 않음 (vercel.json 리라이트가 프록시 처리)
 
-1. **Vercel 프로젝트 생성**
-2. **GitHub 연동** (자동 배포)
-3. **빌드 설정**:
-   - Framework Preset: SvelteKit
-   - Root Directory: `web`
-   - Build Command: `npm run build`
-   - Output Directory: `.svelte-kit`
-4. **환경 변수 설정** (중요!):
-   - Vercel 대시보드 → **Settings** → **Environment Variables**
-   - 다음 2개 변수 추가:
-     ```
-     VITE_API_URL=https://ai-trend-tracker-production.up.railway.app
-     VITE_API_KEY=your_app_password
-     ```
-   - **Environment**: Production, Preview, Development 모두 체크
-   - **Save** 후 **Deployments** → 최신 배포 → **Redeploy**
-5. **배포 완료**: https://ai-trend-tracker-beta.vercel.app
-
-> ⚠️ **주의**: Vercel 환경 변수를 설정하지 않으면 프론트엔드에서 "Failed to fetch" 오류가 발생합니다!
-
-### GitHub Actions (CI/CD)
-
-- **main** 브랜치에 push 시 자동 배포
-- Railway: 백엔드 자동 재배포
-- Vercel: 프론트엔드 자동 재배포
-
-### 데이터 마이그레이션 (로컬 → 프로덕션)
-
-로컬 SQLite 데이터를 프로덕션 PostgreSQL로 마이그레이션하려면:
-
-1. **마이그레이션 스크립트 준비**
-   ```bash
-   # migrate_to_production.py 파일 확인
-   # LOCAL_DB_URL과 PROD_DB_URL이 올바른지 확인
-   ```
-
-2. **Railway PostgreSQL 공용 URL 확인**
-   - Railway 대시보드 → PostgreSQL 서비스 → **Networking** → **Public Networking**
-   - 연결 문자열을 `migrate_to_production.py`의 `PROD_DB_URL`에 입력
-
-3. **마이그레이션 실행**
-   ```bash
-   python migrate_to_production.py
-   ```
-
-4. **결과 확인**
-   ```bash
-   # 시스템 상태 API로 확인
-   curl -H "X-API-Key: your_password" https://ai-trend-tracker-production.up.railway.app/api/v1/system/status
-   ```
-
-   - 중복 항목은 자동으로 건너뛰기
-   - 새 항목만 추가됨
+> vercel.json이 `/api/*` 요청을 Railway 백엔드로 프록시합니다.
 
 ---
 
-## 💰 비용 예상
+## 버전 히스토리
 
-### 무료
-- **Google Gemini API**: 무료 티어 (월 1500 요청)
-- **Railway**: 무료 티어 ($5/월 크레딧, PostgreSQL 포함)
-- **Vercel**: 무료 티어 (개인 프로젝트)
-- **GitHub**: 무료 (공개 리포지토리)
-- **SQLite**: 무료 (로컬 개발)
+### v2.0.0 (2026-02-07) - 대규모 고도화
+- Next.js 14 + TypeScript + shadcn/ui 프론트엔드 전면 재구축
+- 글래스모피즘 다크 테마 + Framer Motion 애니메이션
+- 프리미엄 대시보드 (키워드 모멘텀, 카테고리 통계, 위클리 다이제스트)
+- 9개 카테고리 페이지 재설계 (리더보드, 스타트업 삭제)
+- Redis 캐싱, 대시보드 전용 API 추가
+- 한국 뉴스 소스 중심 데이터 수집
+- 관리자 JWT 인증 시스템
+- Ain싸 브랜딩 + 커스텀 로고
+- PWA 매니페스트 + 앱 아이콘
 
-### 유료 (필요 시)
-- **Railway Pro**: $20/월 (더 많은 리소스)
-- **OpenAI GPT-4o-mini**: ~$0.50/일 (1000 요약)
-
-**총 예상 비용**: **$0/월** (무료 티어 사용 시)
-
----
-
-## 🐛 트러블슈팅
-
-### 백엔드가 시작되지 않을 때
-
-```bash
-# 가상환경 활성화 확인
-source venv/bin/activate
-
-# 패키지 재설치
-pip install -r requirements.txt
-
-# 데이터베이스 마이그레이션 확인
-alembic upgrade head
-
-# 포트 충돌 확인
-lsof -ti:8000 | xargs kill -9
-```
-
-### 프론트엔드 빌드 오류
-
-```bash
-# Node.js 버전 확인 (18 이상 필요)
-node --version
-
-# 패키지 재설치
-cd web
-rm -rf node_modules package-lock.json
-npm install
-```
-
-### 데이터베이스 경로 오류
-
-`.env` 파일의 `DATABASE_URL`을 절대 경로로 변경:
-
-```env
-DATABASE_URL=sqlite+aiosqlite:////Users/username/path/to/project/ai_trends.db
-```
-
-### API 키 오류
-
-- `.env` 파일이 프로젝트 루트에 있는지 확인
-- API 키가 올바른지 확인
-- 백엔드 재시작: `uvicorn app.main:app --reload`
-
-### "Failed to fetch" 프론트엔드 오류
-
-#### 로컬 개발 환경:
-1. **백엔드가 실행 중인지 확인**: http://localhost:8000/docs
-2. **CORS 설정 확인**: `app/main.py`의 CORS 설정
-3. **API 프록시 확인**: `web/vite.config.js`의 프록시 설정
-
-#### 프로덕션 환경 (Vercel):
-1. **Vercel 환경 변수 미설정** (가장 흔한 원인!):
-   - Vercel 대시보드 → **Settings** → **Environment Variables**
-   - `VITE_API_URL`과 `VITE_API_KEY` 추가
-   - **Redeploy** 실행
-
-2. **백엔드 URL 확인**:
-   - Railway 백엔드가 실행 중인지 확인: https://ai-trend-tracker-production.up.railway.app/docs
-
-3. **CORS 설정 확인**:
-   - Railway 환경 변수에 프론트엔드 도메인 추가 (필요 시)
-
-### PWA "홈 화면에 추가" 버튼이 안 보일 때
-
-#### 일반적인 원인:
-1. **HTTPS 필수**: PWA는 HTTPS에서만 작동합니다 (localhost 제외)
-   - Vercel 배포 완료 후 확인: https://ai-trend-tracker-beta.vercel.app
-   - HTTP 주소로 접속하면 PWA 기능이 비활성화됩니다
-
-2. **브라우저 지원 확인**:
-   - **Android**: Chrome, Samsung Internet, Firefox 최신 버전
-   - **iOS**: Safari 11.3 이상 (단, "설치" 버튼 대신 공유 메뉴 사용)
-   - **Desktop**: Chrome, Edge 최신 버전
-
-3. **이미 설치된 경우**:
-   - 이미 홈 화면에 앱이 설치되어 있으면 버튼이 표시되지 않습니다
-   - 설정 → 앱 목록에서 확인
-
-4. **Service Worker 등록 확인**:
-   - Chrome 개발자 도구 (F12) → **Application** → **Service Workers**
-   - Service Worker가 등록되어 있어야 합니다
-
-5. **Manifest 파일 확인**:
-   - Chrome 개발자 도구 (F12) → **Application** → **Manifest**
-   - manifest.json이 올바르게 로드되었는지 확인
-
-6. **Vercel 배포 완료 대기**:
-   - Vercel 배포는 2-3분 소요됩니다
-   - 배포 완료 후 브라우저 캐시 삭제 및 새로고침
-
-#### iOS에서 설치하는 방법 (Safari):
-iOS는 "설치" 버튼이 없으며, 공유 메뉴를 사용합니다:
-1. Safari에서 https://ai-trend-tracker-beta.vercel.app 접속
-2. 하단 공유 버튼 (⎙) 탭
-3. 아래로 스크롤해서 **"홈 화면에 추가"** 찾기
-4. "추가" 버튼 클릭
-
-#### Android에서 설치하는 방법 (Chrome):
-1. Chrome에서 https://ai-trend-tracker-beta.vercel.app 접속
-2. 주소창 오른쪽 상단에 **"설치"** 또는 **점 3개 메뉴** 클릭
-3. **"홈 화면에 추가"** 또는 **"설치"** 선택
-4. 확인 클릭
-
-#### 문제가 계속될 경우:
-```bash
-# Lighthouse PWA 점수 확인
-1. Chrome 개발자 도구 (F12)
-2. Lighthouse 탭
-3. Categories에서 "Progressive Web App" 체크
-4. "Analyze page load" 클릭
-5. PWA 점수 및 개선 사항 확인
-```
+### v0.3.2 (2026-02-02)
+- 11개 카테고리 SvelteKit 프론트엔드
+- Railway + Vercel 초기 배포
+- PWA 지원 추가
 
 ---
 
-## 📝 개발 로드맵
+## 개발자
 
-### ✅ Phase 1: 인프라 구축 (완료)
-- [x] FastAPI 백엔드 구조
-- [x] SQLAlchemy 비동기 ORM
-- [x] SvelteKit 프론트엔드
-- [x] Railway/Vercel 배포
-
-### ✅ Phase 2: 11개 카테고리 구현 (완료)
-- [x] Hugging Face 모델
-- [x] YouTube 영상
-- [x] AI 논문
-- [x] AI 뉴스
-- [x] GitHub 프로젝트
-- [x] AI 리더보드
-- [x] AI 도구
-- [x] AI 컨퍼런스
-- [x] AI 채용
-- [x] AI 정책/규제
-- [x] AI 스타트업/투자
-
-### ✅ Phase 3: 시스템 기능 (완료)
-- [x] APScheduler 크론 스케줄링
-- [x] Gemini AI 요약
-- [x] 로깅 시스템 (Rotating File Handler)
-- [x] 시스템 상태 API
-- [x] 키워드 집계
-
-### ✅ Phase 4: 실제 데이터 연동 (완료)
-- [x] RemoteOK API (채용)
-- [x] TechCrunch RSS (스타트업)
-- [x] AI News RSS (정책)
-- [x] YouTube/GitHub/Hugging Face API
-
-### 🚧 Phase 5: UI/UX 개선 (진행 중)
-- [x] 로그인 페이지
-- [x] 카테고리별 페이지
-- [ ] 키워드 클라우드 시각화
-- [ ] 다크 모드
-- [ ] 검색 기능
-- [ ] 필터링 기능
-
-### 📅 Phase 6: 고급 기능 (예정)
-- [ ] 사용자 계정 시스템
-- [ ] 즐겨찾기 기능
-- [ ] 알림 설정
-- [ ] 모바일 앱 (React Native/Flutter)
-- [ ] 데이터 분석 대시보드
-- [ ] AI 챗봇 통합
+- **서동주** ([@DONGJUSEO](https://github.com/DONGJUSEO))
+- AI 개발 어시스턴트: **Claude Opus 4.6** (Anthropic)
 
 ---
 
-## 🤝 기여
+## 라이선스
 
-이슈와 PR은 언제나 환영합니다!
+MIT License
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📄 라이선스
-
-MIT License - 자유롭게 사용, 수정, 배포 가능합니다.
-
----
-
-## 👤 개발자
-
-- **서동주**
-- AI 개발 어시스턴트: **Claude Sonnet 4.5** (Anthropic)
-
----
-
-## 📚 참고 문서
-
-### 백엔드
-- [FastAPI 공식 문서](https://fastapi.tiangolo.com/)
-- [SQLAlchemy 공식 문서](https://docs.sqlalchemy.org/)
-- [APScheduler 공식 문서](https://apscheduler.readthedocs.io/)
-- [Alembic 공식 문서](https://alembic.sqlalchemy.org/)
-
-### 프론트엔드
-- [SvelteKit 공식 문서](https://kit.svelte.dev/)
-- [Tailwind CSS 공식 문서](https://tailwindcss.com/)
-- [Vite 공식 문서](https://vitejs.dev/)
-
-### AI & 데이터
-- [Google Gemini API](https://ai.google.dev/gemini-api/docs)
-- [YouTube Data API](https://developers.google.com/youtube/v3)
-- [GitHub API](https://docs.github.com/en/rest)
-- [Hugging Face API](https://huggingface.co/docs/api-inference/)
-
-### 배포
-- [Railway 문서](https://docs.railway.app/)
-- [Vercel 문서](https://vercel.com/docs)
-
----
-
-## 🙏 감사의 말
-
-이 프로젝트는 AI 업계 종사자들이 빠르게 변화하는 트렌드를 효율적으로 파악할 수 있도록 돕기 위해 만들어졌습니다.
-
-**특별 감사**:
-- Anthropic의 Claude Sonnet 4.5 - 전체 코드베이스 구현
-- Google Gemini - 무료 AI 요약 제공
-- Hugging Face - 모델 정보 및 리더보드 제공
-- 오픈소스 커뮤니티 - 훌륭한 도구들
-
----
-
-**마지막 업데이트**: 2026-02-02
-
-**버전**: 0.3.2 (11개 카테고리 완전 구현)
-
----
-
-## 🆕 버전 히스토리
-
-### v0.3.2 (2026-02-02) - 최신
-- ✅ Papers 카테고리 완전 수정 (arXiv API HTTPS 변경)
-- ✅ Papers 프론트엔드 API 엔드포인트 수정
-- ✅ 11개 카테고리 모두 정상 작동
-- ✅ arXiv에서 최신 AI 논문 자동 수집
-
-### v0.3.1 (2026-02-02)
-- ✅ 모바일 반응형 디자인 추가
-- ✅ 햄버거 메뉴 및 슬라이드 사이드바
-- ✅ 커스텀 로봇 아이콘 적용 (사용자 제공)
-- ✅ 터치 최적화 및 모바일 UX 개선
-- ✅ 완벽한 PWA 모바일 경험
-
-### v0.3.0 (2026-02-02)
-- ✅ PWA (Progressive Web App) 지원 추가
-- ✅ 모바일 앱 설치 기능 (Android/iOS)
-- ✅ 오프라인 캐싱 및 Service Worker
-- ✅ 로고 PNG 형식 변경
-- ✅ Papers/Tools API 오류 수정
-- ✅ 데이터 수집 개선 (225개 항목)
-
-### v0.2.0 (2026-02-01)
-- ✅ 6개 신규 카테고리 추가
-- ✅ Railway + Vercel 배포 완료
-- ✅ 데이터 마이그레이션 (163개 항목)
-- ✅ CORS 문제 해결
-
-### v0.1.0 (2026-01-30)
-- ✅ 초기 프로젝트 구축
-- ✅ 5개 기본 카테고리 구현
-- ✅ 로컬 개발 환경 완성
-
----
-
-## 🎯 현재 상태 (2026-02-02)
-
-### ✅ 완료된 작업
-- ✅ 11개 AI 트렌드 카테고리 완전 구현
-- ✅ Railway 백엔드 배포 완료 (PostgreSQL 포함)
-- ✅ Vercel 프론트엔드 배포 완료
-- ✅ 로컬 SQLite → 프로덕션 PostgreSQL 데이터 마이그레이션 완료
-- ✅ 매일 자정 자동 데이터 수집 스케줄러
-- ✅ 로깅 시스템 (Rotating File Handler)
-- ✅ 실제 데이터 소스 연동 (RemoteOK, TechCrunch RSS, AI News 등)
-
-### ✅ 최신 업데이트 (2026-02-02)
-
-#### 데이터 수집 개선
-- ✅ Vercel 환경 변수 설정 완료
-- ✅ 프론트엔드 환경 변수 통합 (모든 11개 페이지)
-- ✅ CORS 문제 해결 (Railway ↔ Vercel)
-- ✅ 6개 신규 카테고리 스케줄러 통합 완료
-- ✅ Papers API 라우트 수정 (중복 경로 해결)
-- ✅ AI Tool Service import 오류 수정
-- ✅ 프로덕션 배포 완료 및 정상 작동
-
-#### PWA (모바일 앱) 지원 추가 🆕
-- ✅ Progressive Web App 구현 완료
-- ✅ Service Worker 자동 생성 (Workbox)
-- ✅ 오프라인 캐싱 (API 응답 24시간 캐시)
-- ✅ 홈 화면 추가 기능 (Android/iOS)
-- ✅ 앱 아이콘 8종 생성 (72x72 ~ 512x512)
-- ✅ Apple Touch Icon 최적화
-- ✅ 전체화면 모드 지원
-
-#### UI/UX 개선
-- ✅ 로고 형식 변경 (SVG → PNG)
-- ✅ Favicon 최적화
-- ✅ PWA 메타 태그 추가 (SEO 개선)
-
-### 🎯 최종 성과
-
-#### 데이터 현황
-- **총 235개 데이터 항목** (프로덕션 PostgreSQL)
-- **11/11 카테고리 정상 작동** ✅
-- **매일 자정 자동 데이터 수집**
-- **완전 자동화된 CI/CD 파이프라인**
-
-#### 카테고리별 데이터 현황
-| 카테고리 | 항목 수 | 상태 |
-|---------|--------|------|
-| Hugging Face | 30 | ✅ 정상 |
-| YouTube | 44 | ✅ 정상 |
-| Papers | 10 | ✅ 정상 |
-| GitHub | 30 | ✅ 정상 |
-| News | 30 | ✅ 정상 |
-| Conferences | 47 | ✅ 정상 |
-| Tools | 3 | ✅ 정상 |
-| Leaderboards | 2 | ✅ 정상 |
-| Jobs | 30 | ✅ 정상 |
-| Policies | 7 | ✅ 정상 |
-| Startups | 2 | ✅ 정상 |
-
-### 📅 향후 개선 계획
-- [ ] 키워드 클라우드 시각화
-- [ ] 검색 및 필터링 기능
-- [ ] 다크 모드
-- [ ] 사용자 즐겨찾기 기능
-- [ ] 데이터 분석 대시보드
-- [ ] 푸시 알림 (PWA)
-- [ ] Native 앱 변환 (Capacitor)
+**마지막 업데이트**: 2026-02-07 | **버전**: v2.0.0

@@ -1,4 +1,11 @@
-"""AI Tools API 엔드포인트"""
+"""AI Tools API 엔드포인트
+
+# TODO (Phase 2): AI Tools -> AI Platforms 리네이밍 예정
+# - 이 파일: tools.py -> platforms.py
+# - API 경로: /api/v1/tools -> /api/v1/platforms
+# - 스키마/모델도 함께 변경 필요 (AITool -> AIPlatform)
+# - 기존 /api/v1/tools 경로는 호환성을 위해 당분간 유지
+"""
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func

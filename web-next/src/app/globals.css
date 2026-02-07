@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 8% 5%;
+    --foreground: 30 20% 98%;
+    --card: 0 8% 8%;
+    --card-foreground: 30 20% 98%;
+    --popover: 0 8% 8%;
+    --popover-foreground: 30 20% 98%;
+    --primary: 0 84% 60%;
+    --primary-foreground: 0 8% 5%;
+    --secondary: 0 15% 17%;
+    --secondary-foreground: 30 20% 98%;
+    --muted: 0 10% 17%;
+    --muted-foreground: 20 15% 65%;
+    --accent: 15 25% 17%;
+    --accent-foreground: 30 20% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 30 20% 98%;
+    --border: 0 10% 17%;
+    --input: 0 10% 17%;
+    --ring: 0 72% 51%;
+    --radius: 0.75rem;
+    --chart-1: 0 84% 60%;
+    --chart-2: 25 95% 55%;
+    --chart-3: 45 93% 55%;
+    --chart-4: 340 75% 55%;
+    --chart-5: 15 85% 50%;
+  }
+  .dark {
+    --background: 0 8% 5%;
+    --foreground: 30 20% 98%;
+    --card: 0 8% 8%;
+    --card-foreground: 30 20% 98%;
+    --popover: 0 8% 8%;
+    --popover-foreground: 30 20% 98%;
+    --primary: 0 84% 60%;
+    --primary-foreground: 0 8% 5%;
+    --secondary: 0 15% 17%;
+    --secondary-foreground: 30 20% 98%;
+    --muted: 0 10% 17%;
+    --muted-foreground: 20 15% 65%;
+    --accent: 15 25% 17%;
+    --accent-foreground: 30 20% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 30 20% 98%;
+    --border: 0 10% 17%;
+    --input: 0 10% 17%;
+    --ring: 0 72% 51%;
+    --radius: 0.75rem;
+    --chart-1: 0 84% 60%;
+    --chart-2: 25 95% 55%;
+    --chart-3: 45 93% 55%;
+    --chart-4: 340 75% 55%;
+    --chart-5: 15 85% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background: #0f0a0a;
+    min-height: 100vh;
+  }
+}
+
+/* Glassmorphism utilities */
+@layer utilities {
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+  .glass-hover {
+    @apply hover:bg-white/[0.08] hover:border-white/[0.15] transition-all duration-300;
+  }
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+  }
+  .glass-sidebar {
+    @apply bg-white/5 backdrop-blur-2xl border-r border-white/10;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-red-400 to-orange-400;
+  }
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient 8s ease infinite;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

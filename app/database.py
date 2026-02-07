@@ -39,9 +39,11 @@ async def get_db():
 
 
 async def init_db():
-    """데이터베이스 초기화 (테이블 생성)"""
-    # 모든 모델 import (테이블 생성을 위해 필요)
-    from app.models import huggingface, youtube, youtube_channel, paper, news, github  # noqa
+    """데이터베이스 초기화.
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    테이블 생성은 Alembic 마이그레이션으로 관리됩니다.
+    `alembic upgrade head` 명령어를 사용하세요.
+    """
+    # 모든 모델 import (Alembic이 감지할 수 있도록)
+    from app.models import huggingface, youtube, youtube_channel, paper, news, github  # noqa
+    from app.models import conference, ai_tool, job_trend, policy  # noqa

@@ -1,7 +1,8 @@
 """GitHub API 서비스"""
 import httpx
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.models.github import GitHubProject
@@ -62,9 +63,11 @@ class GitHubService:
                 ]
 
                 # 기본 쿼리: AI/ML 키워드 검색 + 최소 별 개수
+                # Phase 2: 동적으로 3개월 전 날짜 계산
+                three_months_ago = (datetime.now() - relativedelta(months=3)).strftime("%Y-%m-%d")
                 query_parts = [f"topic:{topics[0]}"]  # 첫 번째 토픽 사용
                 query_parts.append("stars:>100")  # 최소 100개 이상의 별
-                query_parts.append("pushed:>2025-01-01")  # 최근 업데이트
+                query_parts.append(f"pushed:>{three_months_ago}")  # 최근 3개월 내 업데이트
 
                 if language:
                     query_parts.append(f"language:{language}")
@@ -191,8 +194,15 @@ class GitHubService:
                 existing_project = result.scalar_one_or_none()
 
                 if existing_project:
+                    # Phase 2: star_velocity 계산 (이전 데이터와 비교)
+                    prev_stars = existing_project.stars or 0
+                    new_stars = project_data.get("stars", 0)
+                    star_velocity = new_stars - prev_stars
+                    if star_velocity > 0:
+                        print(f"📈 Star velocity for {project_data['repo_name']}: +{star_velocity}")
+
                     # 업데이트 (스타, 포크 등)
-                    existing_project.stars = project_data.get("stars", 0)
+                    existing_project.stars = new_stars
                     existing_project.forks = project_data.get("forks", 0)
                     existing_project.watchers = project_data.get("watchers", 0)
                     existing_project.open_issues = project_data.get("open_issues", 0)

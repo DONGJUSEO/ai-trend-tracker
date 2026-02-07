@@ -16,6 +16,41 @@ class YouTubeService:
 
     BASE_URL = "https://www.googleapis.com/youtube/v3"
 
+    # Curated AI YouTube channels from Gemini deep research (2026-02)
+    CURATED_CHANNELS = {
+        # Korean AI YouTubers
+        "korean": [
+            {"handle": "@jocoding", "name": "조코딩 JoCoding", "category": "앱개발/수익화"},
+            {"handle": "@teddynote", "name": "테디노트 Teddy Note", "category": "RAG/실무"},
+            {"handle": "@bbanghyong", "name": "빵형의 개발도상국", "category": "토이프로젝트"},
+            {"handle": "@nadocoding", "name": "나도코딩", "category": "기초교육"},
+            {"handle": "@nomadcoders", "name": "노마드 코더", "category": "글로벌트렌드"},
+            {"handle": "@undeal", "name": "안될공학", "category": "테크리뷰"},
+            {"handle": "@ITSub", "name": "ITSub잇섭", "category": "디바이스"},
+            {"handle": "@visionbear", "name": "비전곰", "category": "CV연구"},
+            {"handle": "@aitalktalk", "name": "AI톡톡", "category": "툴소개"},
+            {"handle": "@deepdive_kr", "name": "딥다이브", "category": "산업분석"},
+            {"handle": "@eo_studio", "name": "EO", "category": "스타트업"},
+            {"handle": "@syukaworld", "name": "슈카월드", "category": "경제/사회"},
+        ],
+        # International AI YouTubers
+        "international": [
+            {"handle": "@3blue1brown", "name": "3Blue1Brown", "category": "Math/Theory"},
+            {"handle": "@TwoMinutePapers", "name": "Two Minute Papers", "category": "Paper Review"},
+            {"handle": "@sentdex", "name": "Sentdex", "category": "Dev/Coding"},
+            {"handle": "@WesRoth", "name": "Wes Roth", "category": "News"},
+            {"handle": "@matthew_berman", "name": "Matthew Berman", "category": "OpenSource/LLM"},
+            {"handle": "@AndrejKarpathy", "name": "Andrej Karpathy", "category": "Expert/Lecture"},
+            {"handle": "@YannicKilcher", "name": "Yannic Kilcher", "category": "Research"},
+            {"handle": "@aiexplained", "name": "AI Explained", "category": "Analysis"},
+            {"handle": "@DavidShapiroAutomator", "name": "David Shapiro", "category": "Philosophy"},
+            {"handle": "@krishnaik06", "name": "Krish Naik", "category": "Education"},
+            {"handle": "@RobertMilesAI", "name": "Robert Miles", "category": "AI Safety"},
+            {"handle": "@lexfridman", "name": "Lex Fridman", "category": "Podcast"},
+            {"handle": "@DeepMind", "name": "DeepMind", "category": "Official"},
+        ],
+    }
+
     def __init__(self, api_key: Optional[str] = None):
         """
         Args:
@@ -361,3 +396,73 @@ class YouTubeService:
         except Exception as e:
             print(f"❌ 채널 정보 가져오기 실패 ({channel_id}): {e}")
             return None
+
+    def get_curated_channels(self, region: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Gemini deep research로 선정된 큐레이션 AI 유튜브 채널 목록 반환
+
+        Args:
+            region: 지역 필터 ('korean', 'international', None=전체)
+
+        Returns:
+            큐레이션 채널 딕셔너리
+        """
+        if region and region in self.CURATED_CHANNELS:
+            return {region: self.CURATED_CHANNELS[region]}
+        return self.CURATED_CHANNELS
+
+    async def fetch_channel_videos_by_handle(
+        self,
+        handle: str,
+        max_results: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """
+        YouTube 핸들(@handle)로 채널을 검색하고 최신 비디오를 가져오기
+
+        Args:
+            handle: YouTube 채널 핸들 (예: '@jocoding')
+            max_results: 최대 결과 수
+
+        Returns:
+            비디오 정보 리스트
+        """
+        if not self.api_key:
+            print("⚠️  YouTube API 키가 없어 데이터를 수집할 수 없습니다.")
+            return []
+
+        try:
+            async with httpx.AsyncClient() as client:
+                # 1. 핸들로 채널 검색하여 채널 ID 확인
+                search_params = {
+                    "part": "snippet",
+                    "q": handle,
+                    "type": "channel",
+                    "maxResults": 1,
+                    "key": self.api_key,
+                }
+
+                search_response = await client.get(
+                    f"{self.BASE_URL}/search", params=search_params
+                )
+                search_response.raise_for_status()
+                search_data = search_response.json()
+
+                if "items" not in search_data or not search_data["items"]:
+                    print(f"⚠️  채널을 찾을 수 없습니다: {handle}")
+                    return []
+
+                channel_id = search_data["items"][0]["snippet"]["channelId"]
+
+                # 2. 채널 ID로 최신 비디오 가져오기
+                return await self.get_channel_videos(
+                    channel_id=channel_id,
+                    max_results=max_results,
+                    order="date",
+                )
+
+        except httpx.HTTPStatusError as e:
+            print(f"❌ YouTube API 오류 (핸들 {handle}): {e.response.status_code} - {e.response.text}")
+            return []
+        except Exception as e:
+            print(f"❌ 핸들 기반 비디오 수집 실패 ({handle}): {e}")
+            return []

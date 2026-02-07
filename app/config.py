@@ -28,6 +28,8 @@ class Settings(BaseSettings):
 
     # 보안 설정
     app_password: str = "test1234"
+    admin_password: str = "admin1234"
+    jwt_secret_key: str = "ai-trend-tracker-secret-key-2026"
 
     class Config:
         env_file = ".env"

@@ -36,50 +36,165 @@ class ConferenceService:
         "ICCV": "A*",
     }
 
+    # Confirmed 2026 conference data from Gemini deep research (2026-02)
+    CONFERENCES_2026 = {
+        "AAAI 2026": {
+            "full_name": "Association for the Advancement of Artificial Intelligence",
+            "dates": "2026-01-20 ~ 2026-01-27",
+            "start_date": "2026-01-20",
+            "end_date": "2026-01-27",
+            "location": "Singapore (Singapore Expo)",
+            "tier": "A*",
+            "topics": ["AI", "Robotics", "Agents"],
+            "website": "https://aaai.org/conference/aaai/aaai-26/",
+        },
+        "ICLR 2026": {
+            "full_name": "International Conference on Learning Representations",
+            "dates": "2026-04-23 ~ 2026-04-27",
+            "start_date": "2026-04-23",
+            "end_date": "2026-04-27",
+            "location": "Rio de Janeiro, Brazil",
+            "tier": "A*",
+            "topics": ["Deep Learning", "Neural Architecture"],
+            "website": "https://iclr.cc/",
+        },
+        "CVPR 2026": {
+            "full_name": "Computer Vision and Pattern Recognition",
+            "dates": "2026-06-03 ~ 2026-06-07",
+            "start_date": "2026-06-03",
+            "end_date": "2026-06-07",
+            "location": "Denver, CO, USA",
+            "tier": "A*",
+            "topics": ["Computer Vision", "Video Generation"],
+            "website": "https://cvpr.thecvf.com/",
+        },
+        "ICML 2026": {
+            "full_name": "International Conference on Machine Learning",
+            "dates": "2026-07-06 ~ 2026-07-11",
+            "start_date": "2026-07-06",
+            "end_date": "2026-07-11",
+            "location": "Seoul, South Korea",
+            "tier": "A*",
+            "topics": ["Machine Learning"],
+            "website": "https://icml.cc/",
+        },
+        "KDD 2026": {
+            "full_name": "Knowledge Discovery and Data Mining",
+            "dates": "2026-08-09 ~ 2026-08-13",
+            "start_date": "2026-08-09",
+            "end_date": "2026-08-13",
+            "location": "Jeju, South Korea (ICC Jeju)",
+            "tier": "A*",
+            "topics": ["Data Mining", "Applied Data Science"],
+            "website": "https://kdd2026.kdd.org/",
+        },
+        "NeurIPS 2026": {
+            "full_name": "Neural Information Processing Systems",
+            "dates": "2026-12-06 ~ 2026-12-12",
+            "start_date": "2026-12-06",
+            "end_date": "2026-12-12",
+            "location": "Sydney, Australia",
+            "tier": "A*",
+            "topics": ["Neural Networks", "ML"],
+            "website": "https://neurips.cc/",
+        },
+    }
+
     def __init__(self):
         pass
 
-    async def fetch_wikicfp_conferences(self, max_results: int = 50) -> List[Dict[str, Any]]:
+    def get_confirmed_2026_conferences(self) -> List[Dict[str, Any]]:
         """
-        WikiCFP RSS 피드에서 AI 컨퍼런스 정보 수집
+        Gemini deep research로 확인된 2026 컨퍼런스 정보 반환
+
+        Returns:
+            확인된 2026 컨퍼런스 정보 리스트
+        """
+        conferences = []
+        for name, data in self.CONFERENCES_2026.items():
+            conf = {
+                "conference_name": name,
+                "conference_acronym": name.split(" ")[0],  # e.g., "AAAI" from "AAAI 2026"
+                "full_name": data["full_name"],
+                "website_url": data["website"],
+                "dates": data["dates"],
+                "start_date": data["start_date"],
+                "end_date": data["end_date"],
+                "location": data["location"],
+                "year": 2026,
+                "topics": data["topics"],
+                "tier": data["tier"],
+                "is_upcoming": self._is_upcoming_by_date_str(data["start_date"]),
+                "source": "gemini_research_confirmed",
+            }
+            conferences.append(conf)
+        return conferences
+
+    def _is_upcoming_by_date_str(self, date_str: str) -> bool:
+        """날짜 문자열 기준으로 다가오는 컨퍼런스인지 확인"""
+        try:
+            conf_date = datetime.strptime(date_str, "%Y-%m-%d")
+            now = datetime.now()
+            return now < conf_date < (now + timedelta(days=180))
+        except Exception:
+            return False
+
+    async def fetch_wikicfp_conferences(self, max_results: int = 50, year: int = 2026) -> List[Dict[str, Any]]:
+        """
+        WikiCFP RSS 피드에서 AI 컨퍼런스 정보 수집 + 확인된 2026 데이터 병합
 
         Args:
             max_results: 최대 결과 수
+            year: 수집 대상 연도 (기본값: 2026)
 
         Returns:
             컨퍼런스 정보 리스트
         """
         all_conferences = []
 
+        # 1. 확인된 2026 컨퍼런스 데이터 우선 추가
+        if year == 2026:
+            confirmed = self.get_confirmed_2026_conferences()
+            all_conferences.extend(confirmed)
+            print(f"✅ Loaded {len(confirmed)} confirmed 2026 conferences from research data")
+
+        # 2. WikiCFP RSS 피드에서 추가 수집
+        confirmed_acronyms = {c["conference_acronym"] for c in all_conferences}
+
         try:
             for category, feed_url in self.RSS_FEEDS.items():
-                print(f"📡 Fetching conferences from WikiCFP ({category})...")
+                print(f"📡 Fetching {year} conferences from WikiCFP ({category})...")
 
                 # feedparser는 동기 라이브러리이므로 직접 사용
                 feed = feedparser.parse(feed_url)
 
                 for entry in feed.entries[:max_results]:
-                    conference_data = self._parse_wikicfp_entry(entry, category)
+                    conference_data = self._parse_wikicfp_entry(entry, category, year_filter=year)
                     if conference_data:
+                        # 이미 확인된 컨퍼런스는 중복 추가하지 않음
+                        acronym = conference_data.get("conference_acronym")
+                        if acronym and acronym in confirmed_acronyms:
+                            continue
                         all_conferences.append(conference_data)
 
-                print(f"✅ Fetched {len(feed.entries[:max_results])} entries from {category}")
+                print(f"✅ Fetched entries from {category} (year={year})")
 
         except Exception as e:
             print(f"❌ Error fetching WikiCFP conferences: {e}")
 
         return all_conferences[:max_results]
 
-    def _parse_wikicfp_entry(self, entry: Any, category: str) -> Optional[Dict[str, Any]]:
+    def _parse_wikicfp_entry(self, entry: Any, category: str, year_filter: int = 2026) -> Optional[Dict[str, Any]]:
         """
         WikiCFP RSS entry 파싱
 
         Args:
             entry: feedparser entry 객체
             category: 카테고리 (ai, ml, cv, nlp)
+            year_filter: 수집 대상 연도 (기본값: 2026)
 
         Returns:
-            파싱된 컨퍼런스 정보
+            파싱된 컨퍼런스 정보 (연도 필터 미통과 시 None)
         """
         try:
             title = entry.get("title", "")
@@ -93,12 +208,24 @@ class ConferenceService:
             # 예: "Submission Deadline: Jan 15, 2026"
             submission_deadline = self._extract_date_from_text(description, "submission")
 
+            # Phase 2: 연도 필터 - 제목 또는 마감일 기준으로 대상 연도만 수집
+            title_has_year = str(year_filter) in title
+            deadline_matches = (
+                submission_deadline is not None
+                and submission_deadline.year == year_filter
+            )
+            if not title_has_year and not deadline_matches:
+                # 연도 정보가 없는 경우에도 통과 (데이터 손실 방지)
+                if submission_deadline is not None:
+                    return None
+
             # 기본 정보 구성
             conference_data = {
                 "conference_name": title,
                 "conference_acronym": acronym,
                 "website_url": link,
                 "submission_deadline": submission_deadline,
+                "year": year_filter,
                 "topics": [category.upper()],
                 "tier": self.MAJOR_CONFERENCES.get(acronym, "B") if acronym else "B",
                 "is_upcoming": self._is_upcoming(submission_deadline),
@@ -219,7 +346,8 @@ class ConferenceService:
         return saved_count
 
     async def get_conferences(
-        self, db: AsyncSession, skip: int = 0, limit: int = 20, upcoming_only: bool = False
+        self, db: AsyncSession, skip: int = 0, limit: int = 20,
+        upcoming_only: bool = False, year: Optional[int] = None
     ) -> List[AIConference]:
         """
         데이터베이스에서 컨퍼런스 목록 조회
@@ -229,6 +357,7 @@ class ConferenceService:
             skip: 건너뛸 항목 수
             limit: 반환할 최대 항목 수
             upcoming_only: 다가오는 컨퍼런스만 조회
+            year: 연도 필터
 
         Returns:
             컨퍼런스 목록
@@ -237,6 +366,10 @@ class ConferenceService:
 
         if upcoming_only:
             query = query.where(AIConference.is_upcoming == True)
+
+        # Phase 2: 연도 필터
+        if year is not None:
+            query = query.where(AIConference.year == year)
 
         query = query.order_by(desc(AIConference.submission_deadline)).offset(skip).limit(limit)
 

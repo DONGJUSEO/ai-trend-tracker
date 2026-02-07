@@ -8,7 +8,7 @@ from starlette.responses import Response
 
 from app.config import get_settings
 from app.database import init_db
-from app.api.v1 import huggingface, collect, scheduler, youtube, papers, news, github, system, conferences, tools, leaderboard, jobs, policies, startups
+from app.api.v1 import huggingface, collect, scheduler, youtube, papers, news, github, system, conferences, tools, jobs, policies, dashboard, admin
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.auth import verify_api_key
 from app.logging_config import setup_logging
@@ -189,24 +189,23 @@ app.include_router(
 )
 
 app.include_router(
-    startups.router,
-    prefix="/api/v1/startups",
-    tags=["AI Startups"],
-    dependencies=[Depends(verify_api_key)],
-)
-
-app.include_router(
-    leaderboard.router,
-    prefix="/api/v1/leaderboards",
-    tags=["AI Leaderboards"],
-    dependencies=[Depends(verify_api_key)],
-)
-
-app.include_router(
     tools.router,
     prefix="/api/v1/tools",
     tags=["AI Tools"],
     dependencies=[Depends(verify_api_key)],
+)
+
+app.include_router(
+    dashboard.router,
+    prefix="/api/v1/dashboard",
+    tags=["Dashboard"],
+    dependencies=[Depends(verify_api_key)],
+)
+
+app.include_router(
+    admin.router,
+    prefix="/api/v1/admin",
+    tags=["Admin"],
 )
 
 

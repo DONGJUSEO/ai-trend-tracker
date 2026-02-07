@@ -15,10 +15,8 @@ from app.services.news_service import NewsService
 from app.services.github_service import GitHubService
 from app.services.conference_service import ConferenceService
 from app.services.ai_tool_service import AIToolService
-from app.services.leaderboard_service import LeaderboardService
 from app.services.job_trend_service import JobTrendService
 from app.services.policy_service import PolicyService
-from app.services.startup_service import StartupService
 from app.services.ai_summary_service import AISummaryService
 from app.models.huggingface import HuggingFaceModel
 from app.models.youtube import YouTubeVideo
@@ -27,10 +25,8 @@ from app.models.news import AINews
 from app.models.github import GitHubProject
 from app.models.conference import AIConference
 from app.models.ai_tool import AITool
-from app.models.leaderboard import AILeaderboard
 from app.models.job_trend import AIJobTrend
 from app.models.policy import AIPolicy
-from app.models.startup import AIStartup
 from sqlalchemy import select, desc
 
 settings = get_settings()
@@ -591,75 +587,6 @@ async def collect_tool_data():
     print(f"{'='*60}\n")
 
 
-async def collect_leaderboard_data():
-    """AI Leaderboard 데이터 수집 작업"""
-    print(f"\n{'='*60}")
-    print(f"🏆 AI Leaderboard 수집 시작: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"{'='*60}\n")
-
-    async with AsyncSessionLocal() as db:
-        try:
-            # 1. AI 리더보드 데이터 수집
-            leaderboard_service = LeaderboardService()
-
-            leaderboards = await leaderboard_service.fetch_sample_leaderboards()
-
-            if leaderboards:
-                saved = await leaderboard_service.save_to_db(leaderboards, db)
-                print(f"✅ AI Leaderboard: {saved}개 신규 항목 저장")
-            else:
-                print("⚠️  리더보드 데이터를 찾을 수 없습니다")
-
-            # 2. AI 요약 생성 (요약이 없는 리더보드 항목들에 대해)
-            ai_service = AISummaryService()
-            if ai_service.model:  # API 키가 있는 경우만
-                query = select(AILeaderboard).where(
-                    AILeaderboard.summary == None
-                ).limit(10)  # 한번에 10개씩
-                result = await db.execute(query)
-                leaderboards_without_summary = result.scalars().all()
-
-                if leaderboards_without_summary:
-                    print(f"\n🧠 AI 요약 생성 시작 ({len(leaderboards_without_summary)}개 항목)...")
-
-                    for leaderboard in leaderboards_without_summary:
-                        try:
-                            summary_data = await ai_service.summarize_leaderboard(
-                                model_name=leaderboard.model_name,
-                                leaderboard_source=leaderboard.leaderboard_source,
-                                scores=leaderboard.scores or {},
-                                strengths=leaderboard.strengths or [],
-                            )
-
-                            if summary_data.get("summary"):
-                                leaderboard.summary = summary_data["summary"]
-                                leaderboard.keywords = summary_data.get("keywords", [])
-                                print(f"  ✅ {leaderboard.model_name[:40]} - 요약 완료")
-                            else:
-                                print(f"  ⚠️  {leaderboard.model_name[:40]} - 요약 실패")
-
-                            # API 호출 제한 회피
-                            await asyncio.sleep(2)
-
-                        except Exception as e:
-                            print(f"  ❌ {leaderboard.model_name[:40]} - 에러: {e}")
-                            continue
-
-                    await db.commit()
-                    print(f"✅ AI 요약 완료")
-            else:
-                print("⚠️  Gemini API 키가 없어 요약을 건너뜁니다")
-
-        except Exception as e:
-            print(f"❌ Leaderboard 수집 중 에러 발생: {e}")
-        finally:
-            await db.close()
-
-    print(f"\n{'='*60}")
-    print(f"✨ Leaderboard 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"{'='*60}\n")
-
-
 async def collect_job_data():
     """AI Job Trend 데이터 수집 작업"""
     print(f"\n{'='*60}")
@@ -798,75 +725,6 @@ async def collect_policy_data():
     print(f"{'='*60}\n")
 
 
-async def collect_startup_data():
-    """AI Startup 데이터 수집 작업"""
-    print(f"\n{'='*60}")
-    print(f"🚀 AI Startup 수집 시작: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"{'='*60}\n")
-
-    async with AsyncSessionLocal() as db:
-        try:
-            # 1. RSS 피드에서 AI 스타트업 펀딩 뉴스 수집
-            startup_service = StartupService()
-
-            startups = await startup_service.fetch_funding_news(max_results=20)
-
-            if startups:
-                saved = await startup_service.save_to_db(startups, db)
-                print(f"✅ AI Startup: {saved}개 신규 스타트업 저장")
-            else:
-                print("⚠️  스타트업 정보를 찾을 수 없습니다")
-
-            # 2. AI 요약 생성 (요약이 없는 스타트업들에 대해)
-            ai_service = AISummaryService()
-            if ai_service.model:  # API 키가 있는 경우만
-                query = select(AIStartup).where(
-                    AIStartup.summary == None
-                ).limit(10)  # 한번에 10개씩
-                result = await db.execute(query)
-                startups_without_summary = result.scalars().all()
-
-                if startups_without_summary:
-                    print(f"\n🧠 AI 요약 생성 시작 ({len(startups_without_summary)}개 스타트업)...")
-
-                    for startup in startups_without_summary:
-                        try:
-                            summary_data = await ai_service.summarize_startup(
-                                company_name=startup.company_name,
-                                description=startup.description or "",
-                                funding_series=startup.funding_series,
-                                industry_tags=startup.industry_tags or [],
-                            )
-
-                            if summary_data.get("summary"):
-                                startup.summary = summary_data["summary"]
-                                startup.keywords = summary_data.get("keywords", [])
-                                print(f"  ✅ {startup.company_name[:40]} - 요약 완료")
-                            else:
-                                print(f"  ⚠️  {startup.company_name[:40]} - 요약 실패")
-
-                            # API 호출 제한 회피
-                            await asyncio.sleep(2)
-
-                        except Exception as e:
-                            print(f"  ❌ {startup.company_name[:40]} - 에러: {e}")
-                            continue
-
-                    await db.commit()
-                    print(f"✅ AI 요약 완료")
-            else:
-                print("⚠️  Gemini API 키가 없어 요약을 건너뜁니다")
-
-        except Exception as e:
-            print(f"❌ Startup 수집 중 에러 발생: {e}")
-        finally:
-            await db.close()
-
-    print(f"\n{'='*60}")
-    print(f"✨ Startup 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"{'='*60}\n")
-
-
 async def collect_all_data():
     """모든 데이터 수집 작업"""
     print(f"\n{'='*80}")
@@ -894,16 +752,10 @@ async def collect_all_data():
     await collect_tool_data()
     await asyncio.sleep(3)  # 잠깐 대기
 
-    await collect_leaderboard_data()
-    await asyncio.sleep(3)  # 잠깐 대기
-
     await collect_job_data()
     await asyncio.sleep(3)  # 잠깐 대기
 
     await collect_policy_data()
-    await asyncio.sleep(3)  # 잠깐 대기
-
-    await collect_startup_data()
 
     print(f"\n{'='*80}")
     print(f"🎉 전체 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -924,7 +776,7 @@ def start_scheduler():
     )
 
     logger.info("⏰ 스케줄러 시작: 매일 00:00에 전체 데이터 수집 (HuggingFace + YouTube + Papers + News + GitHub + 6개 신규 카테고리)")
-    print("⏰ 스케줄러 시작: 매일 00:00에 전체 데이터 수집 (HuggingFace + YouTube + Papers + News + GitHub + Conference + Tool + Leaderboard + Job + Policy + Startup)")
+    print("⏰ 스케줄러 시작: 매일 00:00에 전체 데이터 수집 (HuggingFace + YouTube + Papers + News + GitHub + Conference + Tool + Job + Policy)")
     scheduler.start()
 
 

@@ -15,10 +15,8 @@ from app.models.paper import AIPaper
 from app.models.news import AINews
 from app.models.conference import AIConference
 from app.models.ai_tool import AITool
-from app.models.leaderboard import AILeaderboard
 from app.models.job_trend import AIJobTrend
 from app.models.policy import AIPolicy
-from app.models.startup import AIStartup
 from app.services.scheduler import collect_all_data
 import asyncio
 
@@ -249,35 +247,6 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
             "error": str(e)
         }
 
-    # AI Leaderboards
-    try:
-        lb_count = await db.execute(select(func.count()).select_from(AILeaderboard))
-        lb_total = lb_count.scalar()
-
-        lb_latest = await db.execute(
-            select(AILeaderboard.created_at)
-            .order_by(AILeaderboard.created_at.desc())
-            .limit(1)
-        )
-        lb_last_update = lb_latest.scalar_one_or_none()
-
-        categories_status["leaderboards"] = {
-            "name": "AI 리더보드",
-            "icon": "🏆",
-            "total": lb_total,
-            "last_update": lb_last_update.isoformat() if lb_last_update else None,
-            "status": "healthy" if lb_total > 0 else "no_data"
-        }
-    except Exception as e:
-        categories_status["leaderboards"] = {
-            "name": "AI 리더보드",
-            "icon": "🏆",
-            "total": 0,
-            "last_update": None,
-            "status": "error",
-            "error": str(e)
-        }
-
     # AI Jobs
     try:
         job_count = await db.execute(select(func.count()).select_from(AIJobTrend))
@@ -330,35 +299,6 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
         categories_status["policies"] = {
             "name": "AI 정책",
             "icon": "📜",
-            "total": 0,
-            "last_update": None,
-            "status": "error",
-            "error": str(e)
-        }
-
-    # AI Startups
-    try:
-        startup_count = await db.execute(select(func.count()).select_from(AIStartup))
-        startup_total = startup_count.scalar()
-
-        startup_latest = await db.execute(
-            select(AIStartup.created_at)
-            .order_by(AIStartup.created_at.desc())
-            .limit(1)
-        )
-        startup_last_update = startup_latest.scalar_one_or_none()
-
-        categories_status["startups"] = {
-            "name": "AI 스타트업",
-            "icon": "🚀",
-            "total": startup_total,
-            "last_update": startup_last_update.isoformat() if startup_last_update else None,
-            "status": "healthy" if startup_total > 0 else "no_data"
-        }
-    except Exception as e:
-        categories_status["startups"] = {
-            "name": "AI 스타트업",
-            "icon": "🚀",
             "total": 0,
             "last_update": None,
             "status": "error",
@@ -486,19 +426,6 @@ async def get_keywords(
     except Exception:
         pass
 
-    # AI Leaderboard keywords
-    try:
-        lb_result = await db.execute(
-            select(AILeaderboard.keywords).where(
-                AILeaderboard.keywords.isnot(None)
-            ).limit(100)
-        )
-        for row in lb_result.scalars():
-            if row and isinstance(row, list):
-                all_keywords.extend(row)
-    except Exception:
-        pass
-
     # AI Job keywords
     try:
         job_result = await db.execute(
@@ -520,19 +447,6 @@ async def get_keywords(
             ).limit(100)
         )
         for row in policy_result.scalars():
-            if row and isinstance(row, list):
-                all_keywords.extend(row)
-    except Exception:
-        pass
-
-    # AI Startup keywords
-    try:
-        startup_result = await db.execute(
-            select(AIStartup.industry_tags).where(
-                AIStartup.industry_tags.isnot(None)
-            ).limit(100)
-        )
-        for row in startup_result.scalars():
             if row and isinstance(row, list):
                 all_keywords.extend(row)
     except Exception:
