@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Clock } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Sidebar from "./Sidebar";
@@ -22,7 +23,7 @@ export default function LayoutShell({ children }: LayoutShellProps) {
   }
 
   return (
-    <div className={`min-h-screen ${theme === "dark" ? "bg-[#0f0a0a]" : "bg-[#f5f0f0]"}`}>
+    <div className={`min-h-screen ${theme === "dark" ? "bg-[#0f0a0a]" : "bg-[#faf8f6]"}`}>
       {/* Desktop Sidebar */}
       <Sidebar />
 
@@ -30,11 +31,11 @@ export default function LayoutShell({ children }: LayoutShellProps) {
       <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
 
       {/* Main content area - offset by sidebar width on desktop */}
-      <div className="lg:ml-[280px]">
+      <div className="lg:ml-[280px] flex flex-col min-h-screen">
         <TopBar onMenuToggle={() => setMobileNavOpen(true)} />
 
         {/* Page content */}
-        <main className="p-4 lg:p-8 min-h-[calc(100vh-4rem)]">
+        <main className="flex-1 p-4 lg:p-8">
           {children}
         </main>
 
@@ -46,8 +47,9 @@ export default function LayoutShell({ children }: LayoutShellProps) {
 }
 
 function Footer() {
-  const [time, setTime] = useState("");
+  const [time, setTime] = useState<string | null>(null);
   const { theme } = useTheme();
+  const isLight = theme === "light";
 
   useEffect(() => {
     function updateTime() {
@@ -69,18 +71,23 @@ function Footer() {
     return () => clearInterval(interval);
   }, []);
 
+  if (!time) return null;
+
   return (
     <footer className={`px-4 lg:px-8 py-3 border-t ${
-      theme === "dark" ? "border-white/10" : "border-black/10"
+      isLight ? "border-black/[0.06]" : "border-white/10"
     }`}>
       <div className="flex items-center gap-2">
-        <span className={`font-mono text-xs ${
-          theme === "dark" ? "text-white/40" : "text-black/40"
+        <Clock className={`w-3.5 h-3.5 ${
+          isLight ? "text-gray-400" : "text-white/30"
+        }`} />
+        <span className={`font-mono text-xs tracking-wide ${
+          isLight ? "text-gray-500" : "text-white/50"
         }`}>
           {time}
         </span>
-        <span className={`text-[10px] ${
-          theme === "dark" ? "text-white/20" : "text-black/20"
+        <span className={`text-[10px] font-medium ${
+          isLight ? "text-gray-400" : "text-white/30"
         }`}>
           KST
         </span>

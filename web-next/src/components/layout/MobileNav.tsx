@@ -10,6 +10,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { CATEGORIES, APP_NAME, APP_VERSION } from "@/lib/constants";
+import { useTheme } from "@/lib/theme-context";
 import { cn } from "@/lib/utils";
 
 interface MobileNavProps {
@@ -19,14 +20,24 @@ interface MobileNavProps {
 
 export default function MobileNav({ open, onOpenChange }: MobileNavProps) {
   const pathname = usePathname();
+  const { theme } = useTheme();
+  const isLight = theme === "light";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="left"
-        className="w-[280px] p-0 bg-[#0f0a0a]/95 backdrop-blur-2xl border-r border-white/10"
+        className={cn(
+          "w-[280px] p-0 backdrop-blur-2xl border-r",
+          isLight
+            ? "bg-white/95 border-black/[0.06]"
+            : "bg-[#0f0a0a]/95 border-white/10"
+        )}
       >
-        <SheetHeader className="px-6 py-6 border-b border-white/10">
+        <SheetHeader className={cn(
+          "px-6 py-6 border-b",
+          isLight ? "border-black/[0.06]" : "border-white/10"
+        )}>
           <div className="flex items-center gap-3">
             <Image
               src="/logo.png"
@@ -59,8 +70,12 @@ export default function MobileNav({ open, onOpenChange }: MobileNavProps) {
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative",
                     isActive
-                      ? "bg-white/10 text-white"
-                      : "text-muted-foreground hover:bg-white/5 hover:text-white"
+                      ? isLight
+                        ? "bg-black/[0.04] text-gray-900"
+                        : "bg-white/10 text-white"
+                      : isLight
+                        ? "text-gray-500 hover:bg-black/[0.03] hover:text-gray-900"
+                        : "text-muted-foreground hover:bg-white/5 hover:text-white"
                   )}
                 >
                   {/* Active bar */}

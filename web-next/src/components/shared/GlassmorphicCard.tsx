@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/lib/theme-context";
 
 interface GlassmorphicCardProps {
   children: React.ReactNode;
@@ -22,6 +23,9 @@ export default function GlassmorphicCard({
   gradientTo = "#764ba2",
   onClick,
 }: GlassmorphicCardProps) {
+  const { theme } = useTheme();
+  const isLight = theme === "light";
+
   if (gradientBorder) {
     return (
       <motion.div
@@ -35,8 +39,10 @@ export default function GlassmorphicCard({
       >
         <div
           className={cn(
-            "bg-[#0a0a0f]/80 backdrop-blur-xl rounded-2xl h-full",
-            hover && "hover:bg-white/[0.03] transition-all duration-300"
+            "backdrop-blur-xl rounded-2xl h-full",
+            isLight ? "bg-white/92" : "bg-[#0a0a0f]/80",
+            hover && "transition-all duration-300",
+            hover && (isLight ? "hover:bg-white/95" : "hover:bg-white/[0.03]")
           )}
         >
           {children}
@@ -50,9 +56,14 @@ export default function GlassmorphicCard({
       whileHover={hover ? { scale: 1.01 } : undefined}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
-        "bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl",
+        "backdrop-blur-xl rounded-2xl transition-all duration-300",
+        isLight
+          ? "bg-white/85 border border-black/[0.06] shadow-sm"
+          : "bg-white/5 border border-white/10",
         hover &&
-          "hover:bg-white/[0.08] hover:border-white/[0.15] transition-all duration-300",
+          (isLight
+            ? "hover:bg-white/95 hover:shadow-md hover:border-black/[0.1]"
+            : "hover:bg-white/[0.08] hover:border-white/[0.15]"),
         className
       )}
       onClick={onClick}

@@ -1,69 +1,525 @@
-# Ain싸 - AI Trending
+<p align="center">
+  <img src="web-next/public/logo.png" alt="Ain싸 Logo" width="120" height="120" />
+</p>
 
-> **9개 카테고리로 보는 AI 트렌드 큐레이션 서비스**
+<h1 align="center">Ain싸 - AI Trending</h1>
 
-AI 업계의 최신 트렌드를 자동 수집하고, Gemini AI로 한글 요약하여 제공하는 풀스택 웹 서비스입니다.
+<p align="center">
+  <strong>9개 카테고리로 보는 AI 트렌드 큐레이션 서비스</strong>
+</p>
 
-**Demo**: [프론트엔드](https://ai-trend-tracker-beta.vercel.app) | [백엔드 API](https://ai-trend-tracker-production.up.railway.app/docs)
+<p align="center">
+  <img src="https://img.shields.io/badge/version-v2.0-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/FastAPI-0.128-009688?style=flat-square&logo=fastapi" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?style=flat-square&logo=postgresql" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis" alt="Redis" />
+  <img src="https://img.shields.io/badge/Gemini_AI-한글요약-4285F4?style=flat-square&logo=google" alt="Gemini" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" />
+</p>
+
+<p align="center">
+  <a href="https://ai-trend-tracker-beta.vercel.app">라이브 데모</a> &bull;
+  <a href="https://ai-trend-tracker-production.up.railway.app/docs">API 문서 (Swagger)</a> &bull;
+  <a href="#빠른-시작">빠른 시작</a> &bull;
+  <a href="#기술-스택">기술 스택</a>
+</p>
 
 ---
 
-## 프로젝트 개요
+## 목차
 
-### 9개 AI 트렌드 카테고리
+- [프로젝트 소개](#프로젝트-소개)
+- [스크린샷](#스크린샷)
+- [시스템 아키텍처](#시스템-아키텍처)
+- [9개 AI 트렌드 카테고리](#9개-ai-트렌드-카테고리)
+- [주요 기능 상세](#주요-기능-상세)
+- [기술 스택](#기술-스택)
+- [프로젝트 구조](#프로젝트-구조)
+- [빠른 시작](#빠른-시작)
+- [환경 변수 설정](#환경-변수-설정)
+- [API 엔드포인트](#api-엔드포인트)
+- [인증 시스템](#인증-시스템)
+- [데이터 수집 파이프라인](#데이터-수집-파이프라인)
+- [Redis 캐싱 전략](#redis-캐싱-전략)
+- [배포 가이드](#배포-가이드)
+- [개발 방법론 (PDCA 사이클)](#개발-방법론-pdca-사이클)
+- [버전 히스토리](#버전-히스토리)
+- [향후 계획](#향후-계획)
+- [기여 가이드](#기여-가이드)
+- [개발자](#개발자)
+- [라이선스](#라이선스)
 
-| 카테고리 | 아이콘 | 설명 | 데이터 소스 |
-|---------|-------|------|-----------|
-| **Hugging Face** | 🤗 | 최신 AI 모델 트렌드, 태스크별 분류 | Hugging Face API |
-| **YouTube** | 📺 | 큐레이팅된 AI 유튜버 채널 영상 요약 | YouTube Data API |
-| **AI 논문** | 📄 | arXiv 최신 논문 한글 요약 | arXiv API |
-| **AI 뉴스** | 📰 | 한국 뉴스 중심 (전자신문, AI타임스 등) | RSS Feeds |
-| **GitHub** | 💻 | 3개월 이내 AI 오픈소스 트렌딩 | GitHub API |
-| **컨퍼런스** | 🎤 | 2026년 AI 학회/세미나 캘린더 | WikiCFP, AI Deadlines |
-| **AI 플랫폼** | 🤖 | ChatGPT, Gemini, Claude 등 주요 서비스 | 구조화 데이터 |
-| **AI 채용** | 💼 | AI/ML 채용 공고 (직무별/지역별) | RemoteOK API, RSS |
-| **AI 정책** | 📜 | 한국/EU/미국/중국 AI 정책 동향 | 정부 RSS, AI News |
+---
 
-### 주요 기능
+## 프로젝트 소개
 
-- **프리미엄 대시보드**: 키워드 모멘텀, 카테고리 통계, 위클리 다이제스트, 한국 AI 하이라이트
-- **자동 수집**: APScheduler 크론 기반 데이터 자동 수집
-- **AI 요약**: Google Gemini API로 한글 요약 자동 생성
-- **Redis 캐싱**: API 응답 캐싱으로 빠른 로딩
-- **관리자 인증**: JWT 기반 관리자 전용 시스템 페이지
-- **PWA 지원**: 모바일 앱처럼 설치 가능
-- **반응형 UI**: 글래스모피즘 다크 테마, Framer Motion 애니메이션
+**Ain싸 - AI Trending**은 AI 업계의 최신 트렌드를 9개 카테고리로 자동 수집하고, Google Gemini AI로 한글 요약하여 제공하는 **풀스택 웹 서비스**입니다.
+
+매일 자정에 APScheduler 크론 작업을 통해 Hugging Face, YouTube, arXiv, GitHub, 뉴스 RSS, 컨퍼런스, AI 플랫폼, 채용 공고, AI 정책 등 다양한 소스에서 데이터를 자동으로 수집합니다. 수집된 데이터는 Google Gemini API를 통해 한국어로 요약되어 사용자에게 제공됩니다.
+
+### 핵심 가치
+
+- **자동화**: 수동 큐레이션 없이 9개 카테고리의 AI 트렌드를 매일 자동 수집
+- **한글화**: 영어 기반 AI 콘텐츠를 Gemini AI가 자동으로 한글 요약
+- **통합 대시보드**: 키워드 모멘텀, 카테고리 통계, 위클리 다이제스트를 한눈에 확인
+- **모던 UI/UX**: 글래스모피즘 디자인, 다크/라이트 테마, Framer Motion 애니메이션
+- **PWA 지원**: 모바일 기기에서 앱처럼 설치하여 사용 가능
+
+### 데모 링크
+
+| 서비스 | URL | 설명 |
+|--------|-----|------|
+| **프론트엔드** | [ai-trend-tracker-beta.vercel.app](https://ai-trend-tracker-beta.vercel.app) | Next.js 14 기반 웹 클라이언트 |
+| **백엔드 API** | [ai-trend-tracker-production.up.railway.app/docs](https://ai-trend-tracker-production.up.railway.app/docs) | FastAPI Swagger 문서 |
+
+---
+
+## 스크린샷
+
+> 아래는 Ain싸 서비스의 주요 화면 구성입니다.
+
+### 대시보드 (홈)
+
+```
++------------------------------------------------------------------+
+|  [사이드바]  |              프리미엄 대시보드                        |
+|             |                                                      |
+|  대시보드    |  +------------+  +------------+  +------------+     |
+|  HuggingFace|  | 키워드      |  | 카테고리    |  | 위클리      |     |
+|  YouTube    |  | 모멘텀      |  | 통계        |  | 다이제스트  |     |
+|  AI 논문    |  | 차트        |  | 차트        |  |             |     |
+|  AI 뉴스    |  +------------+  +------------+  +------------+     |
+|  GitHub     |                                                      |
+|  컨퍼런스   |  +--------------------------------------------------+|
+|  AI 플랫폼  |  |        한국 AI 하이라이트 섹션                     ||
+|  AI 채용    |  +--------------------------------------------------+|
+|  AI 정책    |                                                      |
+|             |  +--------------------------------------------------+|
+|  [시스템]   |  |        전체 카테고리 요약 카드 그리드               ||
+|             |  +--------------------------------------------------+|
++------------------------------------------------------------------+
+```
+
+- **키워드 모멘텀**: D3.js / Recharts 기반 트렌딩 키워드 시각화
+- **카테고리 통계**: 9개 카테고리별 데이터 수집 현황 그래프
+- **위클리 다이제스트**: 이번 주 AI 트렌드 핵심 요약
+- **한국 AI 하이라이트**: 국내 AI 뉴스 및 정책 동향
+
+### 카테고리 페이지 (예: Hugging Face)
+
+```
++------------------------------------------------------------------+
+|  [사이드바]  |         Hugging Face 트렌딩 모델                     |
+|             |                                                      |
+|             |  [태스크 필터 탭]  전체 | NLP | CV | Audio | ...      |
+|             |                                                      |
+|             |  +--------------------------------------------------+|
+|             |  | 모델명: meta-llama/Llama-3.1-8B                   ||
+|             |  | 태스크: text-generation                           ||
+|             |  | 다운로드: 1.2M | 좋아요: 5.4K                     ||
+|             |  | AI 요약: 메타에서 개발한 80억 파라미터...            ||
+|             |  +--------------------------------------------------+|
+|             |  | 모델명: ...                                       ||
+|             |  +--------------------------------------------------+|
++------------------------------------------------------------------+
+```
+
+### 다크/라이트 테마 토글
+
+```
++-------------------+     +-------------------+
+|   다크 모드        |     |   라이트 모드       |
+|   (글래스모피즘)   |     |   (밝은 배경)       |
+|                   |     |                   |
+|   반투명 카드     |     |   화이트 카드       |
+|   네온 액센트     |     |   소프트 그림자     |
+|   다크 배경       |     |   라이트 배경       |
++-------------------+     +-------------------+
+```
+
+### 모바일 반응형 뷰
+
+```
++------------------+
+|  [=] Ain싸  [테마]|
+|                  |
+| 프리미엄 대시보드 |
+|                  |
+| +==============+ |
+| | 키워드 모멘텀 | |
+| +==============+ |
+|                  |
+| +==============+ |
+| | 카테고리 통계 | |
+| +==============+ |
+|                  |
+| [하단 네비게이션] |
++------------------+
+```
+
+### 관리자 시스템 페이지
+
+```
++------------------------------------------------------------------+
+|  시스템 상태 (관리자 전용 - JWT 인증 필요)                         |
+|                                                                    |
+|  +------------------+  +------------------+  +------------------+  |
+|  | DB 상태: 정상     |  | Redis: 연결됨     |  | 스케줄러: 활성  |  |
+|  | 레코드: 2,847    |  | 캐시 키: 45       |  | 다음 실행: 00:00|  |
+|  +------------------+  +------------------+  +------------------+  |
+|                                                                    |
+|  카테고리별 데이터 수집 현황                                        |
+|  +--------------------------------------------------------------+  |
+|  | HuggingFace: 450 | YouTube: 320 | Papers: 280 | News: 500   |  |
+|  | GitHub: 350 | Conference: 120 | Tools: 80 | Jobs: 200 | ... |  |
+|  +--------------------------------------------------------------+  |
++------------------------------------------------------------------+
+```
+
+---
+
+## 시스템 아키텍처
+
+### 전체 아키텍처 다이어그램
+
+```
+                          +-------------------+
+                          |    사용자 (브라우저) |
+                          |    / PWA 앱        |
+                          +--------+----------+
+                                   |
+                                   | HTTPS
+                                   v
+                          +-------------------+
+                          |     Vercel CDN     |
+                          |   (프론트엔드 호스팅) |
+                          +--------+----------+
+                                   |
+                      +------------+------------+
+                      |                         |
+                      v                         v
+           +-------------------+     +---------------------+
+           |   Next.js 14      |     |   Vercel Rewrites    |
+           |   App Router      |     |   /api/* -> Railway  |
+           |                   |     +----------+----------+
+           |   - SSR/CSR       |                |
+           |   - TypeScript    |                | 프록시
+           |   - Tailwind CSS  |                v
+           |   - shadcn/ui     |     +---------------------+
+           |   - Framer Motion |     |      Railway         |
+           |   - D3.js         |     |   (클라우드 호스팅)    |
+           |   - Recharts      |     +----------+----------+
+           |   - SWR           |                |
+           +-------------------+                v
+                                     +---------------------+
+                                     |    FastAPI Server    |
+                                     |    (비동기 Python)    |
+                                     |                     |
+                                     | - CORS Middleware   |
+                                     | - GZip Compression  |
+                                     | - Security Headers  |
+                                     | - API Key Auth      |
+                                     | - JWT Admin Auth    |
+                                     +--+-------+-------+--+
+                                        |       |       |
+                          +-------------+  +----+----+  +-------------+
+                          |                |         |                |
+                          v                v         v                v
+                 +----------------+ +----------+ +----------+ +-----------+
+                 | PostgreSQL 15  | | Redis 7  | | APScheduler| | Gemini AI |
+                 | (데이터 저장)   | | (캐싱)   | | (크론 작업) | | (AI 요약) |
+                 |                | |          | |            | |           |
+                 | - 9 테이블     | | - TTL    | | - 매일 00시| | - 한글 요약|
+                 | - SQLAlchemy   | | - JSON   | | - 9개 수집 | | - 키워드  |
+                 | - Alembic      | | - 패턴삭제| |   작업     | | - 핵심기능|
+                 +----------------+ +----------+ +-----+------+ +-----------+
+                                                       |
+                                        +--------------+--------------+
+                                        |              |              |
+                                        v              v              v
+                              +------------+  +------------+  +------------+
+                              | Hugging    |  | YouTube    |  | arXiv      |
+                              | Face API   |  | Data API   |  | API        |
+                              +------------+  +------------+  +------------+
+                              +------------+  +------------+  +------------+
+                              | GitHub     |  | RSS Feeds  |  | WikiCFP    |
+                              | API        |  | (뉴스/정책) |  | (컨퍼런스)  |
+                              +------------+  +------------+  +------------+
+                              +------------+  +------------+
+                              | RemoteOK   |  | 구조화     |
+                              | API (채용)  |  | 데이터     |
+                              +------------+  +------------+
+```
+
+### 데이터 흐름 (Data Flow)
+
+```
+[외부 API/RSS] --> [수집 서비스] --> [PostgreSQL] --> [API 라우터] --> [Redis 캐시] --> [프론트엔드]
+                       |                                                    ^
+                       v                                                    |
+                  [Gemini AI] -----> [한글 요약 생성] -----> [DB 업데이트] ---+
+```
+
+1. **데이터 수집 단계**: APScheduler가 매일 00:00에 9개 수집 서비스를 순차 실행
+2. **AI 요약 단계**: 수집된 데이터 중 요약이 없는 항목에 대해 Gemini AI가 한글 요약 생성
+3. **캐싱 단계**: API 요청 시 Redis에서 캐시 확인, 미스 시 DB 조회 후 캐싱
+4. **제공 단계**: 프론트엔드에서 SWR로 데이터 요청, Vercel rewrites로 API 프록시
+
+### 백엔드 레이어 아키텍처
+
+```
++---------------------------------------------------+
+|                   API Layer (라우터)                 |
+|  dashboard.py | huggingface.py | youtube.py | ...  |
++---------------------------------------------------+
+                         |
++---------------------------------------------------+
+|                 Service Layer (서비스)               |
+|  huggingface_service | youtube_service | ...       |
+|  ai_summary_service  | scheduler                  |
++---------------------------------------------------+
+                         |
++---------------------------------------------------+
+|                 Data Layer (데이터)                  |
+|  SQLAlchemy Models | Pydantic Schemas | Cache      |
++---------------------------------------------------+
+                         |
++---------------------------------------------------+
+|               Infrastructure (인프라)               |
+|  PostgreSQL | Redis | Gemini API | External APIs   |
++---------------------------------------------------+
+```
+
+---
+
+## 9개 AI 트렌드 카테고리
+
+| # | 카테고리 | 아이콘 | 설명 | 데이터 소스 | 수집 주기 |
+|---|---------|-------|------|-----------|----------|
+| 1 | **Hugging Face** | 🤗 | 최신 AI 모델 트렌드, 태스크별 분류 (NLP, CV, Audio 등) | Hugging Face API | 매일 00:00 |
+| 2 | **YouTube** | 📺 | 큐레이팅된 AI 유튜버 채널 영상 + 키워드 검색 영상 요약 | YouTube Data API v3 | 매일 00:00 |
+| 3 | **AI 논문** | 📄 | arXiv 최신 AI/ML 논문 한글 요약 (최근 7일) | arXiv API | 매일 00:00 |
+| 4 | **AI 뉴스** | 📰 | 한국 뉴스 중심 (전자신문, AI타임스, ZDNet Korea 등) | RSS Feeds | 매일 00:00 |
+| 5 | **GitHub** | 💻 | AI/ML 오픈소스 트렌딩 프로젝트 (스타 기반) | GitHub Search API | 매일 00:00 |
+| 6 | **컨퍼런스** | 🎤 | 2026년 AI 학회/세미나/워크숍 캘린더 | WikiCFP, AI Deadlines | 매일 00:00 |
+| 7 | **AI 플랫폼** | 🤖 | ChatGPT, Gemini, Claude, Midjourney 등 주요 AI 서비스 | 구조화 데이터 | 매일 00:00 |
+| 8 | **AI 채용** | 💼 | AI/ML 엔지니어 채용 공고 (직무별/지역별/리모트) | RemoteOK API, RSS | 매일 00:00 |
+| 9 | **AI 정책** | 📜 | 한국/EU/미국/중국 AI 정책 및 규제 동향 | 정부 RSS, AI News | 매일 00:00 |
+
+### 카테고리별 상세 설명
+
+#### 1. Hugging Face (🤗 AI 모델 트렌드)
+- Hugging Face Hub에서 트렌딩 AI 모델을 수집합니다.
+- 태스크별 분류 지원: `text-generation`, `image-classification`, `automatic-speech-recognition` 등
+- 모델별 다운로드 수, 좋아요 수, 태그 정보를 제공합니다.
+- Gemini AI가 모델의 핵심 기능과 활용 사례를 한글로 요약합니다.
+
+#### 2. YouTube (📺 AI 영상 큐레이션)
+- **큐레이션 채널**: 사전 등록된 AI 전문 유튜버 채널의 최신 영상을 우선 수집합니다.
+- **키워드 검색**: "AI artificial intelligence tutorial", "machine learning", "ChatGPT" 등 키워드로 추가 영상을 검색합니다.
+- 채널당 최신 3개 영상, 키워드당 5개 영상을 수집합니다.
+- 영상 제목, 설명, 태그를 기반으로 한글 요약 및 핵심 포인트를 생성합니다.
+
+#### 3. AI 논문 (📄 arXiv 논문 요약)
+- arXiv에서 최근 7일간의 AI/ML 관련 논문을 수집합니다.
+- 논문의 제목, 초록, 저자, 카테고리 정보를 기반으로 한글 요약을 생성합니다.
+- 핵심 기여 사항(key contributions)과 키워드를 자동 추출합니다.
+
+#### 4. AI 뉴스 (📰 한국 뉴스 중심)
+- 전자신문, AI타임스, ZDNet Korea 등 한국 IT/AI 미디어의 RSS 피드를 수집합니다.
+- 글로벌 AI 뉴스도 포함하여 포괄적인 뉴스 커버리지를 제공합니다.
+- 뉴스별 핵심 포인트와 키워드를 자동 생성합니다.
+
+#### 5. GitHub (💻 AI 오픈소스 트렌딩)
+- GitHub Search API를 통해 AI/ML 관련 트렌딩 리포지토리를 수집합니다.
+- 스타 수, 포크 수, 프로그래밍 언어, 토픽 정보를 제공합니다.
+- 프로젝트 활용 사례와 핵심 기능을 한글로 요약합니다.
+
+#### 6. 컨퍼런스 (🎤 AI 학회 캘린더)
+- WikiCFP와 AI Deadlines에서 AI 관련 학회, 세미나, 워크숍 정보를 수집합니다.
+- 제출 마감일, 개최 일정, 장소, 주제 정보를 제공합니다.
+- FullCalendar 라이브러리를 활용한 캘린더 뷰를 지원합니다.
+
+#### 7. AI 플랫폼 (🤖 주요 AI 서비스)
+- ChatGPT, Google Gemini, Claude, Midjourney 등 주요 AI 서비스 정보를 구조화하여 제공합니다.
+- 서비스별 특징, 가격, 활용 분야 등을 한글로 요약합니다.
+
+#### 8. AI 채용 (💼 채용 공고)
+- RemoteOK API와 RSS 피드에서 AI/ML 관련 채용 공고를 수집합니다.
+- 직무별(ML Engineer, Data Scientist 등), 지역별, 리모트 여부로 필터링 가능합니다.
+- 요구 기술 스택과 직무 설명을 한글로 요약합니다.
+
+#### 9. AI 정책 (📜 글로벌 AI 규제)
+- 한국, EU, 미국, 중국의 AI 관련 정책 및 규제 동향을 수집합니다.
+- 정부 공식 RSS, AI 전문 매체에서 정책 뉴스를 가져옵니다.
+- 정책 유형, 영향 분야를 분류하고 한글로 요약합니다.
+
+---
+
+## 주요 기능 상세
+
+### 1. 프리미엄 대시보드
+
+대시보드는 9개 카테고리의 트렌드를 한눈에 파악할 수 있는 통합 뷰를 제공합니다.
+
+| 위젯 | 설명 | 시각화 |
+|------|------|--------|
+| **키워드 모멘텀** | 전체 카테고리에서 추출된 트렌딩 키워드의 변화 추이 | D3.js / Recharts 차트 |
+| **카테고리 통계** | 9개 카테고리별 데이터 수집 현황 및 증감 추이 | 바 차트, 도넛 차트 |
+| **위클리 다이제스트** | 금주의 AI 트렌드 핵심 요약 | 카드 리스트 |
+| **한국 AI 하이라이트** | 국내 AI 뉴스 및 정책 동향 하이라이트 | 하이라이트 카드 |
+
+### 2. 자동 데이터 수집 (APScheduler)
+
+```python
+# 매일 자정(00:00)에 전체 데이터 자동 수집
+scheduler.add_job(
+    collect_all_data,
+    trigger=CronTrigger(hour=0, minute=0),
+    id="collect_all_data",
+    name="전체 AI 트렌드 데이터 수집",
+)
+```
+
+- **수집 순서**: HuggingFace -> YouTube -> Papers -> News -> GitHub -> Conference -> Tools -> Jobs -> Policies
+- **수집 간격**: 각 카테고리 수집 사이 3초 대기 (API Rate Limit 방지)
+- **AI 요약**: 수집 직후, 요약이 없는 항목에 대해 Gemini AI로 자동 요약 생성
+- **API 호출 제한**: 요약 생성 시 건당 2초 대기 (Gemini 무료 티어 제한 대응)
+
+### 3. AI 한글 요약 (Google Gemini)
+
+Google Gemini API(`google-generativeai`)를 사용하여 수집된 영어 콘텐츠를 한글로 요약합니다.
+
+- **카테고리별 맞춤 프롬프트**: 모델, 논문, 뉴스, 프로젝트 등 각 유형에 최적화된 요약 프롬프트
+- **생성 항목**: 한글 요약(summary), 키워드(keywords), 핵심 기능(key_features), 활용 사례(use_cases) 등
+- **Rate Limit 대응**: 건당 2초 sleep으로 무료 티어 API 호출 제한 준수
+- **Graceful Degradation**: API 키가 없거나 요약 실패 시 서비스는 정상 동작하되 요약만 건너뜀
+
+### 4. Redis 캐싱
+
+비동기 Redis 클라이언트(`redis.asyncio`)를 사용한 다단계 캐싱 전략입니다.
+
+| 캐시 대상 | TTL | 설명 |
+|-----------|-----|------|
+| 시스템 상태 | 60초 (1분) | 시스템 헬스 체크 결과 |
+| 트렌딩 키워드 | 300초 (5분) | 대시보드 키워드 데이터 |
+| 리스트 쿼리 | 120초 (2분) | 카테고리별 목록 데이터 |
+
+```python
+# 캐시 사용 예시
+cached = await cache_get("dashboard:summary")
+if cached:
+    return cached  # 캐시 히트
+
+data = await fetch_from_db()  # DB 조회
+await cache_set("dashboard:summary", data, ttl=300)  # 캐싱
+```
+
+### 5. 사이트 인증
+
+비밀번호 기반 사이트 접근 제어 시스템입니다.
+
+- **방식**: `X-API-Key` 헤더를 통한 API 키 인증
+- **프론트엔드**: 사이트 진입 시 비밀번호 입력 화면 표시
+- **저장**: 인증 성공 시 `localStorage`에 API 키 저장
+- **기본값**: 개발 환경에서는 `test1234` 사용
+
+### 6. 관리자 인증 (JWT)
+
+시스템 관리 페이지 접근을 위한 JWT 기반 인증 시스템입니다.
+
+- **로그인**: `POST /api/v1/admin/login`으로 관리자 비밀번호 검증 후 JWT 토큰 발급
+- **토큰 검증**: `GET /api/v1/admin/verify`로 토큰 유효성 확인
+- **보호 페이지**: `/system` 페이지는 관리자 인증 필수
+- **관리자 비밀번호**: 사이트 비밀번호와 별도의 `ADMIN_PASSWORD` 환경 변수 사용
+
+### 7. PWA (Progressive Web App) 지원
+
+모바일 기기에서 네이티브 앱처럼 설치하여 사용할 수 있습니다.
+
+- **매니페스트**: `public/manifest.json`에 앱 정보 정의
+- **아이콘**: `public/icons/` 디렉토리에 다양한 크기의 앱 아이콘 제공
+- **설치**: 브라우저의 "홈 화면에 추가" 기능으로 설치
+- **라이브러리**: `next-pwa` 패키지 사용
+
+### 8. 반응형 UI 디자인
+
+글래스모피즘(Glassmorphism) 스타일의 모던한 UI를 제공합니다.
+
+- **디자인 시스템**: shadcn/ui + Tailwind CSS 기반 커스텀 컴포넌트
+- **다크/라이트 테마**: 사용자 선택 가능한 테마 토글 (TopBar에 위치)
+- **애니메이션**: Framer Motion으로 페이지 전환, 카드 호버, 로딩 등 인터랙션
+- **모바일 최적화**: 사이드바 -> 하단 네비게이션 전환, 터치 친화적 UI
+- **데이터 시각화**: D3.js와 Recharts를 활용한 차트 및 그래프
+
+### 9. 보안 미들웨어
+
+프로덕션 환경을 위한 보안 헤더 및 미들웨어가 적용되어 있습니다.
+
+```python
+# 보안 헤더
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: geolocation=(), microphone=(), camera=()
+```
+
+- **CORS**: 프로덕션에서는 허용된 origin만 접근 가능, 개발 환경에서는 모든 origin 허용
+- **GZip 압축**: 1000바이트 이상 응답에 대해 자동 GZip 압축 적용
 
 ---
 
 ## 기술 스택
 
 ### 프론트엔드 (v2.0 - Next.js)
-| 기술 | 용도 |
-|------|------|
-| **Next.js 14** (App Router) | SSR/SSG 프레임워크 |
-| **TypeScript** | 타입 안정성 |
-| **Tailwind CSS** | 유틸리티 CSS |
-| **shadcn/ui** | UI 컴포넌트 |
-| **Framer Motion** | 애니메이션 |
+
+| 기술 | 버전 | 용도 |
+|------|------|------|
+| **Next.js** | 14.2.28 | App Router 기반 SSR/CSR 프레임워크 |
+| **React** | 18 | UI 라이브러리 |
+| **TypeScript** | 5 | 정적 타입 시스템 |
+| **Tailwind CSS** | 3.4 | 유틸리티 우선 CSS 프레임워크 |
+| **shadcn/ui** | - | Radix UI 기반 접근성 준수 컴포넌트 라이브러리 |
+| **Framer Motion** | 11 | 선언적 애니메이션 라이브러리 |
+| **D3.js** | 7.9 | 데이터 기반 문서 조작 (커스텀 차트) |
+| **Recharts** | 2.12 | React 기반 차트 라이브러리 |
+| **SWR** | 2.4 | React 데이터 패칭 훅 (stale-while-revalidate) |
+| **Lucide React** | 0.344 | 아이콘 라이브러리 |
+| **FullCalendar** | 6.1 | 캘린더 UI 컴포넌트 (컨퍼런스 페이지) |
+| **next-pwa** | 5.6 | PWA 지원 (Service Worker, 매니페스트) |
+| **Radix UI** | - | 접근성 준수 헤드리스 UI 프리미티브 |
 
 ### 백엔드
-| 기술 | 용도 |
-|------|------|
-| **FastAPI** | 비동기 Python API |
-| **PostgreSQL 15** | 데이터베이스 |
-| **Redis** | 캐싱 |
-| **SQLAlchemy 2.0** | 비동기 ORM |
-| **Alembic** | DB 마이그레이션 |
-| **APScheduler** | 크론 스케줄링 |
-| **Google Gemini** | AI 한글 요약 |
 
-### 배포
-| 서비스 | 용도 |
-|--------|------|
-| **Railway** | 백엔드 API + PostgreSQL + Redis |
-| **Vercel** | 프론트엔드 호스팅 |
-| **Docker Compose** | 로컬 개발 환경 |
+| 기술 | 버전 | 용도 |
+|------|------|------|
+| **FastAPI** | 0.128 | 고성능 비동기 Python 웹 프레임워크 |
+| **Python** | 3.9+ | 서버 런타임 |
+| **PostgreSQL** | 15 (Alpine) | 관계형 데이터베이스 |
+| **Redis** | 7 (Alpine) | 인메모리 캐싱 |
+| **SQLAlchemy** | 2.0.36 | 비동기 ORM (`asyncpg` 드라이버) |
+| **Alembic** | 1.14 | 데이터베이스 마이그레이션 관리 |
+| **Pydantic** | 2.12 | 데이터 검증 및 직렬화 |
+| **APScheduler** | 3.10 | 크론 기반 비동기 작업 스케줄링 |
+| **google-generativeai** | 0.8.3 | Google Gemini AI API 클라이언트 |
+| **httpx** | 0.28 | 비동기 HTTP 클라이언트 |
+| **feedparser** | 6.0 | RSS/Atom 피드 파서 |
+| **BeautifulSoup4** | 4.12 | HTML 파싱 및 웹 스크래핑 |
+| **huggingface-hub** | 0.27 | Hugging Face Hub API 클라이언트 |
+| **uvicorn** | 0.39 | ASGI 서버 |
+
+### 배포 인프라
+
+| 서비스 | 용도 | 설명 |
+|--------|------|------|
+| **Railway** | 백엔드 호스팅 | FastAPI + PostgreSQL + Redis 올인원 |
+| **Vercel** | 프론트엔드 호스팅 | Next.js 최적 배포, Edge Network CDN |
+| **Docker Compose** | 로컬 개발 | API + PostgreSQL + Redis + pgAdmin 컨테이너 |
+| **GitHub** | 소스 코드 관리 | CI/CD 트리거 (main 브랜치 푸시 시 자동 배포) |
 
 ---
 
@@ -71,59 +527,147 @@ AI 업계의 최신 트렌드를 자동 수집하고, Gemini AI로 한글 요약
 
 ```
 fastapi-starter/
-├── app/                          # 백엔드 (FastAPI)
-│   ├── main.py                   # 앱 진입점
-│   ├── config.py                 # 환경 변수
-│   ├── database.py               # DB 연결
-│   ├── cache.py                  # Redis 캐싱
-│   ├── api/v1/                   # API 라우터
-│   │   ├── dashboard.py          # 대시보드 통계 API
-│   │   ├── admin.py              # 관리자 인증 API
-│   │   ├── huggingface.py
-│   │   ├── youtube.py
-│   │   ├── papers.py
-│   │   ├── news.py
-│   │   ├── github.py
-│   │   ├── conferences.py
-│   │   ├── tools.py              # AI 플랫폼
-│   │   ├── jobs.py
-│   │   ├── policies.py
-│   │   └── system.py             # 시스템 상태
-│   ├── models/                   # SQLAlchemy 모델 (9개)
-│   ├── schemas/                  # Pydantic 스키마
-│   └── services/                 # 데이터 수집 서비스
 │
-├── web-next/                     # 프론트엔드 (Next.js 14)
+├── app/                              # 백엔드 (FastAPI)
+│   ├── main.py                       # 앱 진입점 (FastAPI 인스턴스, 미들웨어, 라우터 등록)
+│   ├── config.py                     # 환경 변수 설정 (pydantic-settings)
+│   ├── database.py                   # PostgreSQL 비동기 연결 (SQLAlchemy + asyncpg)
+│   ├── cache.py                      # Redis 캐싱 유틸리티 (get/set/delete/pattern)
+│   ├── auth.py                       # 인증 (API Key + HTTP Basic)
+│   ├── logging_config.py             # 로깅 설정
+│   │
+│   ├── api/v1/                       # API 라우터 (버전 v1)
+│   │   ├── dashboard.py              # 대시보드 통계 API (summary, trending-keywords, category-stats)
+│   │   ├── admin.py                  # 관리자 인증 API (login, verify - JWT)
+│   │   ├── huggingface.py            # Hugging Face 모델 API
+│   │   ├── youtube.py                # YouTube 영상 API
+│   │   ├── papers.py                 # AI 논문 API
+│   │   ├── news.py                   # AI 뉴스 API
+│   │   ├── github.py                 # GitHub 프로젝트 API
+│   │   ├── conferences.py            # AI 컨퍼런스 API
+│   │   ├── tools.py                  # AI 플랫폼/도구 API
+│   │   ├── jobs.py                   # AI 채용 공고 API
+│   │   ├── policies.py               # AI 정책 API
+│   │   ├── system.py                 # 시스템 상태 API
+│   │   ├── collect.py                # 수동 데이터 수집 트리거 API
+│   │   └── scheduler.py              # 스케줄러 제어 API
+│   │
+│   ├── models/                       # SQLAlchemy 모델 (9개 + 채널)
+│   │   ├── __init__.py
+│   │   ├── huggingface.py            # HuggingFaceModel (모델명, 태스크, 다운로드, 요약)
+│   │   ├── youtube.py                # YouTubeVideo (제목, 조회수, 채널, 요약)
+│   │   ├── youtube_channel.py        # YouTubeChannel (큐레이션 채널 관리)
+│   │   ├── paper.py                  # AIPaper (논문 제목, 초록, 저자, 요약)
+│   │   ├── news.py                   # AINews (뉴스 제목, 소스, 내용, 요약)
+│   │   ├── github.py                 # GitHubProject (리포명, 스타, 언어, 요약)
+│   │   ├── conference.py             # AIConference (학회명, 마감일, 장소, 요약)
+│   │   ├── ai_tool.py                # AITool (도구명, 카테고리, 활용, 요약)
+│   │   ├── job_trend.py              # AIJobTrend (직무, 회사, 기술스택, 요약)
+│   │   └── policy.py                 # AIPolicy (정책명, 유형, 영향분야, 요약)
+│   │
+│   ├── schemas/                      # Pydantic 스키마 (요청/응답 모델)
+│   │   └── ...                       # 각 카테고리별 스키마 정의
+│   │
+│   └── services/                     # 비즈니스 로직 & 데이터 수집
+│       ├── __init__.py
+│       ├── scheduler.py              # APScheduler 스케줄러 (크론 작업 관리, 전체 수집 오케스트레이션)
+│       ├── ai_summary_service.py     # Gemini AI 요약 서비스 (카테고리별 맞춤 프롬프트)
+│       ├── huggingface_service.py    # Hugging Face Hub API 수집
+│       ├── youtube_service.py        # YouTube Data API v3 수집
+│       ├── arxiv_service.py          # arXiv API 수집 (논문)
+│       ├── news_service.py           # RSS 피드 수집 (뉴스)
+│       ├── github_service.py         # GitHub Search API 수집
+│       ├── conference_service.py     # WikiCFP 수집 (컨퍼런스)
+│       ├── ai_tool_service.py        # AI 플랫폼/도구 수집
+│       ├── job_trend_service.py      # RemoteOK API 수집 (채용)
+│       └── policy_service.py         # RSS/뉴스 수집 (정책)
+│
+├── web-next/                         # 프론트엔드 (Next.js 14)
 │   ├── src/
-│   │   ├── app/                  # App Router 페이지
-│   │   │   ├── page.tsx          # 대시보드 (홈)
-│   │   │   ├── login/            # 관리자 로그인
+│   │   ├── app/                      # App Router 페이지
+│   │   │   ├── layout.tsx            # 루트 레이아웃 (폰트, 메타데이터)
+│   │   │   ├── page.tsx              # 대시보드 (홈 페이지)
+│   │   │   ├── providers.tsx         # 테마 프로바이더 + 인증 프로바이더
+│   │   │   ├── globals.css           # 글로벌 CSS (Tailwind, 글래스모피즘)
+│   │   │   ├── login/
+│   │   │   │   └── page.tsx          # 관리자 로그인 페이지
 │   │   │   ├── huggingface/
+│   │   │   │   └── page.tsx          # Hugging Face 카테고리 페이지
 │   │   │   ├── youtube/
+│   │   │   │   └── page.tsx          # YouTube 카테고리 페이지
 │   │   │   ├── papers/
+│   │   │   │   └── page.tsx          # AI 논문 카테고리 페이지
 │   │   │   ├── news/
+│   │   │   │   └── page.tsx          # AI 뉴스 카테고리 페이지
 │   │   │   ├── github/
+│   │   │   │   └── page.tsx          # GitHub 카테고리 페이지
 │   │   │   ├── conferences/
+│   │   │   │   └── page.tsx          # 컨퍼런스 카테고리 페이지 (캘린더 뷰)
 │   │   │   ├── platforms/
+│   │   │   │   └── page.tsx          # AI 플랫폼 카테고리 페이지
 │   │   │   ├── jobs/
+│   │   │   │   └── page.tsx          # AI 채용 카테고리 페이지
 │   │   │   ├── policies/
-│   │   │   └── system/           # 관리자 전용
+│   │   │   │   └── page.tsx          # AI 정책 카테고리 페이지
+│   │   │   └── system/
+│   │   │       └── page.tsx          # 시스템 상태 페이지 (관리자 전용)
+│   │   │
 │   │   ├── components/
-│   │   │   ├── dashboard/        # 대시보드 위젯
-│   │   │   ├── layout/           # Sidebar, TopBar, MobileNav
-│   │   │   ├── shared/           # 공통 컴포넌트
-│   │   │   └── ui/               # shadcn/ui
-│   │   └── lib/                  # API 클라이언트, 타입, 유틸
+│   │   │   ├── dashboard/            # 대시보드 전용 위젯 컴포넌트
+│   │   │   │   ├── KeywordMomentum.tsx
+│   │   │   │   ├── CategoryStats.tsx
+│   │   │   │   ├── WeeklyDigest.tsx
+│   │   │   │   └── KoreaHighlights.tsx
+│   │   │   ├── layout/               # 레이아웃 컴포넌트
+│   │   │   │   ├── Sidebar.tsx       # 데스크톱 사이드바 (9개 카테고리 네비게이션)
+│   │   │   │   ├── TopBar.tsx        # 상단바 (로고, 테마 토글, 사용자 메뉴)
+│   │   │   │   ├── MobileNav.tsx     # 모바일 하단 네비게이션
+│   │   │   │   └── LoginScreen.tsx   # 사이트 인증 화면 (비밀번호 입력)
+│   │   │   ├── shared/               # 공통/재사용 컴포넌트
+│   │   │   │   ├── DataCard.tsx
+│   │   │   │   ├── LoadingSpinner.tsx
+│   │   │   │   └── ErrorBoundary.tsx
+│   │   │   └── ui/                   # shadcn/ui 컴포넌트
+│   │   │       ├── button.tsx
+│   │   │       ├── card.tsx
+│   │   │       ├── dialog.tsx
+│   │   │       ├── dropdown-menu.tsx
+│   │   │       ├── tabs.tsx
+│   │   │       ├── tooltip.tsx
+│   │   │       ├── scroll-area.tsx
+│   │   │       └── separator.tsx
+│   │   │
+│   │   └── lib/                      # 유틸리티 & 설정
+│   │       ├── api.ts                # API 클라이언트 (fetch wrapper, X-API-Key 헤더)
+│   │       ├── types.ts              # TypeScript 타입 정의
+│   │       ├── utils.ts              # 유틸리티 함수 (cn, 날짜 포맷 등)
+│   │       └── contexts/             # React Context
+│   │           ├── ThemeContext.tsx   # 다크/라이트 테마 컨텍스트
+│   │           └── AuthContext.tsx    # 인증 상태 컨텍스트
+│   │
 │   ├── public/
-│   │   ├── logo.png              # Ain싸 로고
-│   │   ├── manifest.json         # PWA 매니페스트
-│   │   └── icons/                # PWA 아이콘
-│   └── vercel.json               # Vercel API 프록시 설정
+│   │   ├── logo.png                  # Ain싸 로고 이미지
+│   │   ├── manifest.json             # PWA 매니페스트 (앱 이름, 아이콘, 테마 색상)
+│   │   └── icons/                    # PWA 아이콘 (192x192, 512x512 등)
+│   │
+│   ├── next.config.mjs               # Next.js 설정 (API 프록시 rewrites)
+│   ├── tailwind.config.ts            # Tailwind CSS 설정 (글래스모피즘, 커스텀 색상)
+│   ├── tsconfig.json                 # TypeScript 설정
+│   ├── package.json                  # npm 의존성
+│   └── vercel.json                   # Vercel 빌드 설정
 │
-├── alembic/                      # DB 마이그레이션
-├── docker-compose.yml
-├── Dockerfile
-└── requirements.txt
+├── alembic/                          # DB 마이그레이션
+│   ├── alembic.ini                   # Alembic 설정
+│   ├── env.py                        # 마이그레이션 환경 설정
+│   └── versions/                     # 마이그레이션 스크립트
+│
+├── vercel.json                       # 루트 Vercel 설정 (rootDirectory: web-next)
+├── docker-compose.yml                # Docker Compose (API + PostgreSQL + Redis + pgAdmin)
+├── Dockerfile                        # FastAPI 컨테이너 이미지
+├── start.sh                          # 컨테이너 시작 스크립트
+├── requirements.txt                  # Python 의존성
+├── .env                              # 환경 변수 (gitignore)
+└── README.md                         # 이 문서
 ```
 
 ---
@@ -132,155 +676,789 @@ fastapi-starter/
 
 ### 사전 요구사항
 
-- Python 3.11+
-- Node.js 18+
-- Docker & Docker Compose (권장)
+| 도구 | 최소 버전 | 용도 |
+|------|----------|------|
+| **Python** | 3.9+ | 백엔드 런타임 |
+| **Node.js** | 18+ | 프론트엔드 런타임 |
+| **npm** | 9+ | 프론트엔드 패키지 관리 |
+| **Docker** | 20+ | 컨테이너 런타임 (권장) |
+| **Docker Compose** | 2.0+ | 멀티 컨테이너 관리 (권장) |
+| **Git** | 2.0+ | 소스 코드 관리 |
 
-### Docker로 실행 (권장)
+### 방법 1: Docker Compose로 실행 (권장)
+
+가장 간단한 방법으로, Docker Compose를 사용하면 백엔드, PostgreSQL, Redis, pgAdmin을 한 번에 실행할 수 있습니다.
 
 ```bash
-# 프로젝트 클론
+# 1. 프로젝트 클론
 git clone https://github.com/DONGJUSEO/ai-trend-tracker.git
 cd ai-trend-tracker
 
-# 환경 변수 설정
+# 2. 환경 변수 설정
 cp .env.example .env
-# .env 파일 편집하여 API 키 입력
+# .env 파일을 편집하여 필요한 API 키를 입력합니다.
+# 필수: DATABASE_URL, REDIS_URL (Docker Compose 사용 시 자동 설정)
+# 선택: GEMINI_API_KEY, YOUTUBE_API_KEY, GITHUB_TOKEN, HUGGINGFACE_API_KEY
 
-# Docker 컨테이너 실행 (API + PostgreSQL + Redis)
+# 3. Docker 컨테이너 실행 (백엔드 + PostgreSQL + Redis + pgAdmin)
 docker compose up -d
 
-# 프론트엔드 실행
+# 4. DB 마이그레이션 실행
+docker exec -it ai-trend-api alembic upgrade head
+
+# 5. 프론트엔드 설정 및 실행
+cd web-next
+cp .env.example .env.development
+# .env.development에 API 설정:
+#   NEXT_PUBLIC_API_URL=http://localhost:8000
+#   NEXT_PUBLIC_API_KEY=test1234
+
+npm install
+npm run dev
+```
+
+실행 후 접속 가능한 서비스:
+
+| 서비스 | URL | 설명 |
+|--------|-----|------|
+| 프론트엔드 | http://localhost:3000 | Next.js 개발 서버 |
+| 백엔드 API | http://localhost:8000 | FastAPI 서버 |
+| Swagger 문서 | http://localhost:8000/docs | API 대화형 문서 |
+| ReDoc 문서 | http://localhost:8000/redoc | API 문서 (ReDoc) |
+| pgAdmin | http://localhost:5050 | DB 관리 도구 (admin@admin.com / admin) |
+
+### 방법 2: 수동 실행 (로컬 개발)
+
+PostgreSQL과 Redis가 로컬에 설치되어 있는 경우 사용합니다.
+
+```bash
+# 1. 프로젝트 클론
+git clone https://github.com/DONGJUSEO/ai-trend-tracker.git
+cd ai-trend-tracker
+
+# 2. Python 가상환경 생성 및 활성화
+python -m venv venv
+source venv/bin/activate  # macOS/Linux
+# 또는
+.\venv\Scripts\activate   # Windows
+
+# 3. Python 의존성 설치
+pip install -r requirements.txt
+
+# 4. 환경 변수 설정
+cp .env.example .env
+# .env 파일 편집:
+#   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ai_trends
+#   REDIS_URL=redis://localhost:6379/0
+#   GEMINI_API_KEY=your_gemini_key
+#   APP_PASSWORD=test1234
+#   ADMIN_PASSWORD=admin1234
+#   JWT_SECRET_KEY=your_secret_key
+
+# 5. PostgreSQL 데이터베이스 생성
+createdb ai_trends  # 또는 psql에서: CREATE DATABASE ai_trends;
+
+# 6. DB 마이그레이션 실행
+alembic upgrade head
+
+# 7. 백엔드 서버 실행
+uvicorn app.main:app --reload --port 8000
+
+# 8. 새 터미널에서 프론트엔드 실행
 cd web-next
 npm install
 npm run dev
 ```
 
-- 백엔드 API: http://localhost:8000/docs
-- 프론트엔드: http://localhost:3000
+### 방법 3: 백엔드만 실행
 
-### 수동 실행
+프론트엔드 없이 API만 사용하고 싶은 경우:
 
 ```bash
-# 백엔드
+# Docker 방식
+docker compose up -d
+
+# 또는 직접 실행
 pip install -r requirements.txt
 alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 
-# 프론트엔드
-cd web-next
-npm install
-npm run dev
+# API 테스트
+curl -H "X-API-Key: test1234" http://localhost:8000/api/v1/dashboard/summary
+```
+
+### 초기 데이터 수집
+
+서버 실행 후, 최초 데이터를 수집하려면:
+
+```bash
+# Swagger UI에서 수동 수집 트리거
+# http://localhost:8000/docs 에서 /api/v1/collect/ 엔드포인트 실행
+
+# 또는 스케줄러가 매일 00:00에 자동으로 수집
+# 즉시 수집을 원하면 collect API 호출
+curl -X POST -H "X-API-Key: test1234" http://localhost:8000/api/v1/collect/all
 ```
 
 ---
 
-## API 엔드포인트
+## 환경 변수 설정
 
-모든 API는 `/api/v1/` 프리픽스, `X-API-Key` 헤더 인증 필요.
+### 백엔드 환경 변수 (.env)
 
-### 대시보드 API
-| 엔드포인트 | 설명 |
-|-----------|------|
-| `GET /api/v1/dashboard/summary` | 전체 카테고리 통계 |
-| `GET /api/v1/dashboard/trending-keywords` | 트렌딩 키워드 |
-| `GET /api/v1/dashboard/category-stats` | 카테고리별 트렌드 |
+| 변수명 | 필수 | 기본값 | 설명 |
+|--------|------|--------|------|
+| `DATABASE_URL` | **필수** | - | PostgreSQL 연결 문자열 |
+| `REDIS_URL` | **필수** | - | Redis 연결 문자열 |
+| `GEMINI_API_KEY` | 선택 | `""` | Google Gemini AI API 키 (한글 요약 기능) |
+| `YOUTUBE_API_KEY` | 선택 | `""` | YouTube Data API v3 키 (YouTube 수집) |
+| `GITHUB_TOKEN` | 선택 | `""` | GitHub Personal Access Token (GitHub 수집) |
+| `HUGGINGFACE_API_KEY` | 선택 | `""` | Hugging Face API 토큰 (HF 모델 수집) |
+| `OPENAI_API_KEY` | 선택 | `""` | OpenAI API 키 (레거시, 현재 미사용) |
+| `APP_PASSWORD` | 선택 | `test1234` | 사이트 접근 비밀번호 (API Key) |
+| `ADMIN_PASSWORD` | 선택 | `admin1234` | 관리자 로그인 비밀번호 |
+| `JWT_SECRET_KEY` | 선택 | `ai-trend-tracker-secret-key-2026` | JWT 토큰 서명 키 |
+| `SCHEDULER_INTERVAL_HOURS` | 선택 | `12` | 스케줄러 간격 (시간) |
 
-### 카테고리 API
-| 엔드포인트 | 응답 키 |
-|-----------|---------|
-| `GET /api/v1/huggingface/` | `items` |
-| `GET /api/v1/youtube/videos` | `videos` |
-| `GET /api/v1/papers/` | `papers` |
-| `GET /api/v1/news/news` | `news` |
-| `GET /api/v1/github/projects` | `items` |
-| `GET /api/v1/conferences/` | `items` |
-| `GET /api/v1/tools/` | `items` |
-| `GET /api/v1/jobs/` | `items` |
-| `GET /api/v1/policies/` | `items` |
+**`.env` 파일 예시:**
 
-### 관리자 API
-| 엔드포인트 | 설명 |
-|-----------|------|
-| `POST /api/v1/admin/login` | 관리자 로그인 (JWT 발급) |
-| `GET /api/v1/admin/verify` | 토큰 유효성 확인 |
-| `GET /api/v1/system/status` | 시스템 상태 |
-
----
-
-## 환경 변수
-
-### 백엔드 (.env)
 ```env
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/ai_trends
+# 데이터베이스
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/ai_trends
+
+# Redis
 REDIS_URL=redis://localhost:6379/0
-GEMINI_API_KEY=your_gemini_key
-YOUTUBE_API_KEY=your_youtube_key
-GITHUB_TOKEN=your_github_token
-HUGGINGFACE_API_KEY=your_hf_token
-APP_PASSWORD=your_api_key
-ADMIN_PASSWORD=admin1234
-JWT_SECRET_KEY=your_secret_key
+
+# AI/ML API 키
+GEMINI_API_KEY=AIzaSy...your_gemini_key
+YOUTUBE_API_KEY=AIzaSy...your_youtube_key
+GITHUB_TOKEN=ghp_...your_github_token
+HUGGINGFACE_API_KEY=hf_...your_hf_token
+
+# 보안
+APP_PASSWORD=your_site_password
+ADMIN_PASSWORD=your_admin_password
+JWT_SECRET_KEY=your_super_secret_jwt_key_change_in_production
 ```
 
-### 프론트엔드 (.env.development)
+### 프론트엔드 환경 변수 (.env.development / .env.production)
+
+| 변수명 | 필수 | 기본값 | 설명 |
+|--------|------|--------|------|
+| `NEXT_PUBLIC_API_URL` | 선택 | - | 백엔드 API 기본 URL (개발 환경: `http://localhost:8000`) |
+| `NEXT_PUBLIC_API_KEY` | 선택 | - | API 접근 키 (사이트 비밀번호) |
+
+**`.env.development` 파일 예시:**
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_API_KEY=test1234
 ```
 
+> **참고**: Vercel 프로덕션 환경에서는 `NEXT_PUBLIC_API_URL`을 설정하지 않습니다. `vercel.json`의 rewrites 설정이 `/api/*` 요청을 Railway 백엔드로 프록시 처리합니다.
+
+### API 키 발급 안내
+
+| API | 발급 URL | 무료 티어 |
+|-----|----------|----------|
+| **Google Gemini** | [ai.google.dev](https://ai.google.dev/) | 분당 15 요청 |
+| **YouTube Data API** | [console.cloud.google.com](https://console.cloud.google.com/) | 일 10,000 유닛 |
+| **GitHub Token** | [github.com/settings/tokens](https://github.com/settings/tokens) | 시간당 5,000 요청 |
+| **Hugging Face** | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) | 무제한 |
+
 ---
 
-## 배포
+## API 엔드포인트
 
-### Railway (백엔드)
-1. GitHub 연동 (main 푸시 시 자동 배포)
-2. PostgreSQL + Redis 서비스 추가
-3. 환경 변수 설정
+모든 API는 `/api/v1/` 프리픽스를 사용하며, `X-API-Key` 헤더를 통한 인증이 필요합니다 (admin 엔드포인트 제외).
 
-### Vercel (프론트엔드)
-1. GitHub 연동
-2. 설정:
+### 인증 헤더
+
+```http
+GET /api/v1/dashboard/summary HTTP/1.1
+Host: localhost:8000
+X-API-Key: test1234
+```
+
+### 대시보드 API
+
+| 메서드 | 엔드포인트 | 설명 | 캐시 TTL |
+|--------|-----------|------|----------|
+| `GET` | `/api/v1/dashboard/summary` | 전체 카테고리 통계 요약 | 5분 |
+| `GET` | `/api/v1/dashboard/trending-keywords` | 트렌딩 키워드 목록 | 5분 |
+| `GET` | `/api/v1/dashboard/category-stats` | 카테고리별 데이터 수집 트렌드 | 5분 |
+
+**응답 예시 (`/api/v1/dashboard/summary`):**
+
+```json
+{
+  "total_items": 2847,
+  "categories": {
+    "huggingface": {"count": 450, "latest": "2026-02-07T00:00:00"},
+    "youtube": {"count": 320, "latest": "2026-02-07T00:00:00"},
+    "papers": {"count": 280, "latest": "2026-02-07T00:00:00"},
+    "news": {"count": 500, "latest": "2026-02-07T00:00:00"},
+    "github": {"count": 350, "latest": "2026-02-07T00:00:00"},
+    "conferences": {"count": 120, "latest": "2026-02-07T00:00:00"},
+    "tools": {"count": 80, "latest": "2026-02-07T00:00:00"},
+    "jobs": {"count": 200, "latest": "2026-02-07T00:00:00"},
+    "policies": {"count": 147, "latest": "2026-02-07T00:00:00"}
+  },
+  "last_collected": "2026-02-07T00:00:00"
+}
+```
+
+### 카테고리 API
+
+| 메서드 | 엔드포인트 | 응답 키 | 설명 |
+|--------|-----------|---------|------|
+| `GET` | `/api/v1/huggingface/` | `items` | Hugging Face 트렌딩 모델 목록 |
+| `GET` | `/api/v1/youtube/videos` | `videos` | YouTube AI 영상 목록 |
+| `GET` | `/api/v1/papers/` | `papers` | arXiv AI 논문 목록 |
+| `GET` | `/api/v1/news/news` | `news` | AI 뉴스 목록 |
+| `GET` | `/api/v1/github/projects` | `projects` | GitHub 트렌딩 프로젝트 목록 |
+| `GET` | `/api/v1/conferences/` | `items` | AI 컨퍼런스 목록 |
+| `GET` | `/api/v1/tools/` | `items` | AI 플랫폼/도구 목록 |
+| `GET` | `/api/v1/jobs/` | `items` | AI 채용 공고 목록 |
+| `GET` | `/api/v1/policies/` | `items` | AI 정책 동향 목록 |
+
+### 관리자 API
+
+| 메서드 | 엔드포인트 | 설명 | 인증 |
+|--------|-----------|------|------|
+| `POST` | `/api/v1/admin/login` | 관리자 로그인 (JWT 토큰 발급) | 없음 (body에 password) |
+| `GET` | `/api/v1/admin/verify` | JWT 토큰 유효성 확인 | Bearer Token |
+
+**로그인 요청 예시:**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/admin/login \
+  -H "Content-Type: application/json" \
+  -d '{"password": "admin1234"}'
+```
+
+**응답:**
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+### 시스템 API
+
+| 메서드 | 엔드포인트 | 설명 | 인증 |
+|--------|-----------|------|------|
+| `GET` | `/api/v1/system/status` | 시스템 상태 (DB, Redis, 스케줄러) | API Key |
+
+### 유틸리티 엔드포인트
+
+| 메서드 | 엔드포인트 | 설명 |
+|--------|-----------|------|
+| `GET` | `/` | 루트 엔드포인트 (서버 상태 확인) |
+| `GET` | `/health` | 헬스 체크 |
+| `GET` | `/docs` | Swagger UI (대화형 API 문서) |
+| `GET` | `/redoc` | ReDoc (API 문서) |
+
+---
+
+## 인증 시스템
+
+Ain싸는 두 가지 레벨의 인증 시스템을 제공합니다.
+
+### 레벨 1: 사이트 접근 인증 (Site Auth)
+
+```
+[사용자] ---> [LoginScreen] ---> 비밀번호 입력 ---> [localStorage 저장] ---> [사이트 접근]
+                                                        |
+                                              X-API-Key 헤더로
+                                              모든 API 요청에 포함
+```
+
+- **목적**: 사이트 전체에 대한 접근 제어
+- **방식**: `X-API-Key` 헤더에 비밀번호 포함
+- **저장**: 브라우저 `localStorage`
+- **기본값**: `test1234` (개발 환경)
+- **설정**: 백엔드 `APP_PASSWORD` 환경 변수
+
+### 레벨 2: 관리자 인증 (Admin Auth)
+
+```
+[관리자] ---> [/login] ---> 관리자 비밀번호 ---> [JWT 토큰 발급] ---> [/system 접근]
+                                                      |
+                                              Authorization: Bearer <token>
+                                              관리자 전용 API에 포함
+```
+
+- **목적**: 시스템 관리 페이지(`/system`) 접근 제어
+- **방식**: JWT (JSON Web Token) 기반 인증
+- **발급**: `POST /api/v1/admin/login`으로 토큰 발급
+- **검증**: `GET /api/v1/admin/verify`로 토큰 검증
+- **기본값**: `admin1234` (개발 환경)
+- **설정**: 백엔드 `ADMIN_PASSWORD`, `JWT_SECRET_KEY` 환경 변수
+
+---
+
+## 데이터 수집 파이프라인
+
+### 수집 흐름도
+
+```
+APScheduler (매일 00:00)
+    |
+    v
+collect_all_data()
+    |
+    +---> collect_huggingface_data()  ---> HuggingFaceService  ---> Hugging Face Hub API
+    |         [3초 대기]                         |
+    +---> collect_youtube_data()      ---> YouTubeService      ---> YouTube Data API v3
+    |         [3초 대기]                         |
+    +---> collect_papers_data()       ---> ArxivService         ---> arXiv API
+    |         [3초 대기]                         |
+    +---> collect_news_data()         ---> NewsService          ---> RSS Feeds (전자신문, AI타임스...)
+    |         [3초 대기]                         |
+    +---> collect_github_data()       ---> GitHubService        ---> GitHub Search API
+    |         [3초 대기]                         |
+    +---> collect_conference_data()   ---> ConferenceService    ---> WikiCFP
+    |         [3초 대기]                         |
+    +---> collect_tool_data()         ---> AIToolService        ---> 구조화 데이터
+    |         [3초 대기]                         |
+    +---> collect_job_data()          ---> JobTrendService      ---> RemoteOK API
+    |         [3초 대기]                         |
+    +---> collect_policy_data()       ---> PolicyService        ---> 정부 RSS, AI News
+    |
+    v
+각 수집 후: AISummaryService (Gemini AI)
+    |
+    +---> 요약이 없는 항목 최대 10개 선택
+    +---> 카테고리별 맞춤 프롬프트로 한글 요약 생성
+    +---> 건당 2초 대기 (API Rate Limit)
+    +---> DB 업데이트 (summary, keywords, key_features 등)
+```
+
+### 수집 서비스별 상세
+
+| 서비스 | 수집 대상 | 수집 건수 | AI 요약 항목 |
+|--------|----------|----------|-------------|
+| `HuggingFaceService` | 트렌딩 모델 | 20개/회 | summary, key_features, use_cases |
+| `YouTubeService` | 채널 영상 + 키워드 영상 | 채널당 3개 + 키워드당 5개 | summary, keywords, key_points |
+| `ArxivService` | 최근 7일 AI 논문 | 20개/회 | summary, keywords, key_contributions |
+| `NewsService` | RSS 피드 뉴스 | 전체 피드 | summary, keywords, key_points |
+| `GitHubService` | AI/ML 트렌딩 리포 | 30개/회 | summary, keywords, use_cases |
+| `ConferenceService` | WikiCFP 컨퍼런스 | 50개/회 | summary, keywords |
+| `AIToolService` | 트렌딩 AI 도구 | 30개/회 | summary, keywords |
+| `JobTrendService` | RemoteOK AI 채용 | 30개/회 | summary, keywords |
+| `PolicyService` | AI 정책 뉴스 | 20개/회 | summary, keywords |
+
+---
+
+## Redis 캐싱 전략
+
+### 캐시 구조
+
+```
+Redis Keys:
+├── dashboard:summary          (TTL: 300초)  - 대시보드 통계 요약
+├── dashboard:trending-keywords (TTL: 300초)  - 트렌딩 키워드
+├── dashboard:category-stats   (TTL: 300초)  - 카테고리별 통계
+├── system:status              (TTL: 60초)   - 시스템 상태
+├── huggingface:list:*         (TTL: 120초)  - HF 모델 목록 (쿼리별)
+├── youtube:list:*             (TTL: 120초)  - YouTube 영상 목록
+├── papers:list:*              (TTL: 120초)  - 논문 목록
+├── news:list:*                (TTL: 120초)  - 뉴스 목록
+├── github:list:*              (TTL: 120초)  - GitHub 프로젝트 목록
+├── conferences:list:*         (TTL: 120초)  - 컨퍼런스 목록
+├── tools:list:*               (TTL: 120초)  - AI 도구 목록
+├── jobs:list:*                (TTL: 120초)  - 채용 목록
+└── policies:list:*            (TTL: 120초)  - 정책 목록
+```
+
+### 캐시 전략
+
+1. **Read-Through**: API 요청 시 Redis 캐시 확인 -> 미스 시 DB 조회 -> 결과 캐싱
+2. **TTL 기반 만료**: 각 데이터 유형별 적절한 TTL 설정
+3. **패턴 기반 삭제**: 데이터 수집 후 관련 캐시 키 일괄 삭제 (`cache_delete_pattern("dashboard:*")`)
+4. **Graceful Degradation**: Redis 연결 실패 시 캐시를 건너뛰고 DB 직접 조회
+
+### 캐시 헬퍼 함수
+
+```python
+# 캐시 조회
+data = await cache_get("dashboard:summary")
+
+# 캐시 저장 (TTL 지정)
+await cache_set("dashboard:summary", data, ttl=300)
+
+# 캐시 삭제 (단일 키)
+await cache_delete("dashboard:summary")
+
+# 캐시 삭제 (패턴)
+count = await cache_delete_pattern("dashboard:*")
+```
+
+---
+
+## 배포 가이드
+
+### Railway (백엔드 배포)
+
+Railway는 GitHub 연동을 통해 `main` 브랜치에 푸시할 때마다 자동 배포됩니다.
+
+**설정 단계:**
+
+1. [Railway](https://railway.app)에서 프로젝트 생성
+2. GitHub 리포지토리 연동
+3. **서비스 추가:**
+   - PostgreSQL (New Service -> Database -> PostgreSQL)
+   - Redis (New Service -> Database -> Redis)
+4. **환경 변수 설정** (Settings -> Variables):
+   ```
+   DATABASE_URL=${{Postgres.DATABASE_URL}}
+   REDIS_URL=${{Redis.REDIS_URL}}
+   GEMINI_API_KEY=your_key
+   YOUTUBE_API_KEY=your_key
+   GITHUB_TOKEN=your_token
+   HUGGINGFACE_API_KEY=your_key
+   APP_PASSWORD=your_site_password
+   ADMIN_PASSWORD=your_admin_password
+   JWT_SECRET_KEY=your_production_secret
+   ```
+5. **빌드 설정:**
+   - Builder: Dockerfile
+   - Start Command: `./start.sh` (자동 감지)
+6. **도메인 설정:**
+   - Generate Domain -> `*.up.railway.app` 도메인 자동 생성
+
+### Vercel (프론트엔드 배포)
+
+Vercel은 GitHub 연동을 통해 자동 배포됩니다.
+
+**설정 단계:**
+
+1. [Vercel](https://vercel.com)에서 프로젝트 import
+2. GitHub 리포지토리 연동
+3. **빌드 설정:**
    - **Root Directory**: `web-next`
-   - **Framework Preset**: Next.js
+   - **Framework Preset**: Next.js (자동 감지)
    - **Build Command**: `npm run build`
-3. 환경 변수 (선택):
-   - `NEXT_PUBLIC_API_KEY`: API 키
-   - `NEXT_PUBLIC_API_URL`은 설정하지 않음 (vercel.json 리라이트가 프록시 처리)
+   - **Output Directory**: `.next`
+4. **환경 변수 설정** (Settings -> Environment Variables):
+   - `NEXT_PUBLIC_API_KEY`: API 키 (사이트 비밀번호)
+   - `NEXT_PUBLIC_API_URL`: 설정하지 않음 (중요!)
+5. **API 프록시**: 루트 `vercel.json`이 web-next를 Root Directory로 지정하고, `web-next/next.config.mjs`의 rewrites 설정이 `/api/*` 요청을 Railway 백엔드로 프록시
 
-> vercel.json이 `/api/*` 요청을 Railway 백엔드로 프록시합니다.
+**vercel.json (루트):**
+```json
+{
+  "version": 2,
+  "rootDirectory": "web-next"
+}
+```
+
+**vercel.json (web-next/):**
+```json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs"
+}
+```
+
+### Docker Compose (로컬 개발)
+
+```yaml
+# docker-compose.yml 주요 서비스:
+services:
+  api:           # FastAPI 백엔드 (port: 8000)
+  db:            # PostgreSQL 15 Alpine (port: 5432)
+  redis:         # Redis 7 Alpine (port: 6379)
+  pgadmin:       # pgAdmin 4 (port: 5050) - DB 관리 도구
+```
+
+```bash
+# 전체 서비스 시작
+docker compose up -d
+
+# 로그 확인
+docker compose logs -f api
+
+# 서비스 중지
+docker compose down
+
+# 데이터 초기화 (볼륨 삭제)
+docker compose down -v
+```
+
+---
+
+## 개발 방법론 (PDCA 사이클)
+
+Ain싸 프로젝트는 **PDCA (Plan-Do-Check-Act) 사이클**을 기반으로 개발되었습니다.
+
+### PDCA 사이클 다이어그램
+
+```
+                    +------------------+
+                    |     PLAN         |
+                    |   (계획 수립)     |
+                    |                  |
+                    | - 요구사항 분석   |
+                    | - 기술 스택 선정  |
+                    | - 아키텍처 설계   |
+                    | - 카테고리 정의   |
+                    +--------+---------+
+                             |
+              +--------------v--------------+
+              |            DO               |
+              |         (실행)               |
+              |                             |
+              | - 백엔드 API 개발            |
+              | - 프론트엔드 UI 구현         |
+              | - 데이터 수집 서비스 구현     |
+              | - AI 요약 서비스 통합         |
+              | - 인증 시스템 구현            |
+              +--------------+--------------+
+                             |
+                    +--------v---------+
+                    |     CHECK        |
+                    |   (검증/평가)     |
+                    |                  |
+                    | - API 응답 확인   |
+                    | - UI/UX 검토     |
+                    | - 성능 테스트     |
+                    | - 보안 점검      |
+                    | - 크로스브라우저  |
+                    +--------+---------+
+                             |
+              +--------------v--------------+
+              |            ACT              |
+              |        (개선/조치)           |
+              |                             |
+              | - v0.3.2 -> v2.0 대규모 개선 |
+              | - SvelteKit -> Next.js 전환  |
+              | - 글래스모피즘 UI 적용        |
+              | - Redis 캐싱 도입            |
+              | - 사이트 인증 추가           |
+              | - 다크/라이트 테마 토글       |
+              +--------------+--------------+
+                             |
+                             v
+                    [다음 PDCA 사이클]
+```
+
+### 적용 내역
+
+#### Cycle 1: 초기 버전 (v0.3.2)
+
+| 단계 | 내용 |
+|------|------|
+| **Plan** | AI 트렌드 큐레이션 서비스 기획, FastAPI + SvelteKit 구조 설계, 11개 카테고리 정의 |
+| **Do** | 백엔드 API 개발, SvelteKit 프론트엔드 구현, Railway + Vercel 배포, PWA 설정 |
+| **Check** | UI/UX 부족 (SvelteKit 생태계 한계), 카테고리 과다 (리더보드/스타트업 불필요), 테마 기능 부재, 인증 부재 |
+| **Act** | Next.js 전환 결정, 9개 카테고리로 축소, 글래스모피즘 디자인 적용 계획, 인증 시스템 추가 계획 |
+
+#### Cycle 2: 대규모 고도화 (v2.0)
+
+| 단계 | 내용 |
+|------|------|
+| **Plan** | Next.js 14 + TypeScript + shadcn/ui 전면 재구축 계획, 글래스모피즘 다크/라이트 테마 설계, 프리미엄 대시보드 기획 |
+| **Do** | Next.js 14 App Router 기반 전체 재개발, 9개 카테고리 페이지 구현, 대시보드 위젯 4종 개발, 다크/라이트 테마 토글, 사이트 인증 + 관리자 JWT 인증, Redis 캐싱 도입, Framer Motion 애니메이션, 대시보드 전용 API 추가 |
+| **Check** | 전체 카테고리 API 정상 동작 확인, 다크/라이트 테마 전환 원활, 모바일 반응형 레이아웃 검증, Redis 캐싱 성능 확인, Vercel + Railway 배포 안정성 검증 |
+| **Act** | 모바일 앱 전환 (Capacitor) 계획, 사용자 맞춤 알림 기능 검토, 데이터 분석 고도화 검토 |
+
+### 개발 도구 및 워크플로
+
+```
+[GitHub] --push--> [Railway Auto Deploy] (백엔드)
+    |
+    +--push--> [Vercel Auto Deploy] (프론트엔드)
+
+개발 환경:
+- IDE: VSCode / Cursor
+- AI 어시스턴트: Claude Opus 4.6 (Anthropic)
+- 버전 관리: Git + GitHub
+- 배포: CI/CD (GitHub -> Railway/Vercel 자동 배포)
+```
 
 ---
 
 ## 버전 히스토리
 
 ### v2.0.0 (2026-02-07) - 대규모 고도화
-- Next.js 14 + TypeScript + shadcn/ui 프론트엔드 전면 재구축
-- 글래스모피즘 다크 테마 + Framer Motion 애니메이션
-- 프리미엄 대시보드 (키워드 모멘텀, 카테고리 통계, 위클리 다이제스트)
-- 9개 카테고리 페이지 재설계 (리더보드, 스타트업 삭제)
-- Redis 캐싱, 대시보드 전용 API 추가
-- 한국 뉴스 소스 중심 데이터 수집
-- 관리자 JWT 인증 시스템
-- Ain싸 브랜딩 + 커스텀 로고
-- PWA 매니페스트 + 앱 아이콘
 
-### v0.3.2 (2026-02-02)
+**프론트엔드 전면 재구축:**
+- SvelteKit -> **Next.js 14 (App Router)** + **TypeScript** 전환
+- **shadcn/ui** (Radix UI) 기반 컴포넌트 시스템 도입
+- **글래스모피즘** 디자인 시스템 (다크/라이트 테마)
+- **Framer Motion** 페이지 전환, 카드 호버, 로딩 애니메이션
+- **다크/라이트 테마 토글** (사용자 선택 가능)
+- **D3.js + Recharts** 데이터 시각화
+
+**프리미엄 대시보드:**
+- 키워드 모멘텀 차트
+- 카테고리 통계 그래프
+- 위클리 다이제스트
+- 한국 AI 하이라이트
+
+**백엔드 고도화:**
+- **Redis 캐싱** 레이어 추가 (다단계 TTL)
+- **대시보드 전용 API** 추가 (summary, trending-keywords, category-stats)
+- **사이트 인증** (X-API-Key 기반)
+- **관리자 JWT 인증** 시스템
+- **보안 미들웨어** (Security Headers, CORS, GZip)
+
+**카테고리 재구성:**
+- 11개 -> **9개 카테고리**로 최적화 (리더보드, 스타트업 삭제)
+- 한국 뉴스 소스 중심 데이터 수집 강화
+
+**브랜딩:**
+- **Ain싸** 브랜딩 + 커스텀 로고
+- PWA 매니페스트 + 앱 아이콘 업데이트
+
+### v0.3.2 (2026-02-02) - 초기 버전
+
 - 11개 카테고리 SvelteKit 프론트엔드
-- Railway + Vercel 초기 배포
+- FastAPI 백엔드 + PostgreSQL + Redis
+- 9개 데이터 수집 서비스 + APScheduler 크론
+- Google Gemini AI 한글 요약
+- Railway (백엔드) + Vercel (프론트엔드) 배포
 - PWA 지원 추가
+
+---
+
+## 향후 계획
+
+### 단기 계획 (v2.1 - 2026 Q1)
+
+- [ ] **모바일 앱 (Capacitor)**: Next.js 기반 Capacitor 래핑으로 iOS/Android 네이티브 앱 출시
+  - Capacitor를 활용하여 기존 Next.js 코드베이스를 최대한 재사용
+  - 푸시 알림 지원 (Firebase Cloud Messaging)
+  - App Store / Google Play Store 배포
+- [ ] **사용자 맞춤 알림**: 관심 카테고리/키워드에 대한 Push 알림
+- [ ] **검색 기능 강화**: 전체 카테고리 통합 검색 (키워드, 날짜 범위, 카테고리 필터)
+- [ ] **즐겨찾기/북마크**: 사용자별 관심 항목 저장 기능
+
+### 중기 계획 (v2.5 - 2026 Q2)
+
+- [ ] **사용자 계정 시스템**: OAuth 2.0 (Google, GitHub) 소셜 로그인
+- [ ] **개인화 대시보드**: 사용자별 관심 카테고리/키워드 기반 맞춤 피드
+- [ ] **이메일 다이제스트**: 주간/월간 AI 트렌드 요약 이메일 발송
+- [ ] **댓글/토론**: 카테고리별 커뮤니티 기능
+- [ ] **다국어 지원**: 영어, 일본어 등 다국어 UI/요약
+
+### 장기 계획 (v3.0 - 2026 하반기)
+
+- [ ] **자체 AI 모델**: 트렌드 예측 ML 모델 학습 및 배포
+- [ ] **고급 분석**: 카테고리 간 상관관계 분석, 시계열 예측
+- [ ] **API 공개**: 외부 개발자용 Open API + 개발자 포털
+- [ ] **기업용 버전**: 팀 대시보드, 리포트 자동 생성, Slack/Teams 연동
+- [ ] **실시간 업데이트**: WebSocket 기반 실시간 트렌드 알림
+
+### Capacitor 모바일 앱 로드맵
+
+```
+[Next.js 14 웹앱] ---> [Capacitor 래핑] ---> [iOS / Android 앱]
+                              |
+                              +---> Native 기능 활용
+                              |     - 푸시 알림 (FCM/APNs)
+                              |     - 생체 인증 (FaceID/지문)
+                              |     - 오프라인 모드
+                              |     - 공유 시트
+                              |
+                              +---> 앱 스토어 배포
+                                    - Apple App Store
+                                    - Google Play Store
+```
+
+---
+
+## 기여 가이드
+
+### 기여 방법
+
+1. 이 저장소를 Fork합니다.
+2. 새 브랜치를 생성합니다 (`git checkout -b feature/amazing-feature`).
+3. 변경사항을 커밋합니다 (`git commit -m 'Add amazing feature'`).
+4. 브랜치에 Push합니다 (`git push origin feature/amazing-feature`).
+5. Pull Request를 생성합니다.
+
+### 개발 환경 설정
+
+```bash
+# 저장소 Fork 후 클론
+git clone https://github.com/YOUR_USERNAME/ai-trend-tracker.git
+cd ai-trend-tracker
+
+# Docker로 개발 환경 실행
+docker compose up -d
+
+# 프론트엔드 개발 서버 실행
+cd web-next
+npm install
+npm run dev
+```
+
+### 코드 스타일
+
+- **Python**: PEP 8 준수, 한국어 주석 사용
+- **TypeScript**: ESLint + Next.js 기본 규칙
+- **CSS**: Tailwind CSS 유틸리티 클래스 우선
+- **커밋 메시지**: 한국어 또는 영어, 변경 내용을 명확히 기술
+
+### 이슈 보고
+
+버그 리포트나 기능 요청은 [GitHub Issues](https://github.com/DONGJUSEO/ai-trend-tracker/issues)에 등록해 주세요.
 
 ---
 
 ## 개발자
 
-- **서동주** ([@DONGJUSEO](https://github.com/DONGJUSEO))
-- AI 개발 어시스턴트: **Claude Opus 4.6** (Anthropic)
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/DONGJUSEO">
+        <strong>서동주 (@DONGJUSEO)</strong>
+      </a>
+      <br />
+      풀스택 개발
+    </td>
+    <td align="center">
+      <strong>Claude Opus 4.6</strong>
+      <br />
+      AI 개발 어시스턴트 (Anthropic)
+    </td>
+  </tr>
+</table>
 
 ---
 
 ## 라이선스
 
+이 프로젝트는 [MIT License](LICENSE)로 배포됩니다.
+
+```
 MIT License
 
-**마지막 업데이트**: 2026-02-07 | **버전**: v2.0.0
+Copyright (c) 2026 서동주 (DONGJUSEO)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+```
+
+---
+
+<p align="center">
+  <strong>Ain싸 - AI Trending</strong> | 마지막 업데이트: 2026-02-07 | 버전: v2.0
+</p>
+
+<p align="center">
+  Made with FastAPI + Next.js 14 + Gemini AI
+</p>

@@ -59,24 +59,24 @@
   }
 
   .light {
-    --background: 20 20% 96%;
-    --foreground: 0 5% 15%;
-    --card: 20 15% 98%;
-    --card-foreground: 0 5% 15%;
-    --popover: 20 15% 98%;
-    --popover-foreground: 0 5% 15%;
+    --background: 30 15% 97%;
+    --foreground: 0 5% 12%;
+    --card: 30 10% 99%;
+    --card-foreground: 0 5% 12%;
+    --popover: 30 10% 99%;
+    --popover-foreground: 0 5% 12%;
     --primary: 0 72% 51%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 20 10% 92%;
+    --secondary: 20 10% 93%;
     --secondary-foreground: 0 5% 15%;
-    --muted: 20 10% 90%;
-    --muted-foreground: 0 5% 45%;
+    --muted: 20 10% 92%;
+    --muted-foreground: 0 5% 40%;
     --accent: 15 15% 93%;
     --accent-foreground: 0 5% 15%;
     --destructive: 0 63% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 20 10% 87%;
-    --input: 20 10% 87%;
+    --border: 20 10% 88%;
+    --input: 20 10% 88%;
     --ring: 0 72% 51%;
     --chart-1: 0 72% 51%;
     --chart-2: 25 85% 50%;
@@ -99,11 +99,155 @@
     background: #0f0a0a;
   }
   .light body {
-    background: #f5f0f0;
+    background: #faf8f6;
+    color: #1a1a2e;
   }
 }
 
-/* Glassmorphism utilities */
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT MODE AUTO-THEME OVERRIDES
+   Automatically maps dark-mode Tailwind utilities to light equivalents.
+   This approach avoids editing every individual page file.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Text Colors ── */
+.light .text-white {
+  color: #1a1a2e;
+}
+.light .text-white\/70 {
+  color: rgba(26, 26, 46, 0.78);
+}
+.light .text-white\/60 {
+  color: rgba(26, 26, 46, 0.68);
+}
+.light .text-white\/50 {
+  color: rgba(26, 26, 46, 0.58);
+}
+.light .text-white\/40 {
+  color: rgba(26, 26, 46, 0.48);
+}
+.light .text-white\/30 {
+  color: rgba(26, 26, 46, 0.35);
+}
+.light .text-white\/20 {
+  color: rgba(26, 26, 46, 0.25);
+}
+.light .text-white\/15 {
+  color: rgba(26, 26, 46, 0.2);
+}
+
+/* ── Hover Text ── */
+.light .hover\:text-white:hover {
+  color: #1a1a2e;
+}
+
+/* ── Background Colors ── */
+.light .bg-white\/5 {
+  background-color: rgba(255, 255, 255, 0.88);
+}
+.light .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.92);
+}
+.light .bg-white\/\[0\.03\] {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+.light .bg-white\/\[0\.08\] {
+  background-color: rgba(255, 255, 255, 0.85);
+}
+.light .bg-\[\#0f0a0a\] {
+  background-color: #faf8f6;
+}
+.light .bg-\[\#0f0a0a\]\/80 {
+  background-color: rgba(250, 248, 246, 0.92);
+}
+.light .bg-\[\#0f0a0a\]\/95 {
+  background-color: rgba(250, 248, 246, 0.97);
+}
+.light .bg-\[\#0a0a0f\]\/80 {
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+/* ── Hover Backgrounds ── */
+.light .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+.light .hover\:bg-white\/5:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+.light .hover\:bg-white\/\[0\.08\]:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+.light .hover\:bg-white\/\[0\.03\]:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* ── Border Colors ── */
+.light .border-white\/10 {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+.light .border-white\/5 {
+  border-color: rgba(0, 0, 0, 0.05);
+}
+.light .border-white\/20 {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+.light .border-white\/\[0\.15\] {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+.light .border-white\/\[0\.20\] {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+/* ── Hover Borders ── */
+.light .hover\:border-white\/\[0\.15\]:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+/* ── Category color adjustments for readability on light bg ── */
+.light .text-category-huggingface {
+  color: #a68506;
+}
+.light .border-category-huggingface\/40 {
+  border-color: rgba(166, 133, 6, 0.4);
+}
+.light .border-category-huggingface\/20 {
+  border-color: rgba(166, 133, 6, 0.25);
+}
+.light .bg-category-huggingface\/20 {
+  background-color: rgba(166, 133, 6, 0.12);
+}
+.light .bg-category-huggingface\/15 {
+  background-color: rgba(166, 133, 6, 0.1);
+}
+
+/* ── Placeholder text ── */
+.light .placeholder-white\/20::placeholder {
+  color: rgba(26, 26, 46, 0.35);
+}
+
+/* ── Skeleton animation in light mode ── */
+.light .animate-pulse {
+  --tw-pulse-color: rgba(0, 0, 0, 0.04);
+}
+
+/* ── Light mode card shadow ── */
+.light .backdrop-blur-xl,
+.light .backdrop-blur-2xl {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+/* ── Focus ring in light mode ── */
+.light .focus\:border-red-500\/40:focus {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+.light .focus\:ring-red-500\/20:focus {
+  --tw-ring-color: rgba(239, 68, 68, 0.25);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GLASSMORPHISM UTILITIES
+   ═══════════════════════════════════════════════════════════════ */
+
 @layer utilities {
   /* Dark mode glass */
   .dark .glass {
@@ -124,22 +268,36 @@
 
   /* Light mode glass */
   .light .glass {
-    @apply bg-white/70 backdrop-blur-xl border border-black/5;
+    background-color: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   }
   .light .glass-hover {
-    @apply hover:bg-white/80 hover:border-black/10 transition-all duration-300;
+    @apply transition-all duration-300;
+  }
+  .light .glass-hover:hover {
+    background-color: rgba(255, 255, 255, 0.92);
+    border-color: rgba(0, 0, 0, 0.1);
   }
   .light .glass-card {
-    @apply bg-white/70 backdrop-blur-xl border border-black/5 rounded-2xl shadow-sm;
+    background-color: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   }
   .light .glass-sidebar {
-    @apply bg-white/70 backdrop-blur-2xl border-r border-black/5;
+    background-color: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(40px);
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 1px 0 4px rgba(0, 0, 0, 0.03);
   }
   .light .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-orange-500;
   }
 
-  /* Shared */
+  /* Shared fallbacks */
   .glass {
     @apply bg-white/5 backdrop-blur-xl border border-white/10;
   }
@@ -158,7 +316,10 @@
   }
 }
 
-/* Scrollbar styling */
+/* ═══════════════════════════════════════════════════════════════
+   SCROLLBAR STYLING
+   ═══════════════════════════════════════════════════════════════ */
+
 .dark ::-webkit-scrollbar {
   width: 6px;
 }
@@ -180,7 +341,7 @@
   background: transparent;
 }
 .light ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 3px;
 }
 .light ::-webkit-scrollbar-thumb:hover {

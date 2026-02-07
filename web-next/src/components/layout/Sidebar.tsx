@@ -5,15 +5,21 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { CATEGORIES, APP_NAME, APP_VERSION } from "@/lib/constants";
+import { useTheme } from "@/lib/theme-context";
 import { cn } from "@/lib/utils";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { theme } = useTheme();
+  const isLight = theme === "light";
 
   return (
     <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[280px] z-40 glass-sidebar">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
+      <div className={cn(
+        "flex items-center gap-3 px-6 py-6 border-b",
+        isLight ? "border-black/[0.06]" : "border-white/10"
+      )}>
         <Image
           src="/logo.png"
           alt="Ain싸"
@@ -47,8 +53,12 @@ export default function Sidebar() {
                   className={cn(
                     "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative",
                     isActive
-                      ? "bg-white/10 text-white"
-                      : "text-muted-foreground hover:bg-white/5 hover:text-white"
+                      ? isLight
+                        ? "bg-black/[0.04] text-gray-900"
+                        : "bg-white/10 text-white"
+                      : isLight
+                        ? "text-gray-500 hover:bg-black/[0.03] hover:text-gray-900"
+                        : "text-muted-foreground hover:bg-white/5 hover:text-white"
                   )}
                 >
                   {/* Active indicator glow */}
@@ -57,8 +67,12 @@ export default function Sidebar() {
                       layoutId="sidebar-active"
                       className="absolute inset-0 rounded-xl"
                       style={{
-                        background: `linear-gradient(135deg, ${category.color}15, ${category.color}08)`,
-                        boxShadow: `inset 0 0 0 1px ${category.color}30, 0 0 20px ${category.color}10`,
+                        background: isLight
+                          ? `linear-gradient(135deg, ${category.color}10, ${category.color}05)`
+                          : `linear-gradient(135deg, ${category.color}15, ${category.color}08)`,
+                        boxShadow: isLight
+                          ? `inset 0 0 0 1px ${category.color}20`
+                          : `inset 0 0 0 1px ${category.color}30, 0 0 20px ${category.color}10`,
                       }}
                       transition={{ type: "spring", stiffness: 350, damping: 30 }}
                     />
@@ -103,7 +117,10 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-white/10">
+      <div className={cn(
+        "px-6 py-4 border-t",
+        isLight ? "border-black/[0.06]" : "border-white/10"
+      )}>
         <p className="text-[10px] text-muted-foreground text-center">
           {APP_NAME} {APP_VERSION}
         </p>
