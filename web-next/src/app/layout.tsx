@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import LayoutShell from "@/components/layout/LayoutShell";
+import Providers from "./providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,9 +27,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className="dark">
+    <html lang="ko" className="dark" suppressHydrationWarning>
       <body className={`${inter.className} antialiased`}>
-        <LayoutShell>{children}</LayoutShell>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

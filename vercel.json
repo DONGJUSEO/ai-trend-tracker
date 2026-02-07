@@ -1,13 +1,4 @@
 {
   "version": 2,
-  "rootDirectory": "web-next",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "framework": "nextjs",
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://ai-trend-tracker-production.up.railway.app/api/:path*"
-    }
-  ]
+  "rootDirectory": "web-next"
 }

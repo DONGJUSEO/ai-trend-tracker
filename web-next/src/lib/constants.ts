@@ -8,7 +8,7 @@ export const CATEGORIES = [
   { id: 'news', name: 'AI News', koreanName: 'AI 뉴스', icon: '📰', color: '#10B981', href: '/news' },
   { id: 'github', name: 'GitHub', koreanName: 'GitHub', icon: '💻', color: '#8B5CF6', href: '/github' },
   { id: 'conferences', name: 'Conferences', koreanName: '컨퍼런스', icon: '🎤', color: '#F59E0B', href: '/conferences' },
-  { id: 'platforms', name: 'AI Platforms', koreanName: 'AI 플랫폼', icon: '🤖', color: '#EC4899', href: '/platforms' },
+  { id: 'platforms', name: 'AI Platforms', koreanName: 'AI 플랫폼', icon: '🧠', color: '#EC4899', href: '/platforms' },
   { id: 'jobs', name: 'AI Jobs', koreanName: 'AI 채용', icon: '💼', color: '#06B6D4', href: '/jobs' },
   { id: 'policies', name: 'AI Policies', koreanName: 'AI 정책', icon: '📜', color: '#6366F1', href: '/policies' },
   { id: 'system', name: 'System', koreanName: '시스템', icon: '⚙️', color: '#6B7280', href: '/system' },

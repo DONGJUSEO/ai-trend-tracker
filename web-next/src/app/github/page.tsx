@@ -351,9 +351,9 @@ export default function GitHubPage() {
         { headers }
       );
       if (res.ok) {
-        const json: PaginatedResponse<GitHubProject> = await res.json();
-        setProjects(json.items || []);
-        setTotalPages(json.total_pages || 1);
+        const json = await res.json();
+        setProjects(json.projects || json.items || []);
+        setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
         setTotal(json.total || 0);
       }
     } catch {

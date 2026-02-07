@@ -282,9 +282,9 @@ export default function HuggingFacePage() {
         { headers }
       );
       if (res.ok) {
-        const json: PaginatedResponse<HuggingFaceModel> = await res.json();
+        const json = await res.json();
         setModels(json.items || []);
-        setTotalPages(json.total_pages || 1);
+        setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
         setTotal(json.total || 0);
       }
     } catch {

@@ -145,7 +145,7 @@ export default function JobsPage() {
         if (res.ok) {
           const json = await res.json();
           setJobs(json.items || []);
-          setTotalPages(json.total_pages || 1);
+          setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
         }
       } catch {
         // API unavailable

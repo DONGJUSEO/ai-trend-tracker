@@ -30,6 +30,7 @@
     --chart-4: 340 75% 55%;
     --chart-5: 15 85% 50%;
   }
+
   .dark {
     --background: 0 8% 5%;
     --foreground: 30 20% 98%;
@@ -50,12 +51,38 @@
     --border: 0 10% 17%;
     --input: 0 10% 17%;
     --ring: 0 72% 51%;
-    --radius: 0.75rem;
     --chart-1: 0 84% 60%;
     --chart-2: 25 95% 55%;
     --chart-3: 45 93% 55%;
     --chart-4: 340 75% 55%;
     --chart-5: 15 85% 50%;
+  }
+
+  .light {
+    --background: 20 20% 96%;
+    --foreground: 0 5% 15%;
+    --card: 20 15% 98%;
+    --card-foreground: 0 5% 15%;
+    --popover: 20 15% 98%;
+    --popover-foreground: 0 5% 15%;
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 20 10% 92%;
+    --secondary-foreground: 0 5% 15%;
+    --muted: 20 10% 90%;
+    --muted-foreground: 0 5% 45%;
+    --accent: 15 15% 93%;
+    --accent-foreground: 0 5% 15%;
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 20 10% 87%;
+    --input: 20 10% 87%;
+    --ring: 0 72% 51%;
+    --chart-1: 0 72% 51%;
+    --chart-2: 25 85% 50%;
+    --chart-3: 45 85% 50%;
+    --chart-4: 340 65% 50%;
+    --chart-5: 15 75% 45%;
   }
 }
 
@@ -65,18 +92,56 @@
   }
   body {
     @apply bg-background text-foreground;
-    background: #0f0a0a;
     min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  .dark body {
+    background: #0f0a0a;
+  }
+  .light body {
+    background: #f5f0f0;
   }
 }
 
 /* Glassmorphism utilities */
 @layer utilities {
-  .glass {
+  /* Dark mode glass */
+  .dark .glass {
     @apply bg-white/5 backdrop-blur-xl border border-white/10;
   }
-  .glass-hover {
+  .dark .glass-hover {
     @apply hover:bg-white/[0.08] hover:border-white/[0.15] transition-all duration-300;
+  }
+  .dark .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+  }
+  .dark .glass-sidebar {
+    @apply bg-white/5 backdrop-blur-2xl border-r border-white/10;
+  }
+  .dark .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-red-400 to-orange-400;
+  }
+
+  /* Light mode glass */
+  .light .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-black/5;
+  }
+  .light .glass-hover {
+    @apply hover:bg-white/80 hover:border-black/10 transition-all duration-300;
+  }
+  .light .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-black/5 rounded-2xl shadow-sm;
+  }
+  .light .glass-sidebar {
+    @apply bg-white/70 backdrop-blur-2xl border-r border-black/5;
+  }
+  .light .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-orange-500;
+  }
+
+  /* Shared */
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
   }
   .glass-card {
     @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
@@ -94,16 +159,30 @@
 }
 
 /* Scrollbar styling */
-::-webkit-scrollbar {
+.dark ::-webkit-scrollbar {
   width: 6px;
 }
-::-webkit-scrollbar-track {
+.dark ::-webkit-scrollbar-track {
   background: transparent;
 }
-::-webkit-scrollbar-thumb {
+.dark ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover {
+.dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.light ::-webkit-scrollbar {
+  width: 6px;
+}
+.light ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
 }
