@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   description: "AI 트렌드를 한눈에 보는 큐레이션 서비스",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.ico",
-    apple: "/icons/icon-192.png",
+    icon: "/favicon.png",
+    apple: "/icons/apple-touch-icon.png",
   },
   other: {
     "apple-mobile-web-app-capable": "yes",

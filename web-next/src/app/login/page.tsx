@@ -6,8 +6,6 @@ import { motion } from "framer-motion";
 import useSWR from "swr";
 import { apiFetcher } from "@/lib/fetcher";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-
 interface DashboardSummary {
   total_items: number;
   categories: Record<string, { total: number }>;
@@ -35,7 +33,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/v1/admin/login`, {
+      const res = await fetch("/api/v1/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),

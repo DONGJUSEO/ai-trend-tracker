@@ -6,9 +6,7 @@ import { CATEGORIES } from "@/lib/constants";
 import { SystemStatus, ServiceStatus, SchedulerJob } from "@/lib/types";
 import CategoryIcon from "@/components/icons/CategoryIcon";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
-const headers = { "X-API-Key": API_KEY, "Content-Type": "application/json" };
+const headers = { "Content-Type": "application/json" };
 
 const category = CATEGORIES.find((c) => c.id === "system")!;
 
@@ -33,7 +31,7 @@ function useAdminAuth() {
     }
 
     // Verify token with server
-    fetch(`${API_URL}/api/v1/admin/verify`, {
+    fetch("/api/v1/admin/verify", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -46,15 +44,16 @@ function useAdminAuth() {
         }
       })
       .catch(() => {
-        // If server is down, allow access based on local expiry
-        setAuthenticated(true);
+        // Server unreachable = deny access (never bypass)
+        localStorage.removeItem("admin_token");
+        localStorage.removeItem("admin_expires");
       })
       .finally(() => setChecking(false));
   }, []);
 
   const login = async (password: string): Promise<string | null> => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/admin/login`, {
+      const res = await fetch("/api/v1/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
@@ -250,8 +249,8 @@ export default function SystemPage() {
   const fetchStatus = useCallback(async () => {
     try {
       const [statusRes, statsRes] = await Promise.allSettled([
-        fetch(`${API_URL}/api/v1/system/status`, { headers }),
-        fetch(`${API_URL}/api/v1/dashboard/category-stats`, { headers }),
+        fetch(`/api/v1/system/status`, { headers }),
+        fetch(`/api/v1/dashboard/category-stats`, { headers }),
       ]);
       if (statusRes.status === "fulfilled" && statusRes.value.ok) {
         setSystemStatus(await statusRes.value.json());

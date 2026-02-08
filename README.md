@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="web-next/public/AI봄.jpg" alt="AI봄 Logo" width="120" height="120" style="border-radius: 20px;" />
+  <img src="web-next/public/logo.jpg" alt="AI봄 Logo" width="120" height="120" style="border-radius: 20px;" />
 </p>
 
 <h1 align="center">AI봄 - AI Trend Tracker</h1>
@@ -10,13 +10,15 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v3.1.1-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-v4.0.0-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js" alt="Next.js" />
   <img src="https://img.shields.io/badge/FastAPI-0.128-009688?style=flat-square&logo=fastapi" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python" alt="Python" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
   <img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?style=flat-square&logo=postgresql" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis" alt="Redis" />
   <img src="https://img.shields.io/badge/Gemini_2.0_Flash-한글요약-4285F4?style=flat-square&logo=google" alt="Gemini" />
+  <img src="https://img.shields.io/badge/Ollama-로컬LLM-000000?style=flat-square" alt="Ollama" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" />
 </p>
 
@@ -34,7 +36,7 @@
 
 - [프로젝트 소개](#프로젝트-소개)
 - [라이브 데모](#라이브-데모)
-- [v3.1 주요 변경사항](#v31-주요-변경사항)
+- [v4.0 주요 변경사항](#v40-주요-변경사항)
 - [시스템 아키텍처](#시스템-아키텍처)
 - [9개 AI 트렌드 카테고리](#9개-ai-트렌드-카테고리)
 - [주요 기능](#주요-기능)
@@ -44,8 +46,8 @@
 - [환경 변수 설정](#환경-변수-설정)
 - [API 엔드포인트](#api-엔드포인트)
 - [데이터 수집 파이프라인](#데이터-수집-파이프라인)
+- [테스트](#테스트)
 - [배포](#배포)
-- [듀얼 AI 개발 전략](#듀얼-ai-개발-전략)
 - [버전 히스토리](#버전-히스토리)
 - [개발자](#개발자)
 - [라이선스](#라이선스)
@@ -54,7 +56,7 @@
 
 ## 프로젝트 소개
 
-**AI봄**은 AI 업계의 최신 트렌드를 9개 카테고리로 자동 수집하고, Google Gemini 2.0 Flash로 한글 요약하여 제공하는 **풀스택 웹 서비스**입니다.
+**AI봄**은 AI 업계의 최신 트렌드를 9개 카테고리로 자동 수집하고, Gemini 2.0 Flash + Ollama 하이브리드 AI로 한글 요약하여 제공하는 **풀스택 웹 서비스**입니다.
 
 카테고리별 최적 주기로 Hugging Face, YouTube, arXiv, GitHub, 뉴스 RSS, 컨퍼런스, AI 플랫폼, 채용 공고, AI 정책 등 다양한 소스에서 데이터를 자동 수집합니다.
 
@@ -63,9 +65,9 @@
 | 가치 | 설명 |
 |------|------|
 | **시간 절약** | 15개 사이트를 돌아다니지 않고, 한 화면에서 AI 트렌드 파악 |
-| **한국어** | 모든 영어 콘텐츠를 Gemini AI가 자동 한글 요약 |
-| **신뢰** | 실시간 데이터 + 출처 명시 + 소프트 아카이브 |
-| **상용화 품질** | 글래스모피즘 UI, SVG 아이콘, 다크/라이트 테마 |
+| **한국어** | 모든 영어 콘텐츠를 AI가 자동 한글 요약 (Gemini + Ollama 하이브리드) |
+| **보안** | 서버사이드 인증, API Key 프록시 전용, 기본 비밀번호 제거 |
+| **상용화 품질** | 글래스모피즘 UI, SVG 아이콘, pipeline_tag 색상 코딩 |
 | **스마트 수집** | 카테고리별 최적 주기 (뉴스 1시간 ~ 플랫폼 매주) |
 
 ---
@@ -77,55 +79,70 @@
 | **프론트엔드 (Vercel)** | [ai-trend-tracker-beta.vercel.app](https://ai-trend-tracker-beta.vercel.app) | ✅ Production |
 | **백엔드 API (Railway)** | [ai-trend-tracker-production.up.railway.app](https://ai-trend-tracker-production.up.railway.app/docs) | ✅ Production |
 
-> 비밀번호: `test1234` (데모용) / 관리자: `admin1234`
+> 비밀번호는 환경변수로 설정됩니다 (기본값 없음).
 
 ---
 
-## v3.1 주요 변경사항
+## v4.0 주요 변경사항
 
-> 2026-02-08 | v3.0 → v3.1 대시보드/백엔드 대규모 강화
+> 2026-02-08 | v3.1 → v4.0 보안/아키텍처/데이터 대규모 강화
 
-### 대시보드
-
-| 변경 | 상세 |
-|------|------|
-| **LivePulse 실시간 위젯** | 핫 토픽 + 수집 수치 + 최근 업데이트 3열 실시간 대시보드 |
-| **워드 클라우드** | react-d3-cloud 기반 트렌딩 키워드 시각화 (외부 API 3종) |
-| **앱 가이드** | 접기/펼치기 가능한 온보딩 가이드 섹션 |
-| **Top 10 카드** | 카테고리별 스크롤 가능한 상위 10건 + 외부 링크 |
-| **로그인 리디자인** | 회색 배경 + 깔끔한 SaaS 스타일 |
-
-### 백엔드
+### 보안 & 신뢰성 (Phase A)
 
 | 변경 | 상세 |
 |------|------|
-| **외부 트렌딩 키워드** | HuggingFace + Hacker News + PapersWithCode 3종 API 수집 |
-| **LivePulse API** | `/api/v1/dashboard/live-pulse` — 핫 아이템 + 통계 + 수집 로그 |
-| **GitHub 다중쿼리** | 10개 토픽 검색 + mega-repo 제외 (tensorflow 등) |
-| **YouTube 채널 교체** | 한국 14개 + 해외 15개 AI 전문 채널 (채널 ID 검증) |
-| **뉴스 AI 필터링** | AI 키워드 필터 강화, 해외 뉴스 한글 요약 자동 생성 |
-| **채용 직무 분류** | 10개 직무 카테고리 자동 분류 + 트렌딩 스킬 집계 |
-| **컨퍼런스 날짜 수정** | datetime 파싱 버그 수정, 2025 이전 연도 필터링 |
-| **수집량 증가** | HF 50개/회, Papers 100개/회, GitHub 50개/쿼리 등 |
-| **API 요청 카운트** | Redis 기반 일별 API 호출 수 집계 미들웨어 |
+| **인증 경계 재설계** | NEXT_PUBLIC_API_KEY 제거, Next.js 서버 프록시에서만 API Key 주입 |
+| **기본 비밀번호 제거** | APP_PASSWORD/ADMIN_PASSWORD/JWT_SECRET_KEY 미설정 시 기동 실패 |
+| **관리자 인증 우회 제거** | 서버 검증 실패 = 무조건 비인증 처리 |
+| **Papers 라우트 충돌 수정** | 정적 라우트 우선 선언 + arxiv_id 정규식 검증 |
+| **Alembic 마이그레이션 재구성** | DROP 기반 → CREATE TABLE 기반 초기 리비전 |
 
-### 프론트엔드
+### 운영 안정성 (Phase B)
 
 | 변경 | 상세 |
 |------|------|
-| **컨퍼런스 캘린더** | FullCalendar 월간 뷰 + 티어별 색상 + 이벤트 상세 모달 |
-| **채용 탭 강화** | 10개 직무 카테고리 가로 스크롤 탭 + 트렌딩 스킬 TOP 10 |
-| **검색 네비게이션** | 검색 결과 클릭 시 카테고리 페이지/외부 URL 이동 |
-| **Sidebar 시계** | 실시간 KST 시간 표시 (사이드바 하단) |
-| **불필요 UI 정리** | 북마크/알림 아이콘 제거, 카테고리 현황 → System 이동 |
+| **start.sh fail-fast** | 마이그레이션 실패 시 서버 기동 중단 (`set -e`) |
+| **프록시 기본값 제거** | BACKEND_URL 미설정 시 500 에러 (프로덕션 URL 하드코딩 제거) |
+| **debug 기본값 False** | config.py `debug=True` → `debug=False` |
+| **Python 3.11 업그레이드** | Dockerfile 베이스 이미지 python:3.9 → python:3.11-slim |
 
-### 신규 파일
+### 아키텍처 정리 (Phase C)
 
-| 파일 | 용도 |
+| 변경 | 상세 |
 |------|------|
-| `app/services/trending_keyword_service.py` | 외부 3종 키워드 수집 서비스 |
-| `web-next/src/components/dashboard/LivePulse.tsx` | 실시간 대시보드 3열 위젯 |
-| `web-next/src/components/conferences/CalendarView.tsx` | FullCalendar 캘린더 뷰 |
+| **단일 API Client** | 12개 페이지 중복 API 호출 → `apiFetcher` 하나로 통합 |
+| **공통 ErrorState** | 에러/로딩/빈 상태 공통 컴포넌트 |
+| **비동기 Gemini** | `generate_content_async()` 사용, 이벤트 루프 차단 제거 |
+| **Redis HyperLogLog 방문자** | IP 기반 HLL 추적 (12KB로 수백만 UV) |
+
+### 데이터 확장 (Phase D)
+
+| 카테고리 | 변경 |
+|---------|------|
+| **YouTube** | 해외 채널 제거, 한국어 전용 18개 채널 |
+| **Papers** | 18개 토픽 세분화 (LLM, Diffusion, 로보틱스, AI에이전트 등) |
+| **GitHub** | 19개 검색 쿼리, Star Velocity 발굴 |
+| **News** | 자동 토픽 분류 (정책/기업동향/기술발전/제품출시/AI 일반) |
+| **Jobs** | 16개 직무 카테고리 (AI PM, AI 윤리, 프롬프트 엔지니어 등) |
+| **HuggingFace** | pipeline_tag 색상 코딩, created_at 우선 표시 |
+| **Conferences** | 한국 이벤트 추가, 타입/티어 단일 뷰 |
+| **Policies** | 한국+글로벌 소스 확장 |
+| **Platforms** | 데이터 출처 표시 |
+
+### 하이브리드 AI 요약 (Phase E)
+
+| 변경 | 상세 |
+|------|------|
+| **Ollama 통합** | Docker Compose에 Ollama 서비스 추가 |
+| **Gemini → Ollama 폴백** | Gemini 실패 시 로컬 LLM으로 자동 전환 |
+| **한국어 특화** | SOLAR-10.7B (Q4) 로컬 추론 |
+
+### 테스트 & CI (Phase F)
+
+| 변경 | 상세 |
+|------|------|
+| **4종 자동화 테스트** | 마이그레이션, 인증, 라우팅, 분류기 회귀 테스트 |
+| **PWA 아이콘 통일** | 로고.jpg 기반 icon-192/512, apple-touch-icon 생성 |
 
 ---
 
@@ -138,13 +155,13 @@
                                |
                       +--------v----------+
                       |   Next.js 14       |
-                      |   App Router       |
-                      |   + SWR + SVG Icons|
+                      |   서버 프록시       |
+                      |   (API Key 주입)   |
                       +--------+----------+
                                |
                       +--------v----------+
                       |   FastAPI Server   |
-                      |   (비동기 Python)   |
+                      |   Python 3.11     |
                       +--+------+------+--+
                          |      |      |
               +----------+  +---+---+  +----------+
@@ -152,74 +169,70 @@
               v             v       v             v
      +----------------+ +------+ +----------+ +----------+
      | PostgreSQL 15  | | Redis| | APScheduler| | Gemini  |
-     | + Alembic      | | 7    | | (카테고리별 | | 2.0     |
-     | + 9 테이블     | |      | |  최적 주기) | | Flash   |
+     | + Alembic      | | HLL  | | (카테고리별 | | 2.0     |
+     | + 9 테이블     | | 방문자| |  최적 주기) | | Flash   |
      +----------------+ +------+ +----------+ +----------+
-                                      |
-                         +------------+------------+
-                         |            |            |
-                         v            v            v
-                    [HF API]   [YouTube]    [arXiv]
-                    [GitHub]   [RSS Feeds]  [WikiCFP]
-                    [RemoteOK] [구조화 데이터]
+                                      |             |
+                         +------------+-------+     |
+                         |            |        |    v
+                         v            v        v  +--------+
+                    [HF API]   [YouTube]  [arXiv] | Ollama |
+                    [GitHub]   [RSS Feeds] [Jobs] | (폴백) |
+                    [RemoteOK] [구조화 데이터]      +--------+
 ```
 
 ---
 
 ## 9개 AI 트렌드 카테고리
 
-| # | 카테고리 | 데이터 소스 | 수집 주기 | 탭 필터 |
-|---|---------|-----------|----------|---------|
-| 1 | **Hugging Face** | Hugging Face Hub API | 매 6시간 | 태스크별 |
-| 2 | **YouTube** | YouTube Data API v3 | 매 4시간 | 국내/해외 |
-| 3 | **AI 논문** | arXiv API | 매 12시간 | 주제별 (NLP, CV, ML...) |
-| 4 | **AI 뉴스** | RSS Feeds (전자신문, AI타임스...) | 매 1시간 | 전체/국내/해외 |
-| 5 | **GitHub** | GitHub Search API (fan-out) | 매 6시간 | 카테고리별 |
-| 6 | **컨퍼런스** | WikiCFP, AI Deadlines | 매일 | 티어별 (A*/A/B) |
-| 7 | **AI 플랫폼** | 구조화 데이터 | 매주 월요일 | 전체 |
-| 8 | **AI 채용** | RemoteOK API, RSS | 매 6시간 | 직무 10종 (백엔드/AI SW/LLM/비전...) |
+| # | 카테고리 | 데이터 소스 | 수집 주기 | 세분화 |
+|---|---------|-----------|----------|--------|
+| 1 | **Hugging Face** | Hugging Face Hub API | 매 6시간 | pipeline_tag 색상 코딩 |
+| 2 | **YouTube** | YouTube Data API v3 | 매 4시간 | 한국어 전용 18개 채널 |
+| 3 | **AI 논문** | arXiv API | 매 12시간 | 18개 토픽 (LLM, Diffusion, Agent 등) |
+| 4 | **AI 뉴스** | RSS Feeds | 매 1시간 | 자동분류 (정책/기업/기술/제품/일반) |
+| 5 | **GitHub** | GitHub Search API (fan-out) | 매 6시간 | 19개 쿼리 카테고리 |
+| 6 | **컨퍼런스** | WikiCFP, AI Deadlines | 매일 | 단일 뷰 (한국 이벤트 포함) |
+| 7 | **AI 플랫폼** | 구조화 데이터 | 매주 월요일 | 출처 표시 |
+| 8 | **AI 채용** | RemoteOK API, RSS | 매 6시간 | 16개 직무 카테고리 |
 | 9 | **AI 정책** | 정부 RSS, AI News | 매일 | 국가별 (한국/미국/EU/중국) |
 
 ---
 
 ## 주요 기능
 
-### 1. 스마트 스케줄러
-카테고리별 최적 수집 주기로 API 호출을 최소화하면서 데이터 신선도를 유지합니다.
+### 1. 하이브리드 AI 요약 (Gemini + Ollama)
+- Gemini 2.0 Flash API로 한글 요약 생성
+- API 장애 시 Ollama 로컬 LLM (SOLAR-10.7B)으로 자동 폴백
+- 카테고리별 맞춤 프롬프트 (summary, keywords, key_features 등)
 
+### 2. 서버사이드 인증
+- Next.js 서버 프록시(`/api/[...path]/route.ts`)에서만 API Key 주입
+- 브라우저에 API Key 미노출 (NEXT_PUBLIC_ 변수 제거)
+- APP_PASSWORD/ADMIN_PASSWORD/JWT_SECRET_KEY 필수 설정
+
+### 3. 스마트 스케줄러
 ```
 뉴스: 매 1시간 | YouTube: 매 4시간 | HF/GitHub/채용: 매 6시간
 논문: 매 12시간 | 컨퍼런스/정책: 매일 | 플랫폼: 매주 월요일
-아카이브: 매일 03:30 (30일 이상 오래된 데이터 소프트 삭제)
+아카이브: 매일 03:30 (30일 이상 데이터 소프트 삭제)
 ```
 
-### 2. AI 한글 요약 (Gemini 2.0 Flash)
-- 카테고리별 맞춤 프롬프트로 한글 요약 생성
-- summary, keywords, key_features, use_cases 등 구조화 출력
-- JSON 파싱 공통화로 안정성 향상
+### 4. 전역 검색
+- PostgreSQL FTS + ILIKE fallback
+- 9개 카테고리 통합 검색 + 페이지네이션
 
-### 3. 전역 검색
-- `/api/v1/search` — PostgreSQL FTS + ILIKE fallback
-- 모든 카테고리 통합 검색 + 페이지네이션
-- TopBar 검색 UI 연동
+### 5. HyperLogLog 방문자 추적
+- Redis PFADD/PFCOUNT (12KB로 수백만 UV 처리)
+- 일별/월별/전체 고유 방문자 수 집계
 
-### 4. 소프트 아카이브
-- 30일 이상 오래된 데이터를 자동 아카이브 (삭제 아님)
-- `is_archived`, `archived_at` 필드로 복원 가능
-- API에서 `include_archived=true` 옵션으로 아카이브 데이터 조회
+### 6. News 자동 토픽 분류
+- 키워드 빈도 기반 5개 카테고리 자동 분류
+- 정책 / 기업동향 / 기술발전 / 제품출시 / AI 일반
 
-### 5. 에러 알림 (웹훅)
-- 스케줄러 작업 실패 시 Slack/Discord 웹훅 자동 알림
-- `ERROR_WEBHOOK_SLACK`, `ERROR_WEBHOOK_DISCORD` 환경변수로 설정
-
-### 6. SVG 아이콘 시스템
-- 11개 카테고리 전용 SVG 아이콘 (`CategoryIcons.tsx`)
-- `iconKey` 기반 렌더링 (이모지 완전 제거)
-- 다크/라이트 테마 대응
-
-### 7. 다크/라이트 테마
-- `aibom-theme` localStorage 키로 저장
-- 글래스모피즘 디자인 (backdrop-blur + bg-white/5)
+### 7. SVG 아이콘 + pipeline_tag 색상
+- 11개 카테고리 전용 SVG 아이콘
+- HuggingFace pipeline_tag별 색상 코딩 (NLP=파랑, CV=초록, Audio=보라)
 
 ---
 
@@ -232,32 +245,30 @@
 | Next.js 14 (App Router) | SSR/CSR 프레임워크 |
 | TypeScript 5 | 정적 타입 |
 | Tailwind CSS 3.4 | 유틸리티 CSS |
-| SWR | 데이터 패칭 (stale-while-revalidate) |
+| SWR | 데이터 패칭 |
 | Framer Motion | 애니메이션 |
-| Lucide React | 아이콘 |
-| next/image | 이미지 최적화 |
 | react-d3-cloud | 워드 클라우드 시각화 |
-| FullCalendar | 컨퍼런스 캘린더 뷰 |
+| FullCalendar | 컨퍼런스 캘린더 |
 
 ### 백엔드
 
 | 기술 | 용도 |
 |------|------|
 | FastAPI 0.128 | 비동기 웹 프레임워크 |
+| Python 3.11 | 런타임 |
 | SQLAlchemy 2.0 (asyncpg) | 비동기 ORM |
 | Alembic | DB 마이그레이션 |
 | PostgreSQL 15 | 데이터베이스 |
-| Redis 7 | 캐싱 |
+| Redis 7 (HyperLogLog) | 캐싱 + 방문자 추적 |
 | APScheduler 3.10 | 크론 스케줄링 |
 | google-generativeai | Gemini 2.0 Flash API |
-| httpx | 비동기 HTTP 클라이언트 |
-| feedparser | RSS/Atom 파서 |
+| Ollama | 로컬 LLM 폴백 (SOLAR-10.7B) |
 
 ### 인프라
 
 | 서비스 | 용도 |
 |--------|------|
-| Docker Compose | 로컬 개발 (API + PostgreSQL + Redis) |
+| Docker Compose | 로컬 개발 (API + PostgreSQL + Redis + Ollama) |
 | Railway | 백엔드 클라우드 호스팅 |
 | Vercel | 프론트엔드 CDN + Edge |
 
@@ -268,78 +279,62 @@
 ```
 fastapi-starter/
 ├── app/                              # 백엔드 (FastAPI)
-│   ├── main.py                       # 앱 진입점
-│   ├── config.py                     # 환경 변수 (gemini_model, webhook 등)
+│   ├── main.py                       # 앱 진입점 + HLL 방문자 미들웨어
+│   ├── config.py                     # 환경 변수 (필수값 미설정 시 기동 실패)
 │   ├── database.py                   # PostgreSQL 비동기 연결
-│   ├── cache.py                      # Redis 캐싱 유틸
-│   ├── auth.py                       # API Key + HTTP Basic 인증
-│   ├── db_compat.py                  # DB 컬럼 호환 유틸 (v3.0 신규)
+│   ├── cache.py                      # Redis 캐싱 + HyperLogLog 방문자
+│   ├── auth.py                       # API Key + JWT 인증
 │   │
-│   ├── api/v1/                       # API 라우터
+│   ├── api/v1/                       # API 라우터 (12개)
 │   │   ├── dashboard.py              # 대시보드 통계
-│   │   ├── search.py                 # 전역 검색 (v3.0 신규)
-│   │   ├── system.py                 # 시스템 상태 + 수집 로그
-│   │   ├── huggingface.py            # HF 모델
-│   │   ├── youtube.py                # YouTube 영상
-│   │   ├── papers.py                 # AI 논문
-│   │   ├── news.py                   # AI 뉴스
-│   │   ├── github.py                 # GitHub 프로젝트
-│   │   ├── conferences.py            # 컨퍼런스
-│   │   ├── tools.py                  # AI 플랫폼
-│   │   ├── jobs.py                   # AI 채용
-│   │   └── policies.py               # AI 정책
+│   │   ├── search.py                 # 전역 검색
+│   │   ├── system.py                 # 시스템 상태 + 방문자 수
+│   │   ├── admin.py                  # 관리자 전용
+│   │   └── *.py                      # 9개 카테고리 라우터
 │   │
 │   ├── models/                       # SQLAlchemy 모델 (9개 + 채널)
-│   │   └── *.py                      # is_archived, archived_at 포함
-│   │
 │   ├── schemas/                      # Pydantic 스키마
-│   │   └── *.py                      # 페이지네이션 + 아카이브 응답
-│   │
 │   └── services/                     # 비즈니스 로직
 │       ├── scheduler.py              # 카테고리별 최적 주기 스케줄러
-│       ├── ai_summary_service.py     # Gemini 2.0 Flash 요약
-│       ├── notification_service.py   # Slack/Discord 웹훅 (v3.0 신규)
+│       ├── ai_summary_service.py     # Gemini + Ollama 하이브리드 요약
 │       └── *_service.py              # 9개 수집 서비스
 │
 ├── web-next/                         # 프론트엔드 (Next.js 14)
 │   ├── src/
-│   │   ├── app/                      # App Router 페이지
-│   │   │   ├── page.tsx              # 대시보드 (실데이터)
-│   │   │   ├── login/page.tsx        # 프리미엄 로그인
+│   │   ├── app/
+│   │   │   ├── api/[...path]/route.ts  # 서버 프록시 (API Key 주입)
+│   │   │   ├── page.tsx              # 대시보드
+│   │   │   ├── login/page.tsx        # 로그인
 │   │   │   └── */page.tsx            # 9개 카테고리 + 시스템
 │   │   │
 │   │   ├── components/
-│   │   │   ├── icons/                # SVG 아이콘 (v3.0 신규)
-│   │   │   │   ├── CategoryIcons.tsx # 11개 카테고리 SVG
-│   │   │   │   └── CategoryIcon.tsx  # iconKey 기반 렌더러
-│   │   │   ├── dashboard/            # 대시보드 위젯
-│   │   │   │   ├── LivePulse.tsx     # 실시간 3열 위젯 (v3.1)
-│   │   │   │   └── TrendingKeywords.tsx # 워드 클라우드 (v3.1)
-│   │   │   ├── conferences/          # 컨퍼런스 컴포넌트
-│   │   │   │   └── CalendarView.tsx  # FullCalendar 뷰 (v3.1)
-│   │   │   ├── layout/               # Sidebar, TopBar, MobileNav, LoginScreen
-│   │   │   └── shared/               # 공통 컴포넌트
+│   │   │   ├── ui/ErrorState.tsx     # 공통 에러/로딩 상태 (v4.0)
+│   │   │   ├── icons/               # SVG 아이콘
+│   │   │   ├── dashboard/           # 대시보드 위젯
+│   │   │   └── layout/              # Sidebar, TopBar
 │   │   │
-│   │   └── lib/                      # 유틸리티
+│   │   └── lib/
+│   │       ├── fetcher.ts            # 단일 API Client (apiFetcher)
 │   │       ├── types.ts              # 타입 정의
-│   │       ├── constants.ts          # 카테고리 상수 (iconKey 체계)
-│   │       ├── fetcher.ts            # SWR 공통 fetcher (v3.0 신규)
-│   │       ├── user-preferences.ts   # 북마크/최근본 (v3.0 신규)
 │   │       ├── auth-context.tsx      # 인증 컨텍스트
 │   │       └── theme-context.tsx     # 테마 컨텍스트
 │   │
 │   └── public/
-│       ├── AI봄.jpg                  # 로고
+│       ├── logo.jpg                  # AI봄 로고 (통일)
+│       ├── icons/                    # PWA 아이콘 (192/512/apple-touch)
 │       └── manifest.json             # PWA 매니페스트
 │
-├── alembic/                          # DB 마이그레이션
-│   └── versions/
-│       ├── c2d3..._add_hf_taskko_and_paper_metadata.py
-│       └── d3e4..._add_archive_fields_and_youtube_language.py
+├── tests/                            # 자동화 테스트 (v4.0)
+│   ├── conftest.py                   # 테스트 환경변수
+│   ├── test_migration.py             # Alembic 마이그레이션 검증
+│   ├── test_auth.py                  # 인증 회귀 테스트
+│   ├── test_routes.py                # 라우팅 회귀 테스트
+│   └── test_classifiers.py           # 분류기 단위 테스트
 │
-├── docs/                             # 딥 리서치 프롬프트
-├── docker-compose.yml                # Docker (API + PG + Redis)
-├── Dockerfile                        # FastAPI 이미지
+├── alembic/                          # DB 마이그레이션
+├── docker-compose.yml                # Docker (API + PG + Redis + Ollama)
+├── Dockerfile                        # FastAPI 이미지 (Python 3.11)
+├── start.sh                          # fail-fast 서버 시작 스크립트
 └── requirements.txt                  # Python 의존성
 ```
 
@@ -354,11 +349,11 @@ fastapi-starter/
 git clone https://github.com/DONGJUSEO/ai-trend-tracker.git
 cd ai-trend-tracker
 
-# 2. 환경 변수
+# 2. 환경 변수 설정
 cp .env.example .env
-# .env에 API 키 입력 (GEMINI_API_KEY, YOUTUBE_API_KEY 등)
+# .env에 필수 변수 입력 (아래 환경 변수 섹션 참조)
 
-# 3. 백엔드 실행 (API + PostgreSQL + Redis + 자동 마이그레이션)
+# 3. 백엔드 실행 (API + PostgreSQL + Redis + Ollama + 자동 마이그레이션)
 docker compose up -d
 
 # 4. 프론트엔드 실행
@@ -382,24 +377,28 @@ npm run dev
 
 | 변수명 | 필수 | 기본값 | 설명 |
 |--------|------|--------|------|
-| `DATABASE_URL` | 필수 | - | PostgreSQL 연결 문자열 |
-| `REDIS_URL` | 필수 | - | Redis 연결 문자열 |
+| `DATABASE_URL` | **필수** | - | PostgreSQL 연결 문자열 |
+| `REDIS_URL` | **필수** | - | Redis 연결 문자열 |
+| `APP_PASSWORD` | **필수** | - | 사이트 접근 비밀번호 |
+| `ADMIN_PASSWORD` | **필수** | - | 관리자 비밀번호 |
+| `JWT_SECRET_KEY` | **필수** | - | JWT 서명 키 |
 | `GEMINI_API_KEY` | 선택 | `""` | Gemini AI API 키 |
 | `GEMINI_MODEL` | 선택 | `gemini-2.0-flash` | Gemini 모델 지정 |
 | `YOUTUBE_API_KEY` | 선택 | `""` | YouTube Data API v3 키 |
 | `GITHUB_TOKEN` | 선택 | `""` | GitHub PAT |
-| `APP_PASSWORD` | 선택 | `test1234` | 사이트 접근 비밀번호 |
-| `ADMIN_PASSWORD` | 선택 | `admin1234` | 관리자 비밀번호 |
-| `JWT_SECRET_KEY` | 선택 | (자동 생성) | JWT 서명 키 |
-| `ERROR_WEBHOOK_SLACK` | 선택 | `""` | Slack 에러 알림 웹훅 URL |
-| `ERROR_WEBHOOK_DISCORD` | 선택 | `""` | Discord 에러 알림 웹훅 URL |
+| `OLLAMA_BASE_URL` | 선택 | `http://localhost:11434` | Ollama 서버 URL |
+| `OLLAMA_MODEL` | 선택 | `solar:10.7b` | Ollama 모델명 |
+| `ERROR_WEBHOOK_SLACK` | 선택 | `""` | Slack 에러 알림 웹훅 |
+| `ERROR_WEBHOOK_DISCORD` | 선택 | `""` | Discord 에러 알림 웹훅 |
 
-### 프론트엔드 (.env.development)
+### 프론트엔드 (Vercel 환경변수 — 서버 전용)
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_API_KEY=test1234
-```
+| 변수명 | 필수 | 설명 |
+|--------|------|------|
+| `BACKEND_URL` | **필수** | 백엔드 서버 URL (예: `https://...railway.app`) |
+| `API_KEY` | **필수** | 백엔드 API Key (= APP_PASSWORD) |
+
+> ⚠️ `NEXT_PUBLIC_` 접두사 사용 금지 — API Key가 브라우저에 노출됩니다.
 
 ---
 
@@ -421,22 +420,14 @@ NEXT_PUBLIC_API_KEY=test1234
 | `GET` | `/api/v1/jobs/` | `items` | `page`, `page_size` |
 | `GET` | `/api/v1/policies/` | `items` | `page`, `page_size` |
 
-### 신규 API (v3.0 ~ v3.1)
+### 시스템 API
 
 | 메서드 | 엔드포인트 | 설명 |
 |--------|-----------|------|
 | `GET` | `/api/v1/search?q=AI&page_size=10` | 전역 검색 (카테고리 통합) |
-| `GET` | `/api/v1/dashboard/live-pulse` | 실시간 핫 토픽 + 수집 통계 + 수집 로그 |
-| `GET` | `/api/v1/dashboard/external-trending-keywords?limit=50` | 외부 3종 API 트렌딩 키워드 |
-| `GET` | `/api/v1/system/status` | 시스템 상태 + API 요청 카운트 + DB/Redis 정보 |
-
-### 공통 쿼리 파라미터 (v3.0)
-
-| 파라미터 | 타입 | 설명 |
-|---------|------|------|
-| `page` | int | 페이지 번호 (1부터) |
-| `page_size` | int | 페이지 크기 (기본 20) |
-| `include_archived` | bool | 아카이브 데이터 포함 여부 |
+| `GET` | `/api/v1/dashboard/live-pulse` | 실시간 핫 토픽 + 수집 통계 |
+| `GET` | `/api/v1/dashboard/external-trending-keywords` | 트렌딩 키워드 |
+| `GET` | `/api/v1/system/status` | 시스템 상태 + 방문자 수 + API 요청 카운트 |
 
 ---
 
@@ -445,20 +436,44 @@ NEXT_PUBLIC_API_KEY=test1234
 ```
 APScheduler (카테고리별 최적 주기)
     |
-    +---> [뉴스] 매 1시간         → NewsService → RSS Feeds
-    +---> [YouTube] 매 4시간      → YouTubeService → YouTube API
+    +---> [뉴스] 매 1시간         → NewsService → RSS Feeds → 자동 토픽 분류
+    +---> [YouTube] 매 4시간      → YouTubeService → 18개 한국 채널
     +---> [HF/GitHub/채용] 매 6시간 → 각 Service → 각 API
-    +---> [논문] 매 12시간         → ArxivService → arXiv API
+    +---> [논문] 매 12시간         → ArxivService → arXiv API → 18개 토픽
     +---> [컨퍼런스/정책] 매일     → 각 Service → WikiCFP/RSS
     +---> [플랫폼] 매주 월요일     → AIToolService → 구조화 데이터
     +---> [아카이브] 매일 03:30    → 30일+ 데이터 소프트 삭제
     |
     v
-각 수집 후: AISummaryService (Gemini 2.0 Flash)
+하이브리드 AI 요약 (Gemini → Ollama 폴백)
     +---> 요약 없는 항목 → 한글 요약 생성 → DB 업데이트
     +---> 수집 실패 시 → NotificationService → Slack/Discord 웹훅
     +---> 수집 완료 시 → Redis 캐시 무효화
 ```
+
+---
+
+## 테스트
+
+```bash
+cd fastapi-starter
+
+# 전체 테스트 실행
+pytest tests/ -v
+
+# 개별 테스트
+pytest tests/test_migration.py -v    # Alembic 마이그레이션 체인 검증
+pytest tests/test_auth.py -v         # 인증 회귀 테스트
+pytest tests/test_routes.py -v       # 라우팅 회귀 테스트
+pytest tests/test_classifiers.py -v  # 분류기 단위 테스트
+```
+
+| 테스트 | 검증 항목 |
+|--------|----------|
+| `test_migration` | Alembic head 단일성, history 체인 무결성 |
+| `test_auth` | 기본 비밀번호 금지, 하드코딩 제거, NEXT_PUBLIC_API_KEY 미노출 |
+| `test_routes` | /papers/search 정적 라우트 우선, 12개 라우터 등록 확인 |
+| `test_classifiers` | News 5개 카테고리, Job 3개 카테고리, Paper 2개 토픽 분류 |
 
 ---
 
@@ -467,38 +482,25 @@ APScheduler (카테고리별 최적 주기)
 ### 프론트엔드: Vercel
 
 ```bash
-# Vercel에 연결 (GitHub 연동으로 main 브랜치 자동 배포)
-# vercel.json (루트):
-# { "version": 2, "rootDirectory": "web-next" }
+# Vercel GitHub 연동 (main 브랜치 자동 배포)
+# vercel.json: { "version": 2, "rootDirectory": "web-next" }
 
-# 환경 변수 (Vercel Dashboard에서 설정):
-# NEXT_PUBLIC_API_URL = https://ai-trend-tracker-production.up.railway.app
-# NEXT_PUBLIC_API_KEY = <your-api-key>
+# Vercel Dashboard 환경변수 (서버 전용 — NEXT_PUBLIC_ 금지):
+# BACKEND_URL = https://ai-trend-tracker-production.up.railway.app
+# API_KEY = <your-app-password>
 ```
 
 ### 백엔드: Railway
 
 ```bash
-# Railway에 연결 (GitHub 연동으로 main 브랜치 자동 배포)
-# Dockerfile 기반 빌드 (Python 3.9-slim)
-# start.sh: Alembic 마이그레이션 + Uvicorn 서버
+# Railway GitHub 연동 (main 브랜치 자동 배포)
+# Dockerfile 기반 빌드 (Python 3.11-slim)
+# start.sh: set -e → Alembic 마이그레이션 → Uvicorn 서버
 
-# 필수 환경 변수 (Railway Dashboard에서 설정):
-# DATABASE_URL = postgresql+asyncpg://<user>:<pass>@<host>:5432/ai_trends
-# REDIS_URL = redis://<host>:6379
-# GEMINI_API_KEY = <gemini-key>
-# YOUTUBE_API_KEY = <youtube-key>
-# GITHUB_TOKEN = <github-pat>
+# 필수 환경 변수 (Railway Dashboard):
+# DATABASE_URL, REDIS_URL, APP_PASSWORD, ADMIN_PASSWORD, JWT_SECRET_KEY
+# 선택: GEMINI_API_KEY, YOUTUBE_API_KEY, GITHUB_TOKEN
 ```
-
-### 배포 URL
-
-| 서비스 | URL |
-|--------|-----|
-| 프론트엔드 | https://ai-trend-tracker-beta.vercel.app |
-| 백엔드 API | https://ai-trend-tracker-production.up.railway.app |
-| Swagger 문서 | https://ai-trend-tracker-production.up.railway.app/docs |
-| Health Check | https://ai-trend-tracker-production.up.railway.app/health |
 
 ### 배포 프로세스
 
@@ -512,74 +514,41 @@ git push origin main
 
 ---
 
-## 듀얼 AI 개발 전략
-
-AI봄은 **ChatGPT 5.3 Codex + Claude Code Opus 4.6** 듀얼 AI 바이브 코딩으로 개발됩니다.
-
-| 역할 | ChatGPT 5.3 Codex (건축가) | Claude Code Opus 4.6 (외과의사) |
-|------|---------------------------|-------------------------------|
-| 강점 | 완전 자율 실행, 딥 리서치 | 정밀 수정, 실시간 디버깅 |
-| 최적 작업 | 신규 파일 생성, 대규모 반복 | 버그 수정, 빌드 테스트, 통합 |
-| 원칙 | **한 파일에 한 AI** | **Claude Code가 최종 관문** |
-
-### 하루 워크플로우
-
-```
-[아침] Claude Code 계획 수립 → [오전] Codex 자율 실행 → [오후] Claude Code 검증/통합 → [저녁] 커밋
-```
-
----
-
 ## 버전 히스토리
 
-### v3.1.1 (2026-02-08) — 데이터 품질 P0/P1 수정
+### v4.0.0 (2026-02-08) — 보안/아키텍처/데이터 대규모 강화
 
-- **컨퍼런스 날짜 버그**: 1970년 epoch 날짜 → force-delete 후 2026 날짜 재삽입
-- **AI 논문 한글 요약**: Gemini `summarize_paper()` 자동 호출 (신규/기존 모두)
-- **HuggingFace 한글 설명**: Gemini `summarize_huggingface_model()` 자동 호출
-- **뉴스 AI 필터링 강화**: 광범위 키워드 제거 (네이버/삼성 → 네이버 ai/삼성 ai), 짧은 키워드 regex word boundary 매칭
-- **정책 HTML 태그 제거**: RSS 설명/제목에서 `<p>`, `<a>` 등 HTML 엔티티 자동 클리닝
-- **채용 직무 오분류 해결**: 2글자 키워드(ai, ml) 제거, 다중 단어 키워드 기반 정밀 분류
-- **GitHub 비AI 레포 제외**: EXCLUDE_REPOS 8개 → 28개 확장 (developer-roadmap, yt-dlp 등)
-- **YouTube 국내 탭 수정**: 프론트엔드 채널명 불일치 해결 (노마드코더 등)
-- **라이트 모드 CSS 보완**: Codex 생성 5개 컴포넌트 라이트 모드 + FullCalendar CSS 오버라이드
+- **보안**: 서버사이드 인증, NEXT_PUBLIC_API_KEY 제거, 기본 비밀번호 제거
+- **AI**: Gemini + Ollama 하이브리드 요약, 비동기 `generate_content_async()`
+- **데이터**: YouTube 18채널, Papers 18토픽, GitHub 19쿼리, Jobs 16직무, News 자동분류
+- **아키텍처**: 단일 API Client, ErrorState, Python 3.11, fail-fast start.sh
+- **방문자**: Redis HyperLogLog 일별/월별/전체 UV 추적
+- **테스트**: 4종 자동화 테스트 (마이그레이션/인증/라우팅/분류기)
+- **PWA**: 로고.jpg 기반 아이콘 통일, 구버전 아이콘 제거
+
+### v3.1.1 (2026-02-08) — 데이터 품질 수정
+
+- 컨퍼런스 1970 날짜 버그, Papers/HF 한글 요약, 뉴스 AI 필터링 강화
+- 정책 HTML 태그 제거, 채용 직무 오분류, GitHub 비AI 레포 제외
 
 ### v3.1.0 (2026-02-08) — 대시보드/백엔드 강화
 
-- LivePulse 실시간 3열 대시보드 위젯 (핫 토픽 / 수집 통계 / 수집 로그)
-- react-d3-cloud 워드 클라우드 (HuggingFace + HN + PapersWithCode 3종 외부 API)
-- FullCalendar 컨퍼런스 캘린더 뷰 (티어별 색상, 이벤트 모달)
-- 채용 10개 직무 카테고리 분류 + 트렌딩 스킬 TOP 10
-- YouTube 채널 전면 교체 (한국 14 + 해외 15 AI 전문 채널)
-- GitHub 다중쿼리 + mega-repo 제외
-- 뉴스 AI 키워드 필터링 강화 + 수집량 증가
-- 로그인 페이지 회색 배경 깔끔한 SaaS 스타일 리디자인
-- 대시보드 앱 가이드 + Top 10 스크롤 카드 + 외부 링크
+- LivePulse 실시간 3열 위젯, react-d3-cloud 워드 클라우드
+- FullCalendar 캘린더 뷰, 채용 10개 직무 분류, YouTube 채널 교체
 
 ### v3.0.0 (2026-02-08) — Codex 통합 대규모 개선
 
-- AI 요약 서비스 4종 메서드 추가, Gemini 2.0 Flash 통일
-- 전역 검색 API (`/api/v1/search`) 신규
-- 페이지네이션 통일 (page/page_size + skip/limit)
-- 소프트 아카이브 (9개 테이블, 매일 자동)
-- SVG 아이콘 시스템 (이모지 제거)
-- 대시보드 실데이터 전환, 전 카테고리 탭 필터
-- SWR 전역 적용, next/image 최적화
+- AI 요약 4종 메서드, 전역 검색, 소프트 아카이브, SVG 아이콘
+- 대시보드 실데이터, SWR 전역 적용
 
 ### v2.0.0 (2026-02-07) — Next.js 전면 재구축
 
-- SvelteKit → Next.js 14 App Router 전환
-- 글래스모피즘 디자인 + 다크/라이트 테마
-- Redis 캐싱 + 대시보드 API
-- 사이트 인증 + 관리자 JWT 인증
-- 9개 카테고리 최적화
+- SvelteKit → Next.js 14 App Router, 글래스모피즘 UI
+- Redis 캐싱, JWT 인증
 
 ### v0.3.2 (2026-02-02) — 초기 버전
 
-- 11개 카테고리 SvelteKit + FastAPI
-- PostgreSQL + Redis + APScheduler
-- Gemini AI 한글 요약
-- Railway + Vercel 배포
+- SvelteKit + FastAPI, 11개 카테고리, Gemini AI 요약
 
 ---
 
@@ -621,9 +590,9 @@ Copyright (c) 2026 서동주 (DONGJUSEO)
 ---
 
 <p align="center">
-  <strong>AI봄 - AI Trend Tracker</strong> | v3.1.1 | 2026-02-08
+  <strong>AI봄 - AI Trend Tracker</strong> | v4.0.0 | 2026-02-08
 </p>
 
 <p align="center">
-  Made with FastAPI + Next.js 14 + Gemini 2.0 Flash + Dual AI Vibe Coding
+  Made with FastAPI + Next.js 14 + Gemini 2.0 Flash + Ollama + Dual AI Vibe Coding
 </p>

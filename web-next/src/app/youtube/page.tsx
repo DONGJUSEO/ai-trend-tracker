@@ -10,9 +10,6 @@ import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const category = CATEGORIES.find((c) => c.id === "youtube")!;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
-const headers = { "X-API-Key": API_KEY, "Content-Type": "application/json" };
 
 const KOREAN_CHANNELS = ["조코딩", "테디노트", "빵형의 개발도상국", "나도코딩", "노마드코더", "노마드 코더", "안될공학", "잇섭", "코드팩토리", "생활코딩", "AI톡톡", "EO", "슈카월드", "딥다이브", "코딩하는거니"];
 
@@ -350,8 +347,7 @@ export default function YouTubePage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${API_URL}/api/v1/youtube/videos?page=${page}&page_size=20`,
-        { headers }
+        `/api/v1/youtube/videos?page=${page}&page_size=20`
       );
       if (res.ok) {
         const json = await res.json();

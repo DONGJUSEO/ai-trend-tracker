@@ -1,7 +1,7 @@
 """Hugging Face 데이터 수집 서비스"""
 import httpx
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -156,6 +156,14 @@ class HuggingFaceService:
             except Exception:
                 last_modified = None
 
+        # 모델 생성일 (lastModified는 README 수정에도 갱신되므로 createdAt 사용)
+        created_at = raw_model.get("createdAt")
+        if created_at:
+            try:
+                created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            except Exception:
+                created_at = None
+
         # URL
         url = f"https://huggingface.co/{model_id}"
 
@@ -181,6 +189,7 @@ class HuggingFaceService:
             "likes": likes,
             "url": url,
             "last_modified": last_modified,
+            "created_at": created_at,
         }
 
     async def save_models_to_db(
@@ -233,7 +242,7 @@ class HuggingFaceService:
                 if has_archive_columns:
                     existing_model.is_archived = False
                     existing_model.archived_at = None
-                existing_model.collected_at = datetime.utcnow()
+                existing_model.collected_at = datetime.now(timezone.utc)
                 # 기존 모델에 한글 요약이 없으면 생성
                 if ai_service.model and not getattr(existing_model, "summary", None):
                     summary_data = await ai_service.summarize_huggingface_model(

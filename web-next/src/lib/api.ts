@@ -20,7 +20,6 @@ import type {
 } from './types';
 
 export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-export const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'test1234';
 
 interface FetchOptions extends Omit<RequestInit, 'headers'> {
   headers?: Record<string, string>;
@@ -49,7 +48,6 @@ export async function fetchApi<T>(
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'X-API-Key': API_KEY,
     ...customHeaders,
   };
 

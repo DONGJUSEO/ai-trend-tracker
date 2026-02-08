@@ -63,7 +63,7 @@ class GitHubService:
     @staticmethod
     def _get_cutoff_by_since(since: str) -> str:
         """기간 옵션에 맞는 pushed 필터 날짜 계산."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         since_map = {
             "daily": now - timedelta(days=7),
             "weekly": now - timedelta(days=30),
@@ -78,16 +78,34 @@ class GitHubService:
         language_filter = f" language:{language}" if language else ""
 
         return [
+            # LLM & NLP
             f"topic:llm created:>2025-11-01 stars:>50{language_filter}",
+            f"topic:nlp created:>2025-11-01 stars:>50{language_filter}",
+            # AI Agents & RAG
             f"topic:ai-agent created:>2025-11-01 stars:>30{language_filter}",
             f"topic:rag created:>2025-11-01 stars:>30{language_filter}",
+            # Computer Vision & Multimodal
+            f"topic:computer-vision pushed:>2026-01-01 stars:>80{language_filter}",
             f"topic:multimodal created:>2025-11-01 stars:>20{language_filter}",
+            f"topic:vision-language-model stars:>20 created:>2025-09-01{language_filter}",
+            # Diffusion & Generative AI
+            f"topic:diffusion-model created:>2025-11-01 stars:>30{language_filter}",
+            f"topic:generative-ai pushed:>2026-01-01 stars:>50{language_filter}",
+            # MLOps & Infra
+            f"topic:mlops pushed:>2026-01-01 stars:>50{language_filter}",
+            f"topic:mcp-server stars:>10{language_filter}",
+            # ML / DL Core
             f"topic:machine-learning pushed:>2026-01-25 stars:>100{language_filter}",
             f"topic:deep-learning pushed:>2026-01-25 stars:>100{language_filter}",
-            f"topic:mcp-server stars:>10{language_filter}",
-            f"topic:ai-coding stars:>50 pushed:>2026-01-01{language_filter}",
+            # Speech & Audio
             f"topic:text-to-speech stars:>30 created:>2025-09-01{language_filter}",
-            f"topic:vision-language-model stars:>20 created:>2025-09-01{language_filter}",
+            f"topic:speech-recognition created:>2025-09-01 stars:>30{language_filter}",
+            # Reinforcement Learning & Robotics
+            f"topic:reinforcement-learning pushed:>2026-01-01 stars:>50{language_filter}",
+            f"topic:robotics created:>2025-09-01 stars:>30{language_filter}",
+            # AI Safety & Coding
+            f"topic:ai-safety stars:>20 created:>2025-06-01{language_filter}",
+            f"topic:ai-coding stars:>50 pushed:>2026-01-01{language_filter}",
         ]
 
     @staticmethod

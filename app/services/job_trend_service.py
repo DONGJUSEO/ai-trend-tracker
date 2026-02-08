@@ -1,6 +1,6 @@
 """AI 채용 트렌드 데이터 수집 서비스"""
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 import html
 import re
@@ -26,11 +26,23 @@ class JobTrendService:
         "on_premise": "온프레미스 AI 모델 구축",
         "mlops": "MLOps 엔지니어",
         "research": "AI 리서처",
+        "ai_pm": "AI PM/PO",
+        "ai_ethics": "AI 윤리/거버넌스",
+        "prompt_engineer": "프롬프트 엔지니어",
+        "ai_trainer": "AI 트레이너/RLHF",
+        "ai_sales": "AI 세일즈/컨설턴트",
+        "ai_security": "AI 보안 전문가",
     }
 
     CATEGORY_KEYWORDS: Dict[str, List[str]] = {
         "research": ["research scientist", "ai research", "ml research", "phd", "논문", "연구원"],
-        "llm": ["llm", "nlp engineer", "자연어처리", "language model", "fine-tuning", "rlhf", "prompt engineer"],
+        "prompt_engineer": ["prompt engineer", "프롬프트 엔지니어", "prompt design", "prompt optimization"],
+        "ai_trainer": ["ai trainer", "rlhf", "data labeler", "annotation", "human feedback", "ai 트레이너"],
+        "ai_pm": ["ai product manager", "ai pm", "ai product owner", "ai 기획", "ml product"],
+        "ai_ethics": ["ai ethics", "ai governance", "responsible ai", "ai 윤리", "ai policy", "ai compliance"],
+        "ai_security": ["ai security", "adversarial", "model safety", "red team", "ai 보안"],
+        "ai_sales": ["ai sales", "ai consultant", "solution architect", "ai 컨설턴트", "technical sales ai"],
+        "llm": ["llm", "nlp engineer", "자연어처리", "language model", "fine-tuning"],
         "vision": ["computer vision", "비전 엔지니어", "object detection", "image recognition", "segmentation engineer"],
         "data_scientist": ["data scientist", "데이터 사이언티스트", "data analyst", "데이터 분석가"],
         "mlops": ["mlops", "ml infrastructure", "ml platform", "model deployment", "kubeflow"],
@@ -65,6 +77,16 @@ class JobTrendService:
         "rag",
         "langchain",
         "prompt engineer",
+        "generative ai",
+        "diffusion model",
+        "vector database",
+        "ai agent",
+        "ai safety",
+        "responsible ai",
+        "ai governance",
+        "rlhf",
+        "ai trainer",
+        "ai product manager",
     ]
 
     COMMON_SKILLS = {
@@ -87,6 +109,17 @@ class JobTrendService:
         "llamaindex",
         "fastapi",
         "spark",
+        "huggingface",
+        "wandb",
+        "ray",
+        "vllm",
+        "onnx",
+        "triton",
+        "chromadb",
+        "pinecone",
+        "rag",
+        "openai",
+        "anthropic",
     }
 
     def __init__(self):
@@ -200,7 +233,7 @@ class JobTrendService:
                             ),
                             "is_trending": True,
                             "role_category": role_category,
-                            "posted_date": datetime.utcnow(),
+                            "posted_date": datetime.now(timezone.utc),
                         }
                     )
 

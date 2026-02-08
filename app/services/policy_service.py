@@ -90,7 +90,12 @@ class PolicyService:
 
     def __init__(self):
         self.rss_feeds = {
+            # Global
             "AI News": "https://www.artificialintelligence-news.com/feed/",
+            "OECD AI Observatory": "https://oecd.ai/en/feed",
+            "Brookings AI": "https://www.brookings.edu/topic/artificial-intelligence/feed/",
+            # Korea
+            "과기정통부": "https://www.msit.go.kr/bbs/list.do?sCode=user&mId=113&mPid=238&bbsSeqNo=94&nttSeqNo=&pageIndex=1&searchOpt=ALL&searchTxt=인공지능",
         }
 
     @staticmethod

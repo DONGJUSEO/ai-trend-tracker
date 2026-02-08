@@ -114,6 +114,52 @@ class NewsService:
         "자율주행",
     ]
 
+    # ── 뉴스 토픽 자동분류 키워드 ─────────────────────────
+    NEWS_TOPIC_RULES: Dict[str, List[str]] = {
+        "정책": [
+            "규제", "법안", "기본법", "정책", "가이드라인", "governance",
+            "regulation", "policy", "legislation", "executive order",
+            "eu ai act", "윤리", "ethics", "compliance", "안전",
+            "ai safety", "국회", "정부", "과기부", "과기정통부",
+            "pipc", "개인정보", "privacy", "gdpr", "nist",
+        ],
+        "기업동향": [
+            "인수", "합병", "투자", "funding", "acquisition", "ipo",
+            "파트너십", "partnership", "협력", "제휴", "계약",
+            "매출", "실적", "분기", "revenue", "market",
+            "스타트업", "startup", "유니콘", "기업공개",
+            "ceo", "임원", "리더십", "조직", "채용",
+            "삼성", "네이버", "카카오", "skt", "lg",
+            "google", "microsoft", "meta", "apple", "amazon",
+            "nvidia", "openai", "anthropic",
+        ],
+        "제품출시": [
+            "출시", "launch", "release", "발표", "공개",
+            "업데이트", "update", "버전", "version", "베타",
+            "beta", "preview", "gpt-", "claude", "gemini",
+            "copilot", "새로운 모델", "new model", "api 출시",
+            "서비스 오픈", "플랫폼", "앱", "app",
+        ],
+        "기술발전": [
+            "논문", "paper", "연구", "research", "breakthrough",
+            "벤치마크", "benchmark", "성능", "performance",
+            "아키텍처", "architecture", "알고리즘", "algorithm",
+            "훈련", "training", "학습", "오픈소스", "open source",
+            "모델", "파인튜닝", "fine-tuning", "프레임워크",
+            "framework", "라이브러리", "library",
+        ],
+    }
+
+    @classmethod
+    def classify_news_topic(cls, title: str, content: str = "") -> str:
+        """뉴스 제목과 본문에서 토픽 카테고리를 자동분류."""
+        text = f"{title or ''} {content or ''}".lower()
+        scores: Dict[str, int] = {}
+        for topic, keywords in cls.NEWS_TOPIC_RULES.items():
+            scores[topic] = sum(1 for kw in keywords if kw in text)
+        best = max(scores, key=scores.get)  # type: ignore[arg-type]
+        return best if scores[best] > 0 else "AI 일반"
+
     KOREAN_SOURCES = {
         "전자신문",
         "전자신문 AI",
@@ -379,7 +425,10 @@ class NewsService:
                         summary=(summary_payload or {}).get("summary"),
                         keywords=(summary_payload or {}).get("keywords", []),
                         key_points=(summary_payload or {}).get("key_points", []),
-                        category="korean" if is_korean_news else "international",
+                        category=self.classify_news_topic(
+                            article_data.get("title", ""),
+                            article_data.get("content") or article_data.get("excerpt") or "",
+                        ),
                         is_trending=True,
                     )
                     db.add(new_news)

@@ -16,8 +16,10 @@ services:
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
-      - APP_PASSWORD=${APP_PASSWORD:-test1234}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin1234}
+      - APP_PASSWORD=${APP_PASSWORD}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - OLLAMA_BASE_URL=http://ollama:11434
       - ERROR_WEBHOOK_SLACK=${ERROR_WEBHOOK_SLACK}
       - ERROR_WEBHOOK_DISCORD=${ERROR_WEBHOOK_DISCORD}
     depends_on:
@@ -53,7 +55,18 @@ services:
     networks:
       - ai-trend-network
 
-  # pgAdmin (데이터베이스 관리 툴 - 선택사항)
+  # Ollama (로컬 LLM — 선택사항, Apple Silicon Metal 가속 지원)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-trend-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - ai-trend-network
+
+  # pgAdmin (데이터베이스 관리 툸 - 선택사항)
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: ai-trend-pgadmin
@@ -70,6 +83,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  ollama_data:
 
 networks:
   ai-trend-network:

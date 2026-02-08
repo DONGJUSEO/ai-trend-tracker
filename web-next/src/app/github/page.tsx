@@ -9,9 +9,6 @@ import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const category = CATEGORIES.find((c) => c.id === "github")!;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
-const headers = { "X-API-Key": API_KEY, "Content-Type": "application/json" };
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -424,8 +421,7 @@ export default function GitHubPage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${API_URL}/api/v1/github/projects?page=${page}&page_size=20`,
-        { headers }
+        `/api/v1/github/projects?page=${page}&page_size=20`
       );
       if (res.ok) {
         const json = await res.json();

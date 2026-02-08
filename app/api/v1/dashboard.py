@@ -8,7 +8,7 @@ Phase 2: 대시보드용 집계/통계 API
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 from collections import Counter
 
@@ -60,7 +60,7 @@ async def _get_latest_date(db: AsyncSession, model, date_field_name: str):
 async def _get_recent_count(db: AsyncSession, model, date_field_name: str, days: int = 7) -> int:
     """최근 N일 내 추가된 레코드 수 반환."""
     date_col = getattr(model, date_field_name)
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     result = await db.execute(
         select(func.count()).select_from(model).where(date_col >= cutoff)
     )
@@ -112,7 +112,7 @@ async def get_summary(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
         "total_items": total_items,
         "total_recent_7d": total_recent,
         "total_categories": len(CATEGORY_META),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "categories": categories,
     }
 
@@ -256,7 +256,7 @@ async def get_category_stats(
             })
 
     response = {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "categories": stats,
     }
 
@@ -269,7 +269,7 @@ async def _get_prev_period_count(
 ) -> int:
     """이전 기간(N일 전 ~ 2N일 전)에 추가된 레코드 수 반환."""
     date_col = getattr(model, date_field_name)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     period_start = now - timedelta(days=days * 2)
     period_end = now - timedelta(days=days)
     result = await db.execute(
@@ -289,7 +289,7 @@ def _safe_iso(dt: Any) -> Optional[str]:
 def _hours_since(dt: Optional[datetime]) -> float:
     if not dt:
         return 9999.0
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if dt.tzinfo is not None:
         now = now.replace(tzinfo=dt.tzinfo)
     delta = now - dt
@@ -306,7 +306,7 @@ async def get_external_trending_keywords(
 
 
 async def _get_hot_item(db: AsyncSession) -> Optional[Dict[str, Any]]:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     since_24h = now - timedelta(hours=24)
     candidates: List[Dict[str, Any]] = []
 
@@ -464,7 +464,7 @@ async def get_live_pulse(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
     if cached is not None:
         return cached
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     start_of_day = datetime(now.year, now.month, now.day)
     yesterday_start = start_of_day - timedelta(days=1)
 
@@ -532,7 +532,7 @@ async def get_live_pulse(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
             "next_conference": next_conference,
         },
         "recent_logs": _build_recent_logs(limit=5),
-        "updated_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     await cache_set(cache_key, response, ttl=TTL_SYSTEM_STATUS)
     return response

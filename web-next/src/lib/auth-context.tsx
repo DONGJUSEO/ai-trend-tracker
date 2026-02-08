@@ -4,15 +4,13 @@ import { createContext, useContext, useEffect, useState, useCallback } from "rea
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (password: string) => boolean;
+  login: (password: string) => Promise<boolean>;
   logout: () => void;
 }
 
-const SITE_PASSWORD = "test1234";
-
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
-  login: () => false,
+  login: async () => false,
   logout: () => {},
 });
 
@@ -28,13 +26,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setChecking(false);
   }, []);
 
-  const login = useCallback((password: string) => {
-    if (password === SITE_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem("aibom-auth", "true");
-      return true;
+  const login = useCallback(async (password: string): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/v1/admin/site-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) {
+        setIsAuthenticated(true);
+        localStorage.setItem("aibom-auth", "true");
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
-    return false;
   }, []);
 
   const logout = useCallback(() => {

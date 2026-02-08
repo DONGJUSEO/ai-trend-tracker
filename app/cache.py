@@ -122,6 +122,51 @@ async def cache_delete(key: str) -> bool:
         return False
 
 
+async def track_visitor(visitor_id: str) -> None:
+    """HyperLogLog로 고유 방문자 기록 (일별/월별).
+
+    12KB 메모리로 수백만 고유 방문자를 0.81% 오차로 카운트.
+    """
+    from datetime import date
+
+    try:
+        client = await get_redis()
+        today = date.today().isoformat()
+        month = today[:7]  # YYYY-MM
+        await client.pfadd(f"visitors:daily:{today}", visitor_id)
+        await client.pfadd(f"visitors:monthly:{month}", visitor_id)
+        await client.pfadd("visitors:total", visitor_id)
+    except Exception as e:
+        logger.debug("track_visitor 실패: %s", e)
+
+
+async def get_visitor_counts() -> dict:
+    """HyperLogLog 기반 방문자 수 조회."""
+    from datetime import date, timedelta
+
+    try:
+        client = await get_redis()
+        today = date.today()
+        yesterday = (today - timedelta(days=1)).isoformat()
+        today_str = today.isoformat()
+        month = today_str[:7]
+
+        today_count = await client.pfcount(f"visitors:daily:{today_str}")
+        yesterday_count = await client.pfcount(f"visitors:daily:{yesterday}")
+        monthly_count = await client.pfcount(f"visitors:monthly:{month}")
+        total_count = await client.pfcount("visitors:total")
+
+        return {
+            "today": today_count,
+            "yesterday": yesterday_count,
+            "monthly": monthly_count,
+            "total": total_count,
+        }
+    except Exception as e:
+        logger.debug("get_visitor_counts 실패: %s", e)
+        return {"today": 0, "yesterday": 0, "monthly": 0, "total": 0}
+
+
 async def cache_delete_pattern(pattern: str) -> int:
     """패턴에 매칭되는 모든 캐시 키 삭제.
 

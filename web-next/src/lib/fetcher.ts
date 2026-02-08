@@ -1,7 +1,6 @@
 "use client";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
 
 export function buildApiUrl(path: string): string {
   if (!path.startsWith("/")) {
@@ -13,7 +12,6 @@ export function buildApiUrl(path: string): string {
 export async function apiFetcher<T = unknown>(path: string): Promise<T> {
   const response = await fetch(buildApiUrl(path), {
     headers: {
-      "X-API-Key": API_KEY,
       "Content-Type": "application/json",
     },
   });

@@ -19,15 +19,22 @@ INTERNATIONAL_CHANNELS = [
 ]
 
 KOREAN_CHANNELS = [
-    {"channel_id": "UCQNE2JmbasNYbjGAcuBiRRg", "channel_name": "조코딩", "channel_handle": "@jocoding", "description": "AI 코딩 교육", "category": "국내", "priority": 10},
-    {"channel_id": "UCt2wAAXgm87ACiqqnDIjOjg", "channel_name": "테디노트", "channel_handle": "@teddynote", "description": "AI 실습/강의", "category": "국내", "priority": 10},
-    {"channel_id": "UC9PB9nKYVIvRzn9M9KDftbg", "channel_name": "빵형의 개발도상국", "channel_handle": "@bbanghyong", "description": "AI 프로젝트", "category": "국내", "priority": 9},
-    {"channel_id": "UCdfcSGOM6-U6jP2fj8sL4yA", "channel_name": "코드팩토리", "channel_handle": "@codefactory", "description": "개발 교육", "category": "국내", "priority": 9},
+    # AI/코딩 전문 (최우선)
+    {"channel_id": "UCQNE2JmbasNYbjGAcuBiRRg", "channel_name": "조코딩", "channel_handle": "@jocoding", "description": "노코드/AI API 활용", "category": "국내", "priority": 10},
+    {"channel_id": "UCt2wAAXgm87ACiqqnDIjOjg", "channel_name": "테디노트", "channel_handle": "@teddynote", "description": "RAG/LangChain/데이터", "category": "국내", "priority": 10},
+    {"channel_id": "UC9PB9nKYVIvRzn9M9KDftbg", "channel_name": "빵형의 개발도상국", "channel_handle": "@bbanghyong", "description": "최신 논문 리뷰/AI 프로젝트", "category": "국내", "priority": 9},
+    {"channel_id": "UCdfcSGOM6-U6jP2fj8sL4yA", "channel_name": "코드팩토리", "channel_handle": "@codefactory", "description": "풀스택/프레임워크", "category": "국내", "priority": 9},
+    {"channel_id": "UCRpOIr-NJpK9S483ge20Pgw", "channel_name": "코드깎는노인", "channel_handle": "@codeoldman", "description": "AI/바이브코딩", "category": "국내", "priority": 9},
+    # 개발 교육/트렌드
     {"channel_id": "UCUpJs89fSBXNolQGOYKn0YQ", "channel_name": "노마드코더", "channel_handle": "@nomadcoders", "description": "개발 트렌드", "category": "국내", "priority": 8},
+    {"channel_id": "UC_4u-bXaba7yrRz_6x6kb_w", "channel_name": "드림코딩", "channel_handle": "@dream_coding", "description": "웹/프론트엔드", "category": "국내", "priority": 8},
+    {"channel_id": "UC2nkWbaJt1KQDi2r2XclzTQ", "channel_name": "얄팍한코딩사전", "channel_handle": "@yalco", "description": "프로그래밍 개념 설명", "category": "국내", "priority": 8},
+    {"channel_id": "UCDWyhDdoX7F1kA_QMXx6Yig", "channel_name": "패스트캠퍼스", "channel_handle": "@fastcampus", "description": "교육/커리어", "category": "국내", "priority": 8},
     {"channel_id": "UCxkickmF3xdJv7sU0hBERDQ", "channel_name": "AI톡톡", "channel_handle": "@aitalktalk", "description": "AI 툴/뉴스", "category": "국내", "priority": 8},
     {"channel_id": "UCGx4_xr7cMATgEsOR-GwKJg", "channel_name": "안될공학", "channel_handle": "@undeal", "description": "과학기술 리뷰", "category": "국내", "priority": 8},
     {"channel_id": "UC1JmT0jMpGOyGgW6_X23wew", "channel_name": "딥다이브", "channel_handle": "@deepdive_kr", "description": "AI 심층 분석", "category": "국내", "priority": 8},
-    {"channel_id": "UCQ2DWm5Md16Dc3xRwwhVE7Q", "channel_name": "EO", "channel_handle": "@eo_studio", "description": "스타트업/테크", "category": "국내", "priority": 7},
+    # 테크/스타트업/IT
+    {"channel_id": "UCQ2DWm5Md16Dc3xRwwhVE7Q", "channel_name": "EO", "channel_handle": "@eo_studio", "description": "스타트업/실리콘밸리", "category": "국내", "priority": 7},
     {"channel_id": "UCsJ6RuBiTVWRX156FVbeaGg", "channel_name": "슈카월드", "channel_handle": "@syukaworld", "description": "경제/IT 이슈", "category": "국내", "priority": 7},
     {"channel_id": "UC7iAOLiALt2rtMVAWWF4ZXg", "channel_name": "나도코딩", "channel_handle": "@nadocoding", "description": "코딩 교육", "category": "국내", "priority": 7},
     {"channel_id": "UCvc8kv-i5fvFTJBFAk6n1SA", "channel_name": "생활코딩", "channel_handle": "@생활코딩", "description": "코딩 기초 교육", "category": "국내", "priority": 7},

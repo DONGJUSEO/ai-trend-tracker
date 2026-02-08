@@ -12,13 +12,12 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [shaking, setShaking] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    if (login(password)) {
-      // Success
-    } else {
+    const success = await login(password);
+    if (!success) {
       setError("비밀번호가 올바르지 않습니다");
       setShaking(true);
       setTimeout(() => setShaking(false), 600);
@@ -57,7 +56,7 @@ export default function LoginScreen() {
           >
             <div className="rounded-2xl overflow-hidden shadow-lg shadow-gray-200/80 mb-6">
               <Image
-                src="/AI봄.jpg"
+                src="/logo.jpg"
                 alt={APP_NAME}
                 width={88}
                 height={88}

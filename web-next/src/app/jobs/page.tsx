@@ -5,9 +5,6 @@ import { motion } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
 import CategoryIcon from "@/components/icons/CategoryIcon";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
-const headers = { "X-API-Key": API_KEY, "Content-Type": "application/json" };
 
 type RoleKey =
   | "all"
@@ -120,8 +117,7 @@ export default function JobsPage() {
       setLoading(true);
       try {
         const res = await fetch(
-          `${API_URL}/api/v1/jobs/?page=${page}&page_size=30`,
-          { headers }
+          `/api/v1/jobs/?page=${page}&page_size=30`
         );
         if (!res.ok) throw new Error("jobs fetch failed");
         const json: JobsResponse = await res.json();

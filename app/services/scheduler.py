@@ -2,7 +2,7 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import asyncio
 import logging
 
@@ -54,7 +54,7 @@ async def _invalidate_cache_after_collection(job_id: str):
 def _scheduler_event_listener(event):
     """APScheduler 이벤트 리스너: 마지막 실행/성공/실패 상태 기록."""
     job_id = getattr(event, "job_id", "unknown")
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     if getattr(event, "exception", None):
         error_message = str(event.exception)
         JOB_RUNTIME_STATUS[job_id] = {
@@ -93,8 +93,8 @@ def get_scheduler_runtime_status():
 
 async def archive_old_data(days: int = 30):
     """30일 초과 데이터 soft archive."""
-    cutoff = datetime.utcnow() - timedelta(days=days)
-    archived_at = datetime.utcnow()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    archived_at = datetime.now(timezone.utc)
     print(
         f"\n🗄️  아카이브 작업 시작 (cutoff={cutoff.strftime('%Y-%m-%d %H:%M:%S')} UTC)"
     )

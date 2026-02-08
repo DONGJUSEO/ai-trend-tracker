@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     app_name: str = "AI Trend Tracker"
     app_version: str = "0.1.0"
     app_env: str = "development"
-    debug: bool = True
+    debug: bool = False
 
     # 데이터베이스 설정
     database_url: str
@@ -30,10 +30,10 @@ class Settings(BaseSettings):
     # 스케줄링 설정
     scheduler_interval_hours: int = 12
 
-    # 보안 설정
-    app_password: str = "test1234"
-    admin_password: str = "admin1234"
-    jwt_secret_key: str = "ai-trend-tracker-secret-key-2026"
+    # 보안 설정 (환경변수 필수 — 미설정 시 기동 실패)
+    app_password: str
+    admin_password: str
+    jwt_secret_key: str
 
     class Config:
         env_file = ".env"

@@ -5,9 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
 import CategoryIcon from "@/components/icons/CategoryIcon";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
-const headers = { "X-API-Key": API_KEY, "Content-Type": "application/json" };
 
 const category = CATEGORIES.find((c) => c.id === "platforms")!;
 
@@ -227,8 +224,7 @@ export default function PlatformsPage() {
       setLoading(true);
       try {
         const res = await fetch(
-          `${API_URL}/api/v1/tools/?page=${page}&page_size=20`,
-          { headers }
+          `/api/v1/tools/?page=${page}&page_size=20`
         );
         if (res.ok) {
           const json = await res.json();
@@ -275,6 +271,9 @@ export default function PlatformsPage() {
                 {tools.length}
               </div>
               <div className="text-xs text-white/40">플랫폼</div>
+              <div className="text-[10px] text-white/25 mt-1">
+                출처: Gemini Deep Research
+              </div>
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 """YouTube Data API 서비스"""
 import httpx
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
@@ -20,13 +20,17 @@ class YouTubeService:
 
     # Curated AI YouTube channels (verified list, 2026-02)
     CURATED_CHANNELS = {
-        # Korean AI YouTubers (14)
+        # Korean AI YouTubers (18)
         "korean": [
             {"handle": "@jocoding", "channel_id": "UCQNE2JmbasNYbjGAcuBiRRg", "name": "조코딩", "category": "AI코딩교육", "language": "ko"},
-            {"handle": "@teddynote", "channel_id": "UCt2wAAXgm87ACiqqnDIjOjg", "name": "테디노트", "category": "AI실습", "language": "ko"},
-            {"handle": "@bbanghyong", "channel_id": "UC9PB9nKYVIvRzn9M9KDftbg", "name": "빵형의 개발도상국", "category": "AI개발", "language": "ko"},
-            {"handle": "@codefactory", "channel_id": "UCdfcSGOM6-U6jP2fj8sL4yA", "name": "코드팩토리", "category": "개발교육", "language": "ko"},
+            {"handle": "@teddynote", "channel_id": "UCt2wAAXgm87ACiqqnDIjOjg", "name": "테디노트", "category": "RAG/LangChain", "language": "ko"},
+            {"handle": "@bbanghyong", "channel_id": "UC9PB9nKYVIvRzn9M9KDftbg", "name": "빵형의 개발도상국", "category": "논문리뷰", "language": "ko"},
+            {"handle": "@codefactory", "channel_id": "UCdfcSGOM6-U6jP2fj8sL4yA", "name": "코드팩토리", "category": "풀스택", "language": "ko"},
+            {"handle": "@codeoldman", "channel_id": "UCRpOIr-NJpK9S483ge20Pgw", "name": "코드깎는노인", "category": "AI/바이브코딩", "language": "ko"},
             {"handle": "@nomadcoders", "channel_id": "UCUpJs89fSBXNolQGOYKn0YQ", "name": "노마드코더", "category": "개발교육", "language": "ko"},
+            {"handle": "@dream_coding", "channel_id": "UC_4u-bXaba7yrRz_6x6kb_w", "name": "드림코딩", "category": "웹/프론트엔드", "language": "ko"},
+            {"handle": "@yalco", "channel_id": "UC2nkWbaJt1KQDi2r2XclzTQ", "name": "얄팍한코딩사전", "category": "프로그래밍개념", "language": "ko"},
+            {"handle": "@fastcampus", "channel_id": "UCDWyhDdoX7F1kA_QMXx6Yig", "name": "패스트캠퍼스", "category": "교육/커리어", "language": "ko"},
             {"handle": "@aitalktalk", "channel_id": "UCxkickmF3xdJv7sU0hBERDQ", "name": "AI톡톡", "category": "AI뉴스", "language": "ko"},
             {"handle": "@undeal", "channel_id": "UCGx4_xr7cMATgEsOR-GwKJg", "name": "안될공학", "category": "과학기술", "language": "ko"},
             {"handle": "@deepdive_kr", "channel_id": "UC1JmT0jMpGOyGgW6_X23wew", "name": "딥다이브", "category": "AI심층분석", "language": "ko"},
@@ -272,7 +276,7 @@ class YouTubeService:
         """최근 30일 날짜를 RFC 3339 형식으로 반환"""
         from datetime import timedelta
 
-        recent_date = datetime.utcnow() - timedelta(days=30)
+        recent_date = datetime.now(timezone.utc) - timedelta(days=30)
         return recent_date.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     async def save_videos_to_db(

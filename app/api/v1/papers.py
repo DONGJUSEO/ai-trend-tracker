@@ -84,25 +84,6 @@ async def get_papers(
     return payload
 
 
-@router.get("/{arxiv_id}", response_model=AIPaper)
-async def get_paper(
-    arxiv_id: str,
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    특정 AI 논문 조회
-
-    - **arxiv_id**: arXiv ID (예: 2301.12345)
-    """
-    service = ArxivService()
-    paper = await service.get_paper_by_arxiv_id(db=db, arxiv_id=arxiv_id)
-
-    if not paper:
-        raise HTTPException(status_code=404, detail="논문을 찾을 수 없습니다")
-
-    return paper
-
-
 @router.get("/search")
 async def search_papers(
     query: str = Query(
@@ -130,3 +111,22 @@ async def search_papers(
     papers = await service.search_ai_papers(query=query, max_results=max_results)
 
     return {"total": len(papers), "papers": papers}
+
+
+@router.get("/{arxiv_id}", response_model=AIPaper)
+async def get_paper(
+    arxiv_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    특정 AI 논문 조회
+
+    - **arxiv_id**: arXiv ID (예: 2301.12345)
+    """
+    service = ArxivService()
+    paper = await service.get_paper_by_arxiv_id(db=db, arxiv_id=arxiv_id)
+
+    if not paper:
+        raise HTTPException(status_code=404, detail="논문을 찾을 수 없습니다")
+
+    return paper

@@ -25,17 +25,42 @@ class ArxivService:
         flags=re.IGNORECASE,
     )
 
-    # Topic classification rules from ChatGPT deep research (2026-02)
+    # Topic classification rules (v4.0 — 18 topics)
     TOPIC_RULES = {
+        "LLM": {
+            "primary_categories": ["cs.CL"],
+            "title_keywords": ["large language model", "LLM", "GPT", "BERT", "instruction tuning",
+                             "in-context learning", "chain-of-thought", "prompt", "fine-tuning"],
+        },
         "NLP": {
             "primary_categories": ["cs.CL"],
-            "title_keywords": ["language model", "translation", "NLP", "text generation", "sentiment",
-                             "named entity", "question answering", "summarization", "dialogue", "tokenization"],
+            "title_keywords": ["translation", "NLP", "text generation", "sentiment", "named entity",
+                             "question answering", "summarization", "dialogue", "tokenization"],
         },
         "CV": {
             "primary_categories": ["cs.CV"],
             "title_keywords": ["image classification", "object detection", "segmentation", "computer vision",
-                             "CNN", "GAN", "video", "YOLO", "pose estimation"],
+                             "CNN", "YOLO", "pose estimation", "3D reconstruction"],
+        },
+        "Diffusion/생성": {
+            "primary_categories": ["cs.CV"],
+            "title_keywords": ["diffusion", "stable diffusion", "image generation", "text-to-image",
+                             "GAN", "generative", "DALL-E", "midjourney", "video generation"],
+        },
+        "멀티모달": {
+            "primary_categories": ["cs.CV", "cs.CL"],
+            "title_keywords": ["multimodal", "vision-language", "image-text", "audio-visual", "CLIP",
+                             "cross-modal", "VLM"],
+        },
+        "AI 에이전트": {
+            "primary_categories": ["cs.AI"],
+            "title_keywords": ["agent", "tool use", "planning", "autonomous", "agentic",
+                             "multi-agent", "reasoning", "function calling"],
+        },
+        "RAG": {
+            "primary_categories": ["cs.IR", "cs.CL"],
+            "title_keywords": ["retrieval-augmented", "RAG", "retrieval", "vector database",
+                             "knowledge retrieval", "document qa"],
         },
         "ML": {
             "primary_categories": ["cs.LG"],
@@ -45,12 +70,52 @@ class ArxivService:
         "강화학습": {
             "primary_categories": ["cs.RO"],
             "title_keywords": ["reinforcement learning", "policy gradient", "Q-learning", "actor-critic",
-                             "deep RL", "DQN", "reward"],
+                             "deep RL", "DQN", "reward", "RLHF"],
         },
-        "멀티모달": {
-            "primary_categories": ["cs.CV", "cs.CL"],
-            "title_keywords": ["multimodal", "vision-language", "image-text", "audio-visual", "CLIP",
-                             "cross-modal"],
+        "로보틱스": {
+            "primary_categories": ["cs.RO"],
+            "title_keywords": ["robot", "manipulation", "navigation", "control", "locomotion",
+                             "sim-to-real", "embodied"],
+        },
+        "GNN": {
+            "primary_categories": ["cs.LG"],
+            "title_keywords": ["graph neural", "GNN", "graph transformer", "node classification",
+                             "knowledge graph", "link prediction"],
+        },
+        "음성/오디오": {
+            "primary_categories": ["cs.SD", "eess.AS"],
+            "title_keywords": ["speech", "text-to-speech", "TTS", "ASR", "voice", "audio",
+                             "music generation", "speech recognition"],
+        },
+        "시계열": {
+            "primary_categories": ["cs.LG"],
+            "title_keywords": ["time series", "forecasting", "temporal", "anomaly detection",
+                             "sequential", "autoregressive"],
+        },
+        "추천시스템": {
+            "primary_categories": ["cs.IR"],
+            "title_keywords": ["recommendation", "collaborative filtering", "user preference",
+                             "click-through", "ranking"],
+        },
+        "AI 안전/정렬": {
+            "primary_categories": ["cs.AI"],
+            "title_keywords": ["alignment", "safety", "red teaming", "jailbreak", "guardrail",
+                             "bias", "fairness", "toxicity", "hallucination"],
+        },
+        "효율화": {
+            "primary_categories": ["cs.LG"],
+            "title_keywords": ["quantization", "pruning", "distillation", "efficient", "compression",
+                             "ONNX", "TensorRT", "edge AI", "on-device"],
+        },
+        "의료AI": {
+            "primary_categories": ["cs.AI"],
+            "title_keywords": ["medical", "clinical", "healthcare", "radiology", "pathology",
+                             "drug discovery", "biomedical", "EHR"],
+        },
+        "자율주행": {
+            "primary_categories": ["cs.RO", "cs.CV"],
+            "title_keywords": ["autonomous driving", "self-driving", "LiDAR", "point cloud",
+                             "trajectory prediction", "vehicle"],
         },
     }
 
@@ -93,18 +158,26 @@ class ArxivService:
             return {"conference_name": match.group(1), "year": match.group(2) or None}
         return None
 
+    # Topics to check by keyword first (before category-based fallback)
+    _KEYWORD_PRIORITY_TOPICS = [
+        "멀티모달", "LLM", "AI 에이전트", "RAG", "Diffusion/생성",
+        "AI 안전/정렬", "효율화", "의료AI", "자율주행",
+    ]
+
     @classmethod
     def classify_topic(cls, title: str, categories: List[str]) -> str:
-        """논문 제목과 카테고리로 주제 분류"""
+        """논문 제목과 카테고리로 주제 분류 (18 topics)"""
         title_lower = title.lower()
 
-        # 1. 멀티모달 우선 체크 (다중 카테고리 조건)
-        if any(kw in title_lower for kw in cls.TOPIC_RULES["멀티모달"]["title_keywords"]):
-            return "멀티모달"
+        # 1. 키워드 우선 토픽 (특화된 토픽을 먼저 매칭)
+        for topic in cls._KEYWORD_PRIORITY_TOPICS:
+            rules = cls.TOPIC_RULES.get(topic, {})
+            if any(kw in title_lower for kw in rules.get("title_keywords", [])):
+                return topic
 
         # 2. 카테고리 기반 분류
         for topic, rules in cls.TOPIC_RULES.items():
-            if topic == "멀티모달":
+            if topic in cls._KEYWORD_PRIORITY_TOPICS:
                 continue
             for cat in categories:
                 if cat in rules["primary_categories"]:
@@ -112,7 +185,7 @@ class ArxivService:
 
         # 3. 키워드 기반 분류 (카테고리 매칭 실패 시)
         for topic, rules in cls.TOPIC_RULES.items():
-            if any(kw in title_lower for kw in rules["title_keywords"]):
+            if any(kw in title_lower for kw in rules.get("title_keywords", [])):
                 return topic
 
         return "ML"  # default

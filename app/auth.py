@@ -15,9 +15,7 @@ def verify_password(credentials: HTTPBasicCredentials = Depends(security)):
     - Username: 아무거나
     - Password: test1234
     """
-    correct_password = getattr(settings, "app_password", "test1234")
-
-    if credentials.password != correct_password:
+    if credentials.password != settings.app_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="비밀번호가 올바르지 않습니다",
@@ -37,9 +35,7 @@ def verify_api_key(x_api_key: str = Header(None)):
 
     Header에 X-API-Key: test1234 를 포함하면 접근 가능
     """
-    correct_key = getattr(settings, "app_password", "test1234")
-
-    if x_api_key != correct_key:
+    if x_api_key != settings.app_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API 키가 올바르지 않습니다",

@@ -3,7 +3,7 @@
 - POST /login: 비밀번호로 JWT 토큰 발급
 - GET /verify: 토큰 유효성 확인
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 import hashlib
@@ -30,8 +30,8 @@ def _create_token(expires_hours: int = 24) -> str:
     """간단한 HMAC 기반 토큰 생성"""
     payload = {
         "role": "admin",
-        "iat": datetime.utcnow().isoformat(),
-        "exp": (datetime.utcnow() + timedelta(hours=expires_hours)).isoformat(),
+        "iat": datetime.now(timezone.utc).isoformat(),
+        "exp": (datetime.now(timezone.utc) + timedelta(hours=expires_hours)).isoformat(),
     }
     payload_bytes = json.dumps(payload, sort_keys=True).encode()
     payload_b64 = base64.urlsafe_b64encode(payload_bytes).decode()
@@ -56,7 +56,7 @@ def _verify_token(token: str) -> bool:
             return False
         payload = json.loads(payload_bytes)
         exp = datetime.fromisoformat(payload["exp"])
-        if datetime.utcnow() > exp:
+        if datetime.now(timezone.utc) > exp:
             return False
         return True
     except Exception:
@@ -73,6 +73,14 @@ def verify_admin_token(authorization: str = Header(None)):
     return True
 
 
+@router.post("/site-login")
+async def site_login(req: LoginRequest):
+    """사이트 접근 비밀번호 검증 (일반 사용자용)"""
+    if req.password != settings.app_password:
+        raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다")
+    return {"success": True}
+
+
 @router.post("/login", response_model=LoginResponse)
 async def admin_login(req: LoginRequest):
     """관리자 로그인 - 비밀번호 검증 후 토큰 발급"""
@@ -80,7 +88,7 @@ async def admin_login(req: LoginRequest):
         raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다")
 
     token = _create_token(expires_hours=24)
-    expires_at = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
 
     return LoginResponse(token=token, expires_at=expires_at)
 

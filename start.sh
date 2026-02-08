@@ -1,10 +1,12 @@
 #!/bin/bash
+set -e
 
 # Railway의 PORT 환경 변수 사용, 없으면 8000 사용
 PORT=${PORT:-8000}
 
 echo "Running Alembic migrations..."
-alembic upgrade head || echo "Warning: Alembic migration failed, continuing anyway..."
+alembic upgrade head
+echo "Migrations completed successfully."
 
 echo "Starting FastAPI on port $PORT"
 

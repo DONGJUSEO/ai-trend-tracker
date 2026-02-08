@@ -9,9 +9,37 @@ import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const category = CATEGORIES.find((c) => c.id === "huggingface")!;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
-const headers = { "X-API-Key": API_KEY, "Content-Type": "application/json" };
+
+// ─── Pipeline Tag Color ─────────────────────────────────────
+
+const TASK_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  // NLP — blue
+  "text-generation": { bg: "bg-blue-500/15", text: "text-blue-400", border: "border-blue-500/25" },
+  "text-classification": { bg: "bg-blue-500/15", text: "text-blue-400", border: "border-blue-500/25" },
+  "fill-mask": { bg: "bg-blue-500/15", text: "text-blue-400", border: "border-blue-500/25" },
+  "translation": { bg: "bg-blue-500/15", text: "text-blue-400", border: "border-blue-500/25" },
+  "question-answering": { bg: "bg-blue-500/15", text: "text-blue-400", border: "border-blue-500/25" },
+  "summarization": { bg: "bg-blue-500/15", text: "text-blue-400", border: "border-blue-500/25" },
+  "feature-extraction": { bg: "bg-blue-500/15", text: "text-blue-400", border: "border-blue-500/25" },
+  // CV — green
+  "text-to-image": { bg: "bg-emerald-500/15", text: "text-emerald-400", border: "border-emerald-500/25" },
+  "image-classification": { bg: "bg-emerald-500/15", text: "text-emerald-400", border: "border-emerald-500/25" },
+  "object-detection": { bg: "bg-emerald-500/15", text: "text-emerald-400", border: "border-emerald-500/25" },
+  "image-segmentation": { bg: "bg-emerald-500/15", text: "text-emerald-400", border: "border-emerald-500/25" },
+  // Audio — purple
+  "speech-to-text": { bg: "bg-purple-500/15", text: "text-purple-400", border: "border-purple-500/25" },
+  "text-to-speech": { bg: "bg-purple-500/15", text: "text-purple-400", border: "border-purple-500/25" },
+  "audio-classification": { bg: "bg-purple-500/15", text: "text-purple-400", border: "border-purple-500/25" },
+  // Video — orange
+  "text-to-video": { bg: "bg-orange-500/15", text: "text-orange-400", border: "border-orange-500/25" },
+};
+
+const DEFAULT_TASK_COLOR = { bg: "bg-category-huggingface/15", text: "text-category-huggingface", border: "border-category-huggingface/20" };
+
+function getTaskColor(task?: string) {
+  if (!task) return DEFAULT_TASK_COLOR;
+  return TASK_COLORS[task] || DEFAULT_TASK_COLOR;
+}
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -178,19 +206,26 @@ function ModelCard({
           {/* Date badge - top right */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              {(model.task || model.pipeline_tag) && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-category-huggingface/15 text-category-huggingface border border-category-huggingface/20">
-                  {model.task || model.pipeline_tag}
-                </span>
-              )}
+              {(model.task || model.pipeline_tag) && (() => {
+                const taskKey = model.task || model.pipeline_tag || "";
+                const color = getTaskColor(taskKey);
+                return (
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${color.bg} ${color.text} border ${color.border}`}>
+                    {model.task_ko || taskKey}
+                  </span>
+                );
+              })()}
             </div>
-            <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-500/15 text-blue-400 border border-blue-500/20">
-              {model.last_modified
-                ? `${formatDate(model.last_modified)} (${timeAgo(model.last_modified)})`
-                : model.collected_at
-                ? `${formatDate(model.collected_at)} (${timeAgo(model.collected_at)})`
-                : "날짜 정보 없음"}
-            </span>
+            {(() => {
+              const dateStr = model.created_at || model.last_modified || model.collected_at;
+              return (
+                <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-500/15 text-blue-400 border border-blue-500/20">
+                  {dateStr
+                    ? `${formatDate(dateStr)} (${timeAgo(dateStr)})`
+                    : "날짜 정보 없음"}
+                </span>
+              );
+            })()}
           </div>
 
           {/* Header */}
@@ -295,8 +330,7 @@ export default function HuggingFacePage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${API_URL}/api/v1/huggingface/?page=${page}&page_size=20`,
-        { headers }
+        `/api/v1/huggingface/?page=${page}&page_size=20`
       );
       if (res.ok) {
         const json = await res.json();

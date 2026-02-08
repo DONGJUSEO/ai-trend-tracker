@@ -9,14 +9,6 @@ import { useTheme } from "@/lib/theme-context";
 import LivePulse from "@/components/dashboard/LivePulse";
 import TrendingKeywords from "@/components/dashboard/TrendingKeywords";
 
-// ─── API Config ─────────────────────────────────────────────
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
-const HEADERS = {
-  "X-API-Key": API_KEY,
-  "Content-Type": "application/json",
-};
-
 // ─── Types ──────────────────────────────────────────────────
 interface SummaryCategory {
   name: string;
@@ -156,13 +148,13 @@ export default function DashboardPage() {
         githubRes,
         confRes,
       ] = await Promise.allSettled([
-        fetch(`${API_URL}/api/v1/dashboard/summary`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/dashboard/trending-keywords?limit=20`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/news/news?page=1&page_size=10`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/huggingface/?page=1&page_size=10`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/papers/?page=1&page_size=10`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/github/projects?page=1&page_size=10`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/conferences/?page=1&page_size=5&upcoming=true`, { headers: HEADERS }),
+        fetch("/api/v1/dashboard/summary"),
+        fetch("/api/v1/dashboard/trending-keywords?limit=20"),
+        fetch("/api/v1/news/news?page=1&page_size=10"),
+        fetch("/api/v1/huggingface/?page=1&page_size=10"),
+        fetch("/api/v1/papers/?page=1&page_size=10"),
+        fetch("/api/v1/github/projects?page=1&page_size=10"),
+        fetch("/api/v1/conferences/?page=1&page_size=5&upcoming=true"),
       ]);
 
       if (summaryRes.status === "fulfilled" && summaryRes.value.ok) {

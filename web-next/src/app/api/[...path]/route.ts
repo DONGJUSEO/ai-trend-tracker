@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL =
-  process.env.BACKEND_URL ||
-  "https://ai-trend-tracker-production.up.railway.app";
+const BACKEND_URL = process.env.BACKEND_URL;
+const SERVER_API_KEY = process.env.API_KEY;
 
 async function proxyRequest(request: NextRequest, method: string) {
+  if (!BACKEND_URL) {
+    return NextResponse.json(
+      { error: "BACKEND_URL not configured" },
+      { status: 500 }
+    );
+  }
+
   const { pathname, search } = request.nextUrl;
   // pathname is /api/v1/huggingface etc. — keep as-is
   const targetUrl = `${BACKEND_URL}${pathname}${search}`;
@@ -13,10 +19,9 @@ async function proxyRequest(request: NextRequest, method: string) {
     "Content-Type": "application/json",
   };
 
-  // Forward API key
-  const apiKey = request.headers.get("x-api-key");
-  if (apiKey) {
-    headers["X-API-Key"] = apiKey;
+  // Inject API key from server environment (never exposed to browser)
+  if (SERVER_API_KEY) {
+    headers["X-API-Key"] = SERVER_API_KEY;
   }
 
   const fetchOptions: RequestInit = {

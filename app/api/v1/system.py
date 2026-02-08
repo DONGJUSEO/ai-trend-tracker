@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 from collections import Counter
 from pathlib import Path
@@ -19,7 +19,7 @@ from app.models.job_trend import AIJobTrend
 from app.models.policy import AIPolicy
 from app.services.scheduler import collect_all_data, scheduler, get_scheduler_runtime_status
 from app.config import get_settings
-from app.cache import cache_get, cache_set, TTL_SYSTEM_STATUS, TTL_KEYWORDS, get_redis
+from app.cache import cache_get, cache_set, TTL_SYSTEM_STATUS, TTL_KEYWORDS, get_redis, get_visitor_counts
 import asyncio
 
 router = APIRouter()
@@ -315,7 +315,7 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
     # Overall system status
     total_items = sum(cat.get("total", 0) for cat in categories_status.values())
     healthy_categories = sum(1 for cat in categories_status.values() if cat.get("status") == "healthy")
-    now_iso = datetime.utcnow().isoformat()
+    now_iso = datetime.now(timezone.utc).isoformat()
 
     # DB size (가능한 경우)
     db_size = "unknown"
@@ -344,7 +344,7 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
                 or "unknown"
             )
 
-            today = datetime.utcnow().date()
+            today = datetime.now(timezone.utc).date()
             today_key = f"api_requests:{today.isoformat()}"
             yesterday_key = f"api_requests:{(today - timedelta(days=1)).isoformat()}"
             today_requests = int(await redis.get(today_key) or 0)
@@ -365,7 +365,7 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
     next_run_candidates = []
     completed_today = 0
     failed_today = 0
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
 
     for job in scheduler.get_jobs():
         meta = runtime.get(job.id, {})
@@ -502,6 +502,7 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
             "status": "running" if redis_running else "error",
             "memory_usage": redis_memory_usage,
         },
+        "visitors": await get_visitor_counts(),
         "usage": {
             "today_requests": today_requests,
             "yesterday_requests": yesterday_requests,
@@ -727,7 +728,7 @@ async def get_collection_logs() -> Dict[str, Any]:
         )
 
     return {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "total_jobs": len(jobs),
         "successful_jobs": success_count,
         "failed_jobs": error_count,
@@ -846,7 +847,7 @@ async def trigger_data_collection(background_tasks: BackgroundTasks) -> Dict[str
     return {
         "status": "started",
         "message": "데이터 수집이 시작되었습니다. 1-2분 후 시스템 상태를 확인하세요.",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -867,12 +868,12 @@ async def trigger_data_collection_sync() -> Dict[str, Any]:
         return {
             "status": "completed",
             "message": "데이터 수집이 완료되었습니다.",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     except Exception as e:
         return {
             "status": "error",
             "message": f"데이터 수집 중 오류 발생: {str(e)}",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "error": str(e)
         }

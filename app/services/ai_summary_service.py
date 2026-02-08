@@ -1,18 +1,27 @@
-"""AI 요약 서비스 (Gemini API 사용)"""
+"""AI 요약 서비스 (Gemini + Ollama 하이브리드)"""
 import json
 import os
 import re
 from typing import Dict, Any, Optional
 
 import google.generativeai as genai
+import httpx
 
 from app.config import get_settings
 
 settings = get_settings()
 
+# Ollama 설정
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "solar:10.7b")
+
 
 class AISummaryService:
-    """AI 요약 서비스 (Google Gemini)"""
+    """AI 요약 서비스 (Google Gemini + Ollama 하이브리드)
+
+    - Gemini API: 복잡한 분석 (긴 영상 종합, 정책 문서)
+    - Ollama (SOLAR-10.7B): 일상적 요약 (뉴스 3줄, 짧은 초록) 또는 Gemini 장애 시 폴백
+    """
 
     def __init__(self, api_key: Optional[str] = None):
         """
@@ -24,12 +33,14 @@ class AISummaryService:
             "GEMINI_MODEL",
             getattr(settings, "gemini_model", "gemini-2.0-flash"),
         )
+        self.ollama_url = OLLAMA_BASE_URL
+        self.ollama_model = OLLAMA_MODEL
 
         if self.api_key:
             genai.configure(api_key=self.api_key)
             self.model = genai.GenerativeModel(self.model_name)
         else:
-            print("⚠️  Gemini API 키가 없습니다. 요약 기능이 비활성화됩니다.")
+            print("⚠️  Gemini API 키가 없습니다. Ollama 폴백을 시도합니다.")
             self.model = None
 
     @staticmethod
@@ -51,22 +62,58 @@ class AISummaryService:
         match = re.search(r"\{.*\}", stripped, flags=re.DOTALL)
         return match.group(0) if match else stripped
 
+    async def _call_ollama(self, prompt: str) -> Optional[str]:
+        """Ollama API를 호출하여 텍스트 생성."""
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    f"{self.ollama_url}/api/generate",
+                    json={
+                        "model": self.ollama_model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {"temperature": 0.3},
+                    },
+                )
+                response.raise_for_status()
+                return response.json().get("response", "")
+        except Exception as e:
+            print(f"⚠️  Ollama 호출 실패: {e}")
+            return None
+
     async def _generate_json_summary(
         self,
         prompt: str,
         default: Dict[str, Any],
         list_fields: Optional[list] = None,
     ) -> Dict[str, Any]:
-        """프롬프트 기반 공통 요약 호출 + JSON 파싱."""
-        if not self.model:
+        """프롬프트 기반 공통 요약 호출 + JSON 파싱.
+
+        Gemini → 실패 시 Ollama 폴백.
+        """
+        list_fields = list_fields or []
+
+        result_text = None
+
+        # 1) Gemini 시도
+        if self.model:
+            try:
+                response = await self.model.generate_content_async(prompt)
+                result_text = self._clean_json_text(getattr(response, "text", "") or "")
+            except Exception as e:
+                print(f"⚠️  Gemini 요약 실패, Ollama 폴백 시도: {e}")
+
+        # 2) Ollama 폴백
+        if not result_text:
+            raw = await self._call_ollama(prompt)
+            if raw:
+                result_text = self._clean_json_text(raw)
+
+        if not result_text:
             return default
 
-        list_fields = list_fields or []
         try:
-            response = self.model.generate_content(prompt)
-            result_text = self._clean_json_text(getattr(response, "text", "") or "")
             parsed = json.loads(result_text)
-
             normalized = {}
             for key, value in default.items():
                 raw_value = parsed.get(key, value)
@@ -76,7 +123,7 @@ class AISummaryService:
                     normalized[key] = raw_value
             return normalized
         except Exception as e:
-            print(f"❌ AI 요약 생성 실패: {e}")
+            print(f"❌ AI 요약 JSON 파싱 실패: {e}")
             return default
 
     async def summarize_huggingface_model(

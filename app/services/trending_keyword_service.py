@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 import re
 import asyncio
@@ -132,7 +132,7 @@ class ExternalTrendingKeywordService:
         if not counter:
             payload = {
                 "keywords": [],
-                "updated_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
             }
             await cache_set(cache_key, payload, ttl=self.CACHE_TTL_SECONDS)
             return payload
@@ -151,7 +151,7 @@ class ExternalTrendingKeywordService:
 
         payload = {
             "keywords": keywords,
-            "updated_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         await cache_set(cache_key, payload, ttl=self.CACHE_TTL_SECONDS)
         return payload

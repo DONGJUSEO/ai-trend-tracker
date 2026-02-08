@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
 
 interface LivePulseResponse {
   hot_item?: {
@@ -50,9 +48,7 @@ export default function LivePulse() {
     let mounted = true;
     async function fetchData() {
       try {
-        const res = await fetch(`${API_URL}/api/v1/dashboard/live-pulse`, {
-          headers: { "X-API-Key": API_KEY },
-        });
+        const res = await fetch("/api/v1/dashboard/live-pulse");
         if (!res.ok) throw new Error("live-pulse fetch failed");
         const json = await res.json();
         if (mounted) setData(json);

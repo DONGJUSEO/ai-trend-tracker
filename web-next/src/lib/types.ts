@@ -52,7 +52,9 @@ export interface HuggingFaceModel {
   library_name?: string;
   downloads: number;
   likes: number;
+  task_ko?: string;
   last_modified?: string;
+  created_at?: string;
   collected_at?: string;
   url?: string;
   is_featured?: boolean;

@@ -7,8 +7,6 @@ import { motion } from "framer-motion";
 
 const WordCloud = dynamic(() => import("react-d3-cloud"), { ssr: false });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
 
 interface ExternalKeyword {
   keyword: string;
@@ -84,8 +82,7 @@ export default function TrendingKeywords({
       setLoading(true);
       try {
         const res = await fetch(
-          `${API_URL}/api/v1/dashboard/external-trending-keywords?limit=50`,
-          { headers: { "X-API-Key": API_KEY } }
+          "/api/v1/dashboard/external-trending-keywords?limit=50"
         );
         if (!res.ok) throw new Error("키워드 요청 실패");
         const json = await res.json();

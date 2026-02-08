@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from sqlalchemy import text
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.config import get_settings
 from app.database import init_db, AsyncSessionLocal
@@ -30,7 +30,7 @@ from app.api.v1 import (
 from app.services.scheduler import start_scheduler, stop_scheduler, scheduler as app_scheduler
 from app.auth import verify_api_key
 from app.logging_config import setup_logging
-from app.cache import get_redis
+from app.cache import get_redis, track_visitor
 import logging
 
 settings = get_settings()
@@ -82,11 +82,11 @@ app = FastAPI(
 
 @app.middleware("http")
 async def count_api_requests(request: Request, call_next):
-    """API 요청 횟수를 일자별로 Redis에 기록."""
+    """API 요청 횟수를 일자별로 Redis에 기록 + HyperLogLog 방문자 추적."""
     response = await call_next(request)
     if request.url.path.startswith("/api/"):
         try:
-            today = datetime.utcnow().strftime("%Y-%m-%d")
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             key = f"api_requests:{today}"
             redis = await get_redis()
             await redis.incr(key)
@@ -95,6 +95,9 @@ async def count_api_requests(request: Request, call_next):
                 await redis.expire(key, 60 * 60 * 24 * 8)  # 8일 보관
         except Exception:
             pass
+        # HyperLogLog 방문자 추적 (IP 기반)
+        visitor_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown")
+        await track_visitor(visitor_ip.split(",")[0].strip())
     return response
 
 
@@ -175,7 +178,7 @@ async def health_check():
         "service": settings.app_name,
         "version": settings.app_version,
         "environment": settings.app_env,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "checks": {
             "database": db_status,
             "redis": redis_status,

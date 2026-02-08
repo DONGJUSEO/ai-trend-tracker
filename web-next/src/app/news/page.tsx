@@ -10,9 +10,6 @@ import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const category = CATEGORIES.find((c) => c.id === "news")!;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
-const headers = { "X-API-Key": API_KEY, "Content-Type": "application/json" };
 
 const KOREAN_SOURCES = ["전자신문", "AI타임스", "블로터", "데일리안", "한국경제", "매일경제", "IT조선", "디지털타임스", "지디넷코리아", "테크M", "아이뉴스24", "뉴스1", "조선일보", "중앙일보", "동아일보"];
 
@@ -359,8 +356,7 @@ export default function NewsPage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${API_URL}/api/v1/news/news?page=${page}&page_size=20`,
-        { headers }
+        `/api/v1/news/news?page=${page}&page_size=20`
       );
       if (res.ok) {
         const json = await res.json();
