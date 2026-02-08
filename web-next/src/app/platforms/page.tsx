@@ -17,6 +17,7 @@ interface AITool {
   tool_name: string;
   tagline: string;
   description: string;
+  summary?: string;
   category: string;
   pricing_model: string;
   price_range: string;
@@ -380,9 +381,9 @@ export default function PlatformsPage() {
                 </div>
 
                 {/* Description */}
-                {tool.description && (
+                {(tool.summary || tool.description) && (
                   <p className="text-white/50 text-sm mb-3 line-clamp-3 flex-1">
-                    {tool.description}
+                    {tool.summary || tool.description}
                   </p>
                 )}
 

@@ -2,6 +2,8 @@
 from collections import Counter
 from datetime import datetime
 from typing import List, Dict, Any
+import html
+import re
 
 import httpx
 from sqlalchemy import select
@@ -136,6 +138,17 @@ class JobTrendService:
                 found.add(self._normalize_skill(skill))
         return sorted(list(found))[:15]
 
+    @staticmethod
+    def strip_html(text: str) -> str:
+        """설명 텍스트에서 HTML/엔티티 제거."""
+        if not text:
+            return ""
+        cleaned = re.sub(r"<[^>]+>", " ", text)
+        cleaned = html.unescape(cleaned)
+        cleaned = cleaned.replace("<", " ").replace(">", " ")
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned
+
     async def fetch_remoteok_jobs(self, max_results: int = 100) -> List[Dict[str, Any]]:
         """RemoteOK API에서 AI/ML 채용 공고 수집."""
         jobs: List[Dict[str, Any]] = []
@@ -150,7 +163,8 @@ class JobTrendService:
 
                 for job in job_listings:
                     position = (job.get("position", "") or "").lower()
-                    description = (job.get("description", "") or "").lower()
+                    raw_description = self.strip_html(job.get("description", "") or "")
+                    description = raw_description.lower()
                     tags = [str(tag).lower() for tag in (job.get("tags") or [])]
 
                     combined_text = f"{position} {description} {' '.join(tags)}"
@@ -166,7 +180,7 @@ class JobTrendService:
                     skills = self._extract_skills(description, job.get("tags", []))
                     role_category = self.classify_role_category(
                         title=job.get("position", ""),
-                        description=job.get("description", ""),
+                        description=raw_description,
                         skills=skills,
                     )
 
@@ -174,7 +188,7 @@ class JobTrendService:
                         {
                             "job_title": job.get("position", "Unknown"),
                             "company_name": job.get("company", "미공개"),
-                            "description": (job.get("description", "") or "")[:1200],
+                            "description": raw_description[:1200],
                             "location": job.get("location", "Remote"),
                             "is_remote": True,
                             "salary_min": salary_min,
@@ -251,6 +265,9 @@ class JobTrendService:
         """데이터베이스에 저장."""
         saved = 0
         for item in items:
+            if item.get("description"):
+                item["description"] = self.strip_html(item["description"])
+
             url = item.get("job_url")
             if not url:
                 continue
@@ -272,6 +289,9 @@ class JobTrendService:
                 for key, value in payload.items():
                     if hasattr(existing, key) and value is not None:
                         setattr(existing, key, value)
+
+                if existing.description:
+                    existing.description = self.strip_html(existing.description)
 
                 keywords = set(existing.keywords or [])
                 keywords.add(self.JOB_CATEGORIES.get(role_category, role_category))

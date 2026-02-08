@@ -255,6 +255,9 @@ function ProjectCard({
   project: GitHubProject;
   index: number;
 }) {
+  const primaryDescription =
+    project.summary || project.description || "설명이 없습니다.";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -277,16 +280,9 @@ function ProjectCard({
               </h3>
 
               {/* Description */}
-              <p className={`text-white/45 text-sm leading-relaxed line-clamp-2 ${project.summary ? "mb-1" : "mb-4"}`}>
-                {project.description || "설명이 없습니다."}
+              <p className="text-white/50 text-sm leading-relaxed mb-4 line-clamp-2">
+                {primaryDescription}
               </p>
-
-              {/* AI Summary */}
-              {project.summary && (
-                <p className="text-white/50 text-sm leading-relaxed mb-4 line-clamp-2">
-                  {project.summary}
-                </p>
-              )}
 
               {/* Stats row */}
               <div className="flex items-center gap-4 text-sm mb-4">

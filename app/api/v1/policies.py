@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+import html
+import re
+from typing import Optional
 from app.database import get_db
 from app.db_compat import has_archive_column
 from app.models.policy import AIPolicy
@@ -8,6 +11,16 @@ from app.schemas.policy import AIPolicyList
 from app.cache import cache_get, cache_set, TTL_LIST_QUERY
 
 router = APIRouter()
+
+
+def _clean_text(text: Optional[str]) -> Optional[str]:
+    if text is None:
+        return None
+    cleaned = re.sub(r"<[^>]+>", " ", text)
+    cleaned = html.unescape(cleaned)
+    cleaned = cleaned.replace("<", " ").replace(">", " ")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
 
 @router.get("/", response_model=AIPolicyList)
 async def list_policies(
@@ -35,6 +48,9 @@ async def list_policies(
 
     total = (await db.execute(count_query)).scalar() or 0
     items = (await db.execute(query.offset(offset).limit(page_size))).scalars().all()
+    for item in items:
+        item.title = _clean_text(item.title) or item.title
+        item.description = _clean_text(item.description)
     payload = AIPolicyList(
         total=total,
         items=items,

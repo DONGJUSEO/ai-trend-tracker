@@ -63,9 +63,25 @@ class YouTubeService:
             api_key: YouTube Data API 키 (없으면 settings에서 가져옴)
         """
         self.api_key = api_key or getattr(settings, "youtube_api_key", "")
+        self._channel_index_by_id = self._build_channel_index()
 
         if not self.api_key:
             print("⚠️  YouTube API 키가 없습니다. YouTube 데이터 수집이 비활성화됩니다.")
+
+    def _build_channel_index(self) -> Dict[str, Dict[str, Any]]:
+        """큐레이션 채널을 channel_id 키 인덱스로 변환."""
+        index: Dict[str, Dict[str, Any]] = {}
+        for channels in self.CURATED_CHANNELS.values():
+            for channel in channels:
+                channel_id = channel.get("channel_id")
+                if channel_id:
+                    index[channel_id] = channel
+        return index
+
+    def _get_curated_channel_meta(self, channel_id: Optional[str]) -> Dict[str, Any]:
+        if not channel_id:
+            return {}
+        return self._channel_index_by_id.get(channel_id, {})
 
     @staticmethod
     def _extract_video_id(video_ref: Optional[str]) -> Optional[str]:
@@ -217,16 +233,21 @@ class YouTubeService:
                     snippet = item.get("snippet", {})
                     statistics = item.get("statistics", {})
                     content_details = item.get("contentDetails", {})
+                    channel_id = snippet.get("channelId", "")
+                    curated_meta = self._get_curated_channel_meta(channel_id)
+                    curated_language = curated_meta.get("language")
+                    curated_name = curated_meta.get("name")
 
                     video_info = {
                         "video_id": item["id"],
                         "title": snippet.get("title", ""),
-                        "channel_title": snippet.get("channelTitle", ""),
-                        "channel_id": snippet.get("channelId", ""),
+                        "channel_title": snippet.get("channelTitle", "") or curated_name,
+                        "channel_id": channel_id,
                         "channel_language": self._normalize_channel_language(
                             snippet.get("defaultLanguage")
-                            or snippet.get("defaultAudioLanguage"),
-                            fallback=default_language,
+                            or snippet.get("defaultAudioLanguage")
+                            or curated_language,
+                            fallback=curated_language or default_language,
                         ),
                         "description": snippet.get("description", ""),
                         "published_at": snippet.get("publishedAt", ""),
@@ -286,6 +307,22 @@ class YouTubeService:
                 if not normalized_video_id:
                     continue
 
+                channel_id = video_data.get("channel_id")
+                curated_meta = self._get_curated_channel_meta(channel_id)
+                fallback_language = (
+                    curated_meta.get("language")
+                    or self._fallback_language_from_video(video_data)
+                )
+                resolved_channel_language = self._normalize_channel_language(
+                    video_data.get("channel_language"),
+                    fallback=fallback_language,
+                )
+                resolved_channel_title = (
+                    video_data.get("channel_title")
+                    or curated_meta.get("name")
+                    or ""
+                )
+
                 # 이미 존재하는지 확인
                 result = await db.execute(
                     select(YouTubeVideo).where(
@@ -309,11 +346,10 @@ class YouTubeService:
                     existing_video.view_count = video_data.get("view_count", 0)
                     existing_video.like_count = video_data.get("like_count", 0)
                     existing_video.comment_count = video_data.get("comment_count", 0)
+                    if resolved_channel_title:
+                        existing_video.channel_title = resolved_channel_title
                     if has_channel_language:
-                        existing_video.channel_language = self._normalize_channel_language(
-                            video_data.get("channel_language"),
-                            fallback=self._fallback_language_from_video(video_data),
-                        )
+                        existing_video.channel_language = resolved_channel_language
                     existing_video.is_trending = True
                     if has_archive_columns:
                         existing_video.is_archived = False
@@ -321,7 +357,7 @@ class YouTubeService:
                 else:
                     # 동일 채널 + 동일 제목 + 동일 게시일 중복 방어
                     duplicate_query = select(YouTubeVideo).where(
-                        YouTubeVideo.channel_id == video_data.get("channel_id"),
+                        YouTubeVideo.channel_id == channel_id,
                         YouTubeVideo.title == video_data.get("title", ""),
                         YouTubeVideo.published_at == published_at,
                     )
@@ -338,8 +374,8 @@ class YouTubeService:
                     payload = dict(
                         video_id=normalized_video_id,
                         title=video_data.get("title", ""),
-                        channel_title=video_data.get("channel_title"),
-                        channel_id=video_data.get("channel_id"),
+                        channel_title=resolved_channel_title,
+                        channel_id=channel_id,
                         description=video_data.get("description"),
                         published_at=published_at,
                         thumbnail_url=video_data.get("thumbnail_url"),
@@ -351,10 +387,7 @@ class YouTubeService:
                         is_trending=True,
                     )
                     if has_channel_language:
-                        payload["channel_language"] = self._normalize_channel_language(
-                            video_data.get("channel_language"),
-                            fallback=self._fallback_language_from_video(video_data),
-                        )
+                        payload["channel_language"] = resolved_channel_language
                     new_video = YouTubeVideo(**payload)
                     db.add(new_video)
                     saved_count += 1
@@ -399,7 +432,28 @@ class YouTubeService:
         query = query.order_by(desc(YouTubeVideo.view_count)).offset(skip).limit(limit)
 
         result = await db.execute(query)
-        return result.scalars().all()
+        videos = result.scalars().all()
+
+        # Backfill: 기존 데이터 중 channel_language 누락값 보정
+        updated = False
+        for video in videos:
+            current_lang = getattr(video, "channel_language", None)
+            if current_lang:
+                continue
+            curated_meta = self._get_curated_channel_meta(getattr(video, "channel_id", None))
+            fallback_language = curated_meta.get("language") or self._fallback_language_from_video(
+                {
+                    "channel_title": getattr(video, "channel_title", ""),
+                    "title": getattr(video, "title", ""),
+                }
+            )
+            video.channel_language = self._normalize_channel_language(
+                current_lang,
+                fallback=fallback_language,
+            )
+            updated = True
+
+        return videos
 
     async def get_video_by_id(
         self, db: AsyncSession, video_id: str

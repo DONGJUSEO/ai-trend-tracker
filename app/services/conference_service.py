@@ -3,6 +3,7 @@ import httpx
 import feedparser
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
@@ -74,30 +75,30 @@ class ConferenceService:
         },
         "ICML 2026": {
             "full_name": "International Conference on Machine Learning",
-            "dates": "2026-07-06 ~ 2026-07-11",
+            "dates": "2026-07-06 ~ 2026-07-12",
             "start_date": "2026-07-06",
-            "end_date": "2026-07-11",
-            "location": "Seoul, South Korea",
+            "end_date": "2026-07-12",
+            "location": "Seoul, South Korea (COEX)",
             "tier": "A*",
             "topics": ["Machine Learning"],
             "website": "https://icml.cc/",
         },
         "KDD 2026": {
             "full_name": "Knowledge Discovery and Data Mining",
-            "dates": "2026-08-09 ~ 2026-08-13",
-            "start_date": "2026-08-09",
-            "end_date": "2026-08-13",
-            "location": "Jeju, South Korea (ICC Jeju)",
+            "dates": "2026-08-02 ~ 2026-08-06",
+            "start_date": "2026-08-02",
+            "end_date": "2026-08-06",
+            "location": "Jeju Island, South Korea",
             "tier": "A*",
             "topics": ["Data Mining", "Applied Data Science"],
-            "website": "https://kdd2026.kdd.org/",
+            "website": "https://kdd.org/kdd2026/",
         },
         "NeurIPS 2026": {
             "full_name": "Neural Information Processing Systems",
             "dates": "2026-12-06 ~ 2026-12-12",
             "start_date": "2026-12-06",
             "end_date": "2026-12-12",
-            "location": "Sydney, Australia",
+            "location": "Vancouver, Canada",
             "tier": "A*",
             "topics": ["Neural Networks", "ML"],
             "website": "https://neurips.cc/",
@@ -108,17 +109,17 @@ class ConferenceService:
             "dates": "2026-08-15 ~ 2026-08-21",
             "start_date": "2026-08-15",
             "end_date": "2026-08-21",
-            "location": "Bremen, Germany",
+            "location": "Montréal, Canada",
             "tier": "A*",
             "topics": ["AI", "Multi-Agent Systems", "Knowledge Representation"],
             "website": "https://ijcai-26.org/",
         },
         "INTERSPEECH 2026": {
             "full_name": "Conference of the International Speech Communication Association",
-            "dates": "2026-09-28 ~ 2026-10-01",
-            "start_date": "2026-09-28",
-            "end_date": "2026-10-01",
-            "location": "Sydney, Australia",
+            "dates": "2026-09-06 ~ 2026-09-10",
+            "start_date": "2026-09-06",
+            "end_date": "2026-09-10",
+            "location": "Salzburg, Austria",
             "tier": "A",
             "topics": ["Speech Recognition", "NLP", "Audio"],
             "website": "https://www.interspeech2026.org/",
@@ -155,13 +156,13 @@ class ConferenceService:
         },
         "AI SEOUL 2026": {
             "full_name": "AI SEOUL 2026 Global Forum",
-            "dates": "2026-01-30 ~ 2026-01-30",
+            "dates": "2026-01-30 ~ 2026-01-31",
             "start_date": "2026-01-30",
-            "end_date": "2026-01-30",
+            "end_date": "2026-01-31",
             "location": "Seoul, South Korea (COEX Grand Ballroom)",
             "tier": "B",
             "topics": ["AI Policy", "Global Forum"],
-            "website": "https://aiseoul.kr/",
+            "website": "https://aiseoul.org/",
         },
     }
 
@@ -177,9 +178,10 @@ class ConferenceService:
         """
         conferences = []
         for name, data in self.CONFERENCES_2026.items():
+            acronym = self._derive_confirmed_acronym(name)
             conf = {
                 "conference_name": name,
-                "conference_acronym": name.split(" ")[0],  # e.g., "AAAI" from "AAAI 2026"
+                "conference_acronym": acronym,
                 "website_url": data["website"],
                 "start_date": datetime.strptime(data["start_date"], "%Y-%m-%d"),
                 "end_date": datetime.strptime(data["end_date"], "%Y-%m-%d"),
@@ -192,6 +194,15 @@ class ConferenceService:
             }
             conferences.append(conf)
         return conferences
+
+    @staticmethod
+    def _derive_confirmed_acronym(name: str) -> str:
+        """확정 컨퍼런스 이름에서 충돌 없는 약어 생성."""
+        base = re.sub(r"\b20\d{2}\b", "", (name or "")).strip()
+        if not base:
+            return "CONF"
+        compact = "".join(ch for ch in base if ch.isalnum())
+        return (compact or "CONF").upper()
 
     def _is_upcoming_by_date_str(self, date_str: str) -> bool:
         """날짜 문자열 기준으로 다가오는 컨퍼런스인지 확인"""
@@ -384,6 +395,79 @@ class ConferenceService:
         # 마감일이 현재로부터 6개월 이내면 upcoming
         return now < deadline < (now + timedelta(days=180))
 
+    async def _upsert_confirmed_conferences(self, db: AsyncSession) -> None:
+        """확정 컨퍼런스 데이터를 항상 최신 값으로 업서트."""
+        for conf_name, conf_data in self.CONFERENCES_2026.items():
+            acronym = self._derive_confirmed_acronym(conf_name)
+            start_date = self._coerce_datetime(conf_data.get("start_date"))
+            end_date = self._coerce_datetime(conf_data.get("end_date"))
+            website_url = conf_data.get("website")
+            year = 2026
+
+            acronym_rows = (
+                await db.execute(
+                    select(AIConference).where(
+                        AIConference.conference_acronym == acronym,
+                        AIConference.year == year,
+                    )
+                )
+            ).scalars().all()
+            existing = acronym_rows[0] if acronym_rows else None
+            for duplicate in acronym_rows[1:]:
+                await db.delete(duplicate)
+
+            by_name_rows = (
+                await db.execute(
+                    select(AIConference).where(
+                        AIConference.conference_name == conf_name,
+                        AIConference.year == year,
+                    )
+                )
+            ).scalars().all()
+            if existing is None and by_name_rows:
+                existing = by_name_rows[0]
+            for duplicate in by_name_rows:
+                if existing and duplicate.id == existing.id:
+                    continue
+                await db.delete(duplicate)
+
+            if website_url:
+                by_website_rows = (
+                    await db.execute(
+                        select(AIConference).where(AIConference.website_url == website_url)
+                    )
+                ).scalars().all()
+                if existing is None and by_website_rows:
+                    existing = by_website_rows[0]
+                for duplicate in by_website_rows:
+                    if existing and duplicate.id == existing.id:
+                        continue
+                    await db.delete(duplicate)
+
+            payload = {
+                "conference_name": conf_name,
+                "conference_acronym": acronym,
+                "website_url": website_url,
+                "start_date": start_date,
+                "end_date": end_date,
+                "location": conf_data.get("location"),
+                "year": year,
+                "topics": conf_data.get("topics", []),
+                "tier": conf_data.get("tier"),
+                "summary": f"{conf_data.get('full_name', conf_name)} ({conf_data.get('dates', '')})".strip(),
+                "is_trending": True,
+                "is_upcoming": self._is_upcoming_by_date_str(conf_data.get("start_date", "")),
+            }
+
+            if existing:
+                for key, value in payload.items():
+                    if hasattr(existing, key):
+                        setattr(existing, key, value)
+            else:
+                db.add(AIConference(**payload))
+
+        await db.commit()
+
     async def save_to_db(
         self, conferences: List[Dict[str, Any]], db: AsyncSession
     ) -> int:
@@ -399,23 +483,12 @@ class ConferenceService:
         """
         saved_count = 0
 
-        # 확인된 2026 컨퍼런스는 항상 최신 데이터로 강제 갱신 (1970 날짜 버그 방지)
-        confirmed_acronyms = {
-            name.split(" ")[0] for name in self.CONFERENCES_2026.keys()
-        }
+        # 확정 학회는 force-delete 없이 항상 최신값으로 업서트
         try:
-            stale = await db.execute(
-                select(AIConference).where(
-                    AIConference.conference_acronym.in_(confirmed_acronyms)
-                )
-            )
-            for row in stale.scalars().all():
-                await db.delete(row)
-            await db.commit()
-            print(f"🗑️ Cleared {len(confirmed_acronyms)} confirmed conferences for clean re-insert")
+            await self._upsert_confirmed_conferences(db)
         except Exception as e:
             await db.rollback()
-            print(f"⚠️ Error clearing old conferences: {e}")
+            print(f"⚠️ Error upserting confirmed conferences: {e}")
 
         for conf_data in conferences:
             try:

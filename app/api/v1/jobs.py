@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+import html
+import re
+from typing import Optional
 from app.database import get_db
 from app.db_compat import has_archive_column
 from app.models.job_trend import AIJobTrend
@@ -9,6 +12,16 @@ from app.cache import cache_get, cache_set, TTL_LIST_QUERY
 from app.services.job_trend_service import JobTrendService
 
 router = APIRouter()
+
+
+def _clean_text(text: Optional[str]) -> Optional[str]:
+    if text is None:
+        return None
+    cleaned = re.sub(r"<[^>]+>", " ", text)
+    cleaned = html.unescape(cleaned)
+    cleaned = cleaned.replace("<", " ").replace(">", " ")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
 
 @router.get("/", response_model=AIJobTrendList)
 async def list_jobs(
@@ -41,6 +54,7 @@ async def list_jobs(
     serialized_items = []
     for row in rows:
         skills = row.required_skills or []
+        cleaned_description = _clean_text(row.description)
         serialized_items.append(
             {
                 "id": row.id,
@@ -48,7 +62,7 @@ async def list_jobs(
                 "company_name": row.company_name or "미공개",
                 "location": row.location,
                 "is_remote": bool(row.is_remote),
-                "description": row.description,
+                "description": cleaned_description,
                 "salary_min": row.salary_min,
                 "salary_max": row.salary_max,
                 "required_skills": skills,
@@ -56,7 +70,7 @@ async def list_jobs(
                 "created_at": row.created_at,
                 "role_category": service.classify_role_category(
                     title=row.job_title or "",
-                    description=row.description or "",
+                    description=cleaned_description or "",
                     skills=skills,
                 ),
             }

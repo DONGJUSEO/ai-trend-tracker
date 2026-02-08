@@ -191,6 +191,15 @@ function formatDate(dateStr: string): string {
   });
 }
 
+function stripHtml(text?: string | null): string {
+  if (!text) return "";
+  return text
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&[^;]+;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function Pagination({
   page,
   totalPages,
@@ -377,6 +386,7 @@ export default function PoliciesPage() {
               const statusStyle = STATUS_STYLES[statusKey] || STATUS_STYLES.proposed;
               const flag = getCountryFlag(policy.country);
               const policyUrl = policy.url || policy.source_url;
+              const summaryText = stripHtml(policy.summary || policy.description);
 
               return (
                 <motion.div
@@ -417,10 +427,10 @@ export default function PoliciesPage() {
                     )}
                   </h3>
 
-                  {/* AI Summary (Korean) */}
-                  {policy.summary && (
+                  {/* Summary / Description fallback */}
+                  {summaryText && (
                     <p className="text-indigo-300/80 text-sm mb-2 line-clamp-2">
-                      {policy.summary}
+                      {summaryText}
                     </p>
                   )}
 
@@ -453,13 +463,6 @@ export default function PoliciesPage() {
                         {policy.category}
                       </span>
                     </div>
-                  )}
-
-                  {/* Description */}
-                  {policy.description && (
-                    <p className="text-white/50 text-sm mb-3 line-clamp-3 flex-1">
-                      {policy.description}
-                    </p>
                   )}
 
                   {/* Dates */}

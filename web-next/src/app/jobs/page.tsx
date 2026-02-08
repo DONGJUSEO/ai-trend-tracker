@@ -97,6 +97,15 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(diffDay / 30)}개월 전`;
 }
 
+function stripHtml(text?: string): string {
+  if (!text) return "";
+  return text
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&[^;]+;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function JobsPage() {
   const category = CATEGORIES.find((c) => c.id === "jobs")!;
   const [activeRole, setActiveRole] = useState<RoleKey>("all");
@@ -255,6 +264,12 @@ export default function JobsPage() {
                   </span>
                 ))}
               </div>
+
+              {job.description && (
+                <p className="mt-3 text-sm text-white/55 line-clamp-2">
+                  {stripHtml(job.description)}
+                </p>
+              )}
             </article>
           ))}
         </div>

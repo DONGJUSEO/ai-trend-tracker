@@ -62,7 +62,12 @@ async def list_conferences(
     # 페이지네이션
     offset = (page - 1) * page_size
     query = (
-        query.order_by(desc(AIConference.submission_deadline))
+        query.order_by(
+            AIConference.start_date.is_(None),   # 날짜 있는 항목 우선
+            AIConference.start_date.asc(),
+            desc(AIConference.submission_deadline),
+            desc(AIConference.created_at),
+        )
         .offset(offset)
         .limit(page_size)
     )

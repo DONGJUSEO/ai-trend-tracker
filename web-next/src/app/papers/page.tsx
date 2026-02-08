@@ -255,6 +255,7 @@ function PaperCard({
   index: number;
 }) {
   const linkUrl = paper.pdf_url || paper.url;
+  const primarySummary = paper.summary || paper.abstract || "설명이 없습니다.";
 
   return (
     <motion.div
@@ -299,14 +300,10 @@ function PaperCard({
             </div>
           </div>
 
-          {/* AI Korean Summary */}
-          {paper.summary ? (
-            <p className="text-white/50 text-sm line-clamp-2 leading-relaxed">
-              {paper.summary}
-            </p>
-          ) : (
-            <p className="text-white/30 text-sm italic">요약 준비 중...</p>
-          )}
+          {/* AI Korean Summary (fallback: abstract) */}
+          <p className="text-white/50 text-sm line-clamp-2 leading-relaxed">
+            {primarySummary}
+          </p>
 
           {/* Date badge + Conference badge */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -338,9 +335,11 @@ function PaperCard({
           </div>
 
           {/* Abstract */}
-          <p className="text-white/45 text-sm leading-relaxed">
-            {truncateText(paper.abstract, 200)}
-          </p>
+          {paper.summary && paper.abstract && (
+            <p className="text-white/45 text-sm leading-relaxed">
+              {truncateText(paper.abstract, 200)}
+            </p>
+          )}
 
           {/* Categories & Keywords */}
           <div className="flex flex-wrap gap-1.5 mt-1">

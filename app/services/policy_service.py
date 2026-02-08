@@ -228,6 +228,11 @@ class PolicyService:
                         if hasattr(existing, key) and value is not None:
                             setattr(existing, key, value)
 
+                    if existing.title:
+                        existing.title = self._strip_html(existing.title)
+                    if existing.description:
+                        existing.description = self._strip_html(existing.description)
+
                     if (
                         ai_service.model
                         and (not self._is_korean_policy(existing.country or ""))

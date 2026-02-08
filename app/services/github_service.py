@@ -47,6 +47,7 @@ class GitHubService:
         "freeCodeCamp/freeCodeCamp",
         "EbookFoundation/free-programming-books",
         "practical-tutorials/project-based-learning",
+        "paperless-ngx/paperless-ngx",
     }
 
     def __init__(self, api_token: Optional[str] = None):
