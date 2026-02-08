@@ -59,3 +59,6 @@ class AINewsList(BaseModel):
 
     total: int
     news: List[AINews]
+    page: int = 1
+    page_size: int = 20
+    total_pages: int = 1

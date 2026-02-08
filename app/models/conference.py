@@ -46,6 +46,8 @@ class AIConference(Base):
     tier = Column(String)  # "A*", "A", "B" for ranking
     is_trending = Column(Boolean, default=False)
     is_upcoming = Column(Boolean, default=False)
+    is_archived = Column(Boolean, default=False, index=True)
+    archived_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

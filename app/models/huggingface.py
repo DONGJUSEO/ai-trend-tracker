@@ -16,6 +16,7 @@ class HuggingFaceModel(Base):
     # 모델 정보
     description = Column(Text)  # 원본 설명
     task = Column(String, index=True)  # text-generation, image-classification 등
+    task_ko = Column(String, index=True)  # 한글 태스크명
     tags = Column(JSON, default=[])  # 태그 리스트
     library_name = Column(String)  # transformers, diffusers 등
 
@@ -38,6 +39,8 @@ class HuggingFaceModel(Base):
     # 플래그
     is_featured = Column(Boolean, default=False)  # 추천 모델
     is_trending = Column(Boolean, default=False)  # 트렌딩 모델
+    is_archived = Column(Boolean, default=False, index=True)  # 아카이브 여부
+    archived_at = Column(DateTime(timezone=True))  # 아카이브 처리 시각
 
     def __repr__(self):
         return f"<HuggingFaceModel {self.model_id}>"

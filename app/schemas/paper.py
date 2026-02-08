@@ -18,6 +18,9 @@ class AIPaperBase(BaseModel):
     arxiv_url: Optional[str] = None
     comment: Optional[str] = None
     journal_ref: Optional[str] = None
+    topic: Optional[str] = None
+    conference_name: Optional[str] = None
+    conference_year: Optional[int] = None
     is_featured: bool = False
     is_trending: bool = False
 
@@ -33,6 +36,9 @@ class AIPaperUpdate(BaseModel):
 
     title: Optional[str] = None
     abstract: Optional[str] = None
+    topic: Optional[str] = None
+    conference_name: Optional[str] = None
+    conference_year: Optional[int] = None
     is_featured: Optional[bool] = None
     is_trending: Optional[bool] = None
     summary: Optional[str] = None
@@ -59,3 +65,6 @@ class AIPaperList(BaseModel):
 
     total: int
     papers: List[AIPaper]
+    page: int = 1
+    page_size: int = 20
+    total_pages: int = 1

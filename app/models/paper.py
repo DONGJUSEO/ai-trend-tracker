@@ -15,12 +15,15 @@ class AIPaper(Base):
     authors = Column(JSON, default=[])  # 저자 리스트
     abstract = Column(Text)  # 논문 초록
     categories = Column(JSON, default=[])  # arXiv 카테고리 (cs.AI, cs.LG 등)
-    published_date = Column(DateTime)  # 최초 발표일
-    updated_date = Column(DateTime)  # 마지막 업데이트일
+    published_date = Column(DateTime(timezone=True))  # 최초 발표일
+    updated_date = Column(DateTime(timezone=True))  # 마지막 업데이트일
     pdf_url = Column(String)  # PDF 링크
     arxiv_url = Column(String)  # arXiv 페이지 링크
     comment = Column(Text)  # 논문에 대한 추가 설명 (페이지 수, 컨퍼런스 등)
     journal_ref = Column(String)  # 저널 레퍼런스
+    topic = Column(String, index=True)  # 분류된 주제 (NLP/CV/ML/강화학습/멀티모달)
+    conference_name = Column(String, index=True)  # 추출된 학회명
+    conference_year = Column(Integer, index=True)  # 추출된 학회 연도
 
     # AI 요약 정보
     summary = Column(Text)  # AI가 생성한 한글 요약
@@ -30,6 +33,8 @@ class AIPaper(Base):
     # 메타데이터
     is_featured = Column(Boolean, default=False)  # 주목할 만한 논문
     is_trending = Column(Boolean, default=False)  # 트렌딩 논문
+    is_archived = Column(Boolean, default=False, index=True)  # 아카이브 여부
+    archived_at = Column(DateTime(timezone=True))  # 아카이브 처리 시각
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -14,8 +14,9 @@ class YouTubeVideo(Base):
     title = Column(String, nullable=False)
     channel_title = Column(String)
     channel_id = Column(String)
+    channel_language = Column(String, index=True)
     description = Column(Text)
-    published_at = Column(DateTime)
+    published_at = Column(DateTime(timezone=True))
     thumbnail_url = Column(String)
     view_count = Column(Integer, default=0)
     like_count = Column(Integer, default=0)
@@ -31,6 +32,8 @@ class YouTubeVideo(Base):
     # 메타데이터
     category = Column(String, default="AI/Tech")
     is_trending = Column(Boolean, default=False)
+    is_archived = Column(Boolean, default=False, index=True)
+    archived_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

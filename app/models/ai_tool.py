@@ -47,6 +47,8 @@ class AITool(Base):
     launch_date = Column(DateTime)
     is_trending = Column(Boolean, default=False)
     is_featured = Column(Boolean, default=False)
+    is_archived = Column(Boolean, default=False, index=True)
+    archived_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -11,6 +11,7 @@ class YouTubeVideoBase(BaseModel):
     title: str
     channel_title: Optional[str] = None
     channel_id: Optional[str] = None
+    channel_language: Optional[str] = None
     description: Optional[str] = None
     published_at: Optional[datetime] = None
     thumbnail_url: Optional[str] = None
@@ -62,3 +63,6 @@ class YouTubeVideoList(BaseModel):
 
     total: int
     videos: List[YouTubeVideo]
+    page: int = 1
+    page_size: int = 20
+    total_pages: int = 1

@@ -54,3 +54,6 @@ class AIToolList(BaseModel):
 
     total: int
     items: List[AIToolResponse]
+    page: int = 1
+    page_size: int = 20
+    total_pages: int = 1

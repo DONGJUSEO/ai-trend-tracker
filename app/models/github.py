@@ -36,6 +36,8 @@ class GitHubProject(Base):
     category = Column(String, default="AI/ML")  # 카테고리
     is_trending = Column(Boolean, default=False)  # 트렌딩 여부
     is_featured = Column(Boolean, default=False)  # 주요 프로젝트
+    is_archived = Column(Boolean, default=False, index=True)  # 아카이브 여부
+    archived_at = Column(DateTime(timezone=True))  # 아카이브 처리 시각
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

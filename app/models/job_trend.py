@@ -19,6 +19,8 @@ class AIJobTrend(Base):
     keywords = Column(JSON, default=[])
     posted_date = Column(DateTime)
     is_trending = Column(Boolean, default=False)
+    is_archived = Column(Boolean, default=False, index=True)
+    archived_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     def __repr__(self):
         return f"<AIJobTrend(job_title={self.job_title})>"

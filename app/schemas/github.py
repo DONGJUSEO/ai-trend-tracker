@@ -66,3 +66,7 @@ class GitHubProjectList(BaseModel):
 
     total: int
     projects: List[GitHubProject]
+    items: List[GitHubProject] = Field(default_factory=list)
+    page: int = 1
+    page_size: int = 20
+    total_pages: int = 1

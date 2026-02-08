@@ -11,6 +11,7 @@ class HuggingFaceModelBase(BaseModel):
     author: Optional[str] = None
     description: Optional[str] = None
     task: Optional[str] = None
+    task_ko: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
     library_name: Optional[str] = None
     downloads: int = 0
@@ -30,6 +31,7 @@ class HuggingFaceModelUpdate(BaseModel):
     model_name: Optional[str] = None
     description: Optional[str] = None
     task: Optional[str] = None
+    task_ko: Optional[str] = None
     tags: Optional[List[str]] = None
     downloads: Optional[int] = None
     likes: Optional[int] = None
@@ -65,3 +67,4 @@ class HuggingFaceModelList(BaseModel):
     items: List[HuggingFaceModelResponse]
     page: int = 1
     page_size: int = 20
+    total_pages: int = 1
