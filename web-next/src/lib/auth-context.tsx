@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem("ainssa-auth");
+    const saved = localStorage.getItem("aibom-auth");
     if (saved === "true") {
       setIsAuthenticated(true);
     }
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback((password: string) => {
     if (password === SITE_PASSWORD) {
       setIsAuthenticated(true);
-      localStorage.setItem("ainssa-auth", "true");
+      localStorage.setItem("aibom-auth", "true");
       return true;
     }
     return false;
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     setIsAuthenticated(false);
-    localStorage.removeItem("ainssa-auth");
+    localStorage.removeItem("aibom-auth");
   }, []);
 
   if (checking) {

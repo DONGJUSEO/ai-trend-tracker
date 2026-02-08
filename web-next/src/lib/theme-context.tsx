@@ -18,7 +18,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
-    const saved = localStorage.getItem("ainssa-theme") as Theme;
+    const saved = localStorage.getItem("aibom-theme") as Theme;
     if (saved === "light" || saved === "dark") {
       setTheme(saved);
     }
@@ -33,7 +33,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.classList.remove("light");
       root.classList.add("dark");
     }
-    localStorage.setItem("ainssa-theme", theme);
+    localStorage.setItem("aibom-theme", theme);
   }, [theme]);
 
   const toggleTheme = useCallback(() => {

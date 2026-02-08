@@ -15,7 +15,7 @@ const notoSansKR = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "Ain싸 - AI Trending",
+  title: "AI봄 - AI Trending",
   description: "AI 트렌드를 한눈에 보는 큐레이션 서비스",
   manifest: "/manifest.json",
   icons: {
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   other: {
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
-    "apple-mobile-web-app-title": "Ain싸",
+    "apple-mobile-web-app-title": "AI봄",
     "theme-color": "#0f0a0a",
   },
 };

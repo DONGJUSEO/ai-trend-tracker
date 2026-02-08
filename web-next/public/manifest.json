@@ -1,6 +1,6 @@
 {
-  "name": "Ain싸 - AI Trending",
-  "short_name": "Ain싸",
+  "name": "AI봄 - AI Trending",
+  "short_name": "AI봄",
   "description": "AI 트렌드를 한눈에 보는 큐레이션 서비스",
   "start_url": "/",
   "display": "standalone",
