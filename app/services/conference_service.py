@@ -34,6 +34,10 @@ class ConferenceService:
         "NAACL": "A",
         "ECCV": "A",
         "ICCV": "A*",
+        "INTERSPEECH": "A",
+        "SIGIR": "A*",
+        "WSDM": "A",
+        "KDD": "A*",
     }
 
     # Confirmed 2026 conference data from Gemini deep research (2026-02)
@@ -98,6 +102,67 @@ class ConferenceService:
             "topics": ["Neural Networks", "ML"],
             "website": "https://neurips.cc/",
         },
+        # ── Gemini deep research 2차 결과 (2026-02) ──
+        "IJCAI 2026": {
+            "full_name": "International Joint Conference on Artificial Intelligence",
+            "dates": "2026-08-15 ~ 2026-08-21",
+            "start_date": "2026-08-15",
+            "end_date": "2026-08-21",
+            "location": "Bremen, Germany",
+            "tier": "A*",
+            "topics": ["AI", "Multi-Agent Systems", "Knowledge Representation"],
+            "website": "https://ijcai-26.org/",
+        },
+        "INTERSPEECH 2026": {
+            "full_name": "Conference of the International Speech Communication Association",
+            "dates": "2026-09-28 ~ 2026-10-01",
+            "start_date": "2026-09-28",
+            "end_date": "2026-10-01",
+            "location": "Sydney, Australia",
+            "tier": "A",
+            "topics": ["Speech Recognition", "NLP", "Audio"],
+            "website": "https://www.interspeech2026.org/",
+        },
+        "SIGIR 2026": {
+            "full_name": "ACM SIGIR Conference on Research and Development in Information Retrieval",
+            "dates": "2026-07-20 ~ 2026-07-24",
+            "start_date": "2026-07-20",
+            "end_date": "2026-07-24",
+            "location": "Melbourne, Australia",
+            "tier": "A*",
+            "topics": ["Information Retrieval", "Search", "RAG"],
+            "website": "https://sigir2026.org/",
+        },
+        "WSDM 2026": {
+            "full_name": "ACM International Conference on Web Search and Data Mining",
+            "dates": "2026-02-22 ~ 2026-02-26",
+            "start_date": "2026-02-22",
+            "end_date": "2026-02-26",
+            "location": "Boise, Idaho, USA",
+            "tier": "A",
+            "topics": ["Web Search", "Data Mining", "Recommendation"],
+            "website": "https://www.wsdm-conference.org/2026/",
+        },
+        "AI EXPO KOREA 2026": {
+            "full_name": "AI EXPO KOREA 2026",
+            "dates": "2026-05-06 ~ 2026-05-08",
+            "start_date": "2026-05-06",
+            "end_date": "2026-05-08",
+            "location": "Seoul, South Korea (COEX Hall A)",
+            "tier": "B",
+            "topics": ["AI Industry", "Startup", "Exhibition"],
+            "website": "https://www.aiexpo.co.kr/",
+        },
+        "AI SEOUL 2026": {
+            "full_name": "AI SEOUL 2026 Global Forum",
+            "dates": "2026-01-30 ~ 2026-01-30",
+            "start_date": "2026-01-30",
+            "end_date": "2026-01-30",
+            "location": "Seoul, South Korea (COEX Grand Ballroom)",
+            "tier": "B",
+            "topics": ["AI Policy", "Global Forum"],
+            "website": "https://aiseoul.kr/",
+        },
     }
 
     def __init__(self):
@@ -115,17 +180,15 @@ class ConferenceService:
             conf = {
                 "conference_name": name,
                 "conference_acronym": name.split(" ")[0],  # e.g., "AAAI" from "AAAI 2026"
-                "full_name": data["full_name"],
                 "website_url": data["website"],
-                "dates": data["dates"],
-                "start_date": data["start_date"],
-                "end_date": data["end_date"],
+                "start_date": datetime.strptime(data["start_date"], "%Y-%m-%d"),
+                "end_date": datetime.strptime(data["end_date"], "%Y-%m-%d"),
                 "location": data["location"],
                 "year": 2026,
                 "topics": data["topics"],
                 "tier": data["tier"],
+                "summary": f"{data['full_name']} ({data['dates']})",
                 "is_upcoming": self._is_upcoming_by_date_str(data["start_date"]),
-                "source": "gemini_research_confirmed",
             }
             conferences.append(conf)
         return conferences

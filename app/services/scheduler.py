@@ -1,8 +1,8 @@
 """스케줄러 서비스 - 정기적 데이터 수집"""
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
-from datetime import datetime
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+from datetime import datetime, timedelta
 import asyncio
 import logging
 
@@ -27,12 +27,134 @@ from app.models.conference import AIConference
 from app.models.ai_tool import AITool
 from app.models.job_trend import AIJobTrend
 from app.models.policy import AIPolicy
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, update
+from app.cache import cache_delete_pattern
+from app.services.notification_service import send_error_webhook
+from app.db_compat import has_columns
 
 settings = get_settings()
 
 # 스케줄러 인스턴스
 scheduler = AsyncIOScheduler()
+
+# 작업별 최근 실행 상태 (System API에서 사용)
+JOB_RUNTIME_STATUS = {}
+
+
+async def _invalidate_cache_after_collection(job_id: str):
+    """수집 완료 후 대시보드/검색 캐시 무효화."""
+    await cache_delete_pattern("dashboard:*")
+    await cache_delete_pattern("search:*")
+    await cache_delete_pattern("system:*")
+    await cache_delete_pattern("list:*")
+    print(f"🧹 캐시 무효화 완료 ({job_id})")
+
+
+def _scheduler_event_listener(event):
+    """APScheduler 이벤트 리스너: 마지막 실행/성공/실패 상태 기록."""
+    job_id = getattr(event, "job_id", "unknown")
+    now = datetime.utcnow().isoformat()
+    if getattr(event, "exception", None):
+        error_message = str(event.exception)
+        JOB_RUNTIME_STATUS[job_id] = {
+            "last_run": now,
+            "last_status": "error",
+            "last_error": error_message,
+        }
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(
+                send_error_webhook(
+                    title="Scheduler Job Failed",
+                    job_id=job_id,
+                    message=error_message,
+                )
+            )
+        except RuntimeError:
+            pass
+    else:
+        JOB_RUNTIME_STATUS[job_id] = {
+            "last_run": now,
+            "last_status": "success",
+            "last_error": None,
+        }
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_invalidate_cache_after_collection(job_id))
+        except RuntimeError:
+            pass
+
+
+def get_scheduler_runtime_status():
+    """작업별 런타임 상태 반환."""
+    return JOB_RUNTIME_STATUS
+
+
+async def archive_old_data(days: int = 30):
+    """30일 초과 데이터 soft archive."""
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    archived_at = datetime.utcnow()
+    print(
+        f"\n🗄️  아카이브 작업 시작 (cutoff={cutoff.strftime('%Y-%m-%d %H:%M:%S')} UTC)"
+    )
+
+    archived_summary = {}
+    model_specs = [
+        ("huggingface", "huggingface_models", HuggingFaceModel, HuggingFaceModel.collected_at),
+        ("youtube", "youtube_videos", YouTubeVideo, YouTubeVideo.published_at),
+        ("papers", "ai_papers", AIPaper, AIPaper.published_date),
+        ("news", "ai_news", AINews, AINews.published_date),
+        ("github", "github_projects", GitHubProject, GitHubProject.pushed_at),
+        ("conferences", "ai_conferences", AIConference, AIConference.end_date),
+        ("tools", "ai_tools", AITool, AITool.created_at),
+        ("jobs", "ai_job_trends", AIJobTrend, AIJobTrend.posted_date),
+        ("policies", "ai_policies", AIPolicy, AIPolicy.effective_date),
+    ]
+
+    async with AsyncSessionLocal() as db:
+        try:
+            for name, table_name, model, date_col in model_specs:
+                column_flags = await has_columns(
+                    db,
+                    table_name,
+                    ["is_archived", "archived_at"],
+                )
+                has_archive_columns = (
+                    column_flags["is_archived"] and column_flags["archived_at"]
+                )
+                if not has_archive_columns:
+                    archived_summary[name] = 0
+                    continue
+
+                value_payload = {
+                    "is_archived": True,
+                    "archived_at": archived_at,
+                }
+                if hasattr(model, "is_trending"):
+                    value_payload["is_trending"] = False
+
+                stmt = (
+                    update(model)
+                    .where(
+                        date_col.isnot(None),
+                        date_col < cutoff,
+                        model.is_archived.is_(False),
+                    )
+                    .values(**value_payload)
+                )
+                result = await db.execute(stmt)
+                archived_summary[name] = result.rowcount or 0
+
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            print(f"❌ 아카이브 작업 실패: {e}")
+            raise
+
+    total_archived = sum(archived_summary.values())
+    details = ", ".join(f"{k}={v}" for k, v in archived_summary.items())
+    print(f"✅ 아카이브 완료: total={total_archived} ({details})")
+    await _invalidate_cache_after_collection("archive_old_data")
 
 
 async def collect_huggingface_data():
@@ -97,6 +219,8 @@ async def collect_huggingface_data():
             print(f"❌ 수집 중 에러 발생: {e}")
         finally:
             await db.close()
+
+    await _invalidate_cache_after_collection("collect_huggingface")
 
     print(f"\n{'='*60}")
     print(f"✨ 자동 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -231,6 +355,8 @@ async def collect_youtube_data():
         finally:
             await db.close()
 
+    await _invalidate_cache_after_collection("collect_youtube")
+
     print(f"\n{'='*60}")
     print(f"✨ YouTube 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}\n")
@@ -304,6 +430,8 @@ async def collect_papers_data():
         finally:
             await db.close()
 
+    await _invalidate_cache_after_collection("collect_papers")
+
     print(f"\n{'='*60}")
     print(f"✨ Papers 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}\n")
@@ -372,6 +500,8 @@ async def collect_news_data():
             print(f"❌ News 수집 중 에러 발생: {e}")
         finally:
             await db.close()
+
+    await _invalidate_cache_after_collection("collect_news")
 
     print(f"\n{'='*60}")
     print(f"✨ News 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -445,6 +575,8 @@ async def collect_github_data():
         finally:
             await db.close()
 
+    await _invalidate_cache_after_collection("collect_github")
+
     print(f"\n{'='*60}")
     print(f"✨ GitHub 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}\n")
@@ -485,7 +617,7 @@ async def collect_conference_data():
                         try:
                             summary_data = await ai_service.summarize_conference(
                                 name=conference.conference_name,
-                                description=conference.description or "",
+                                description=conference.summary or "",
                                 topics=conference.topics or [],
                             )
 
@@ -512,6 +644,8 @@ async def collect_conference_data():
             print(f"❌ Conference 수집 중 에러 발생: {e}")
         finally:
             await db.close()
+
+    await _invalidate_cache_after_collection("collect_conferences")
 
     print(f"\n{'='*60}")
     print(f"✨ Conference 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -582,6 +716,8 @@ async def collect_tool_data():
         finally:
             await db.close()
 
+    await _invalidate_cache_after_collection("collect_tools")
+
     print(f"\n{'='*60}")
     print(f"✨ Tool 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}\n")
@@ -650,6 +786,8 @@ async def collect_job_data():
             print(f"❌ Job 수집 중 에러 발생: {e}")
         finally:
             await db.close()
+
+    await _invalidate_cache_after_collection("collect_jobs")
 
     print(f"\n{'='*60}")
     print(f"✨ Job 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -720,6 +858,8 @@ async def collect_policy_data():
         finally:
             await db.close()
 
+    await _invalidate_cache_after_collection("collect_policies")
+
     print(f"\n{'='*60}")
     print(f"✨ Policy 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}\n")
@@ -763,20 +903,110 @@ async def collect_all_data():
 
 
 def start_scheduler():
-    """스케줄러 시작"""
+    """스케줄러 시작 - 카테고리별 최적 주기 (ChatGPT deep research 2026-02)"""
     logger = logging.getLogger(__name__)
 
-    # 매일 자정(00:00)에 전체 데이터 수집
+    # ── 고빈도: 뉴스 (매 1시간) ──
     scheduler.add_job(
-        collect_all_data,
-        trigger=CronTrigger(hour=0, minute=0),  # 매일 00:00
-        id="collect_all_data",
-        name="전체 AI 트렌드 데이터 수집",
+        collect_news_data,
+        trigger=CronTrigger(minute=5),  # 매시 05분
+        id="collect_news",
+        name="AI 뉴스 수집 (매 1시간)",
         replace_existing=True,
     )
 
-    logger.info("⏰ 스케줄러 시작: 매일 00:00에 전체 데이터 수집 (HuggingFace + YouTube + Papers + News + GitHub + 6개 신규 카테고리)")
-    print("⏰ 스케줄러 시작: 매일 00:00에 전체 데이터 수집 (HuggingFace + YouTube + Papers + News + GitHub + Conference + Tool + Job + Policy)")
+    # ── 중빈도: YouTube (매 4시간) ──
+    scheduler.add_job(
+        collect_youtube_data,
+        trigger=CronTrigger(hour="0,4,8,12,16,20", minute=10),
+        id="collect_youtube",
+        name="YouTube 수집 (매 4시간)",
+        replace_existing=True,
+    )
+
+    # ── 중빈도: HuggingFace (매 6시간) ──
+    scheduler.add_job(
+        collect_huggingface_data,
+        trigger=CronTrigger(hour="0,6,12,18", minute=15),
+        id="collect_huggingface",
+        name="HuggingFace 수집 (매 6시간)",
+        replace_existing=True,
+    )
+
+    # ── 중빈도: GitHub (매 6시간) ──
+    scheduler.add_job(
+        collect_github_data,
+        trigger=CronTrigger(hour="1,7,13,19", minute=15),
+        id="collect_github",
+        name="GitHub 수집 (매 6시간)",
+        replace_existing=True,
+    )
+
+    # ── 중빈도: 채용 (매 6시간) ──
+    scheduler.add_job(
+        collect_job_data,
+        trigger=CronTrigger(hour="2,8,14,20", minute=15),
+        id="collect_jobs",
+        name="AI 채용 수집 (매 6시간)",
+        replace_existing=True,
+    )
+
+    # ── 저빈도: 논문 (매 12시간) ──
+    scheduler.add_job(
+        collect_papers_data,
+        trigger=CronTrigger(hour="3,15", minute=0),
+        id="collect_papers",
+        name="AI 논문 수집 (매 12시간)",
+        replace_existing=True,
+    )
+
+    # ── 일간: 컨퍼런스 (매일 06:00) ──
+    scheduler.add_job(
+        collect_conference_data,
+        trigger=CronTrigger(hour=6, minute=0),
+        id="collect_conferences",
+        name="AI 컨퍼런스 수집 (매일)",
+        replace_existing=True,
+    )
+
+    # ── 일간: 정책 (매일 07:00) ──
+    scheduler.add_job(
+        collect_policy_data,
+        trigger=CronTrigger(hour=7, minute=0),
+        id="collect_policies",
+        name="AI 정책 수집 (매일)",
+        replace_existing=True,
+    )
+
+    # ── 주간: 플랫폼/도구 (매주 월요일 04:00) ──
+    scheduler.add_job(
+        collect_tool_data,
+        trigger=CronTrigger(day_of_week="mon", hour=4, minute=0),
+        id="collect_tools",
+        name="AI 플랫폼 수집 (매주)",
+        replace_existing=True,
+    )
+
+    # ── 일간: 30일 초과 데이터 아카이브 (매일 03:30) ──
+    scheduler.add_job(
+        archive_old_data,
+        trigger=CronTrigger(hour=3, minute=30),
+        id="archive_old_data",
+        name="오래된 데이터 아카이브 (매일)",
+        replace_existing=True,
+    )
+
+    scheduler.add_listener(_scheduler_event_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+
+    schedule_info = (
+        "⏰ 스케줄러 시작 (카테고리별 최적 주기):\n"
+        "  - 뉴스: 매 1시간 | YouTube: 매 4시간\n"
+        "  - HuggingFace/GitHub/채용: 매 6시간\n"
+        "  - 논문: 매 12시간 | 컨퍼런스/정책: 매일\n"
+        "  - 플랫폼: 매주 월요일"
+    )
+    logger.info(schedule_info)
+    print(schedule_info)
     scheduler.start()
 
 

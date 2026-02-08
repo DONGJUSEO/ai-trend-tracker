@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.config import get_settings
+from app.db_compat import has_column, has_columns
 from app.models.huggingface import HuggingFaceModel
 
 settings = get_settings()
@@ -18,11 +19,35 @@ HF_MODELS_ENDPOINT = f"{HF_API_BASE}/models"
 class HuggingFaceService:
     """Hugging Face API 연동 서비스"""
 
+    # Pipeline tag Korean mapping from ChatGPT deep research (2026-02)
+    PIPELINE_TAG_KO = {
+        "text-generation": "텍스트 생성",
+        "text-to-image": "이미지 생성",
+        "text-classification": "텍스트 분류",
+        "fill-mask": "단어 채우기",
+        "translation": "번역",
+        "speech-to-text": "음성 텍스트 변환",
+        "text-to-speech": "텍스트 음성 변환",
+        "image-classification": "이미지 분류",
+        "object-detection": "객체 탐지",
+        "image-segmentation": "이미지 분할",
+        "question-answering": "질의 응답",
+        "summarization": "요약",
+        "audio-classification": "오디오 분류",
+        "text-to-video": "텍스트-투-비디오",
+        "feature-extraction": "특징 추출",
+    }
+
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or settings.huggingface_api_key
         self.headers = {}
         if self.api_key:
             self.headers["Authorization"] = f"Bearer {self.api_key}"
+
+    @staticmethod
+    async def _has_task_ko_column(db: AsyncSession) -> bool:
+        """런타임 DB에 task_ko 컬럼이 존재하는지 확인 (구버전 스키마 호환)."""
+        return await has_column(db, "huggingface_models", "task_ko")
 
     async def fetch_trending_models(
         self,
@@ -39,8 +64,10 @@ class HuggingFaceService:
         Returns:
             모델 정보 리스트
         """
+        # sort=likes better reflects trending interest than total downloads
         params = {
-            "sort": "downloads",
+            "sort": "likes",
+            "direction": "-1",
             "limit": limit,
         }
 
@@ -137,12 +164,16 @@ class HuggingFaceService:
         if isinstance(card_data, dict):
             description = card_data.get("description") or card_data.get("summary")
 
+        # Korean pipeline tag for frontend display
+        task_ko = self.PIPELINE_TAG_KO.get(pipeline_tag, pipeline_tag) if pipeline_tag else None
+
         return {
             "model_id": model_id,
             "model_name": model_name,
             "author": author,
             "description": description,
             "task": pipeline_tag,
+            "task_ko": task_ko,
             "tags": tags,
             "library_name": library_name,
             "downloads": downloads,
@@ -169,9 +200,20 @@ class HuggingFaceService:
             저장된 모델 개수
         """
         saved_count = 0
+        column_flags = await has_columns(
+            db,
+            "huggingface_models",
+            ["task_ko", "is_archived", "archived_at"],
+        )
+        has_task_ko_column = column_flags["task_ko"]
+        has_archive_columns = (
+            column_flags["is_archived"] and column_flags["archived_at"]
+        )
 
         for model_data in models_data:
             parsed_data = self.parse_model_data(model_data)
+            if not has_task_ko_column:
+                parsed_data.pop("task_ko", None)
 
             # 기존 모델 확인
             query = select(HuggingFaceModel).where(
@@ -183,8 +225,12 @@ class HuggingFaceService:
             if existing_model:
                 # 업데이트
                 for key, value in parsed_data.items():
-                    setattr(existing_model, key, value)
+                    if hasattr(existing_model, key):
+                        setattr(existing_model, key, value)
                 existing_model.is_trending = is_trending
+                if has_archive_columns:
+                    existing_model.is_archived = False
+                    existing_model.archived_at = None
                 existing_model.collected_at = datetime.utcnow()
             else:
                 # 새로 생성

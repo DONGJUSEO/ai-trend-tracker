@@ -2,11 +2,13 @@
 import httpx
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.models.youtube import YouTubeVideo
 from app.schemas.youtube import YouTubeVideoCreate
 from app.config import get_settings
+from app.db_compat import has_archive_column, has_columns
 
 settings = get_settings()
 
@@ -32,6 +34,8 @@ class YouTubeService:
             {"handle": "@deepdive_kr", "name": "딥다이브", "category": "산업분석"},
             {"handle": "@eo_studio", "name": "EO", "category": "스타트업"},
             {"handle": "@syukaworld", "name": "슈카월드", "category": "경제/사회"},
+            {"handle": "@codefactory", "name": "코드팩토리", "category": "백엔드/AI도구"},
+            {"handle": "@codinghaneungeoni", "name": "코딩하는거니", "category": "개발자커리어"},
         ],
         # International AI YouTubers
         "international": [
@@ -60,6 +64,26 @@ class YouTubeService:
 
         if not self.api_key:
             print("⚠️  YouTube API 키가 없습니다. YouTube 데이터 수집이 비활성화됩니다.")
+
+    @staticmethod
+    def _extract_video_id(video_ref: Optional[str]) -> Optional[str]:
+        """video_id/url 형태 입력에서 video_id를 정규화."""
+        if not video_ref:
+            return None
+        ref = video_ref.strip()
+        if re.fullmatch(r"[A-Za-z0-9_-]{11}", ref):
+            return ref
+        patterns = [
+            r"(?:v=)([A-Za-z0-9_-]{11})",
+            r"(?:youtu\.be/)([A-Za-z0-9_-]{11})",
+            r"(?:shorts/)([A-Za-z0-9_-]{11})",
+            r"(?:embed/)([A-Za-z0-9_-]{11})",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, ref)
+            if match:
+                return match.group(1)
+        return None
 
     async def search_ai_videos(
         self,
@@ -153,6 +177,8 @@ class YouTubeService:
                         "title": snippet.get("title", ""),
                         "channel_title": snippet.get("channelTitle", ""),
                         "channel_id": snippet.get("channelId", ""),
+                        "channel_language": snippet.get("defaultLanguage")
+                        or snippet.get("defaultAudioLanguage"),
                         "description": snippet.get("description", ""),
                         "published_at": snippet.get("publishedAt", ""),
                         "thumbnail_url": snippet.get("thumbnails", {})
@@ -193,13 +219,28 @@ class YouTubeService:
             저장된 비디오 수
         """
         saved_count = 0
+        column_flags = await has_columns(
+            db,
+            "youtube_videos",
+            ["is_archived", "archived_at", "channel_language"],
+        )
+        has_archive_columns = (
+            column_flags["is_archived"] and column_flags["archived_at"]
+        )
+        has_channel_language = column_flags["channel_language"]
 
         for video_data in videos:
             try:
+                normalized_video_id = self._extract_video_id(video_data.get("video_id"))
+                if not normalized_video_id:
+                    normalized_video_id = self._extract_video_id(video_data.get("url"))
+                if not normalized_video_id:
+                    continue
+
                 # 이미 존재하는지 확인
                 result = await db.execute(
                     select(YouTubeVideo).where(
-                        YouTubeVideo.video_id == video_data["video_id"]
+                        YouTubeVideo.video_id == normalized_video_id
                     )
                 )
                 existing_video = result.scalar_one_or_none()
@@ -219,11 +260,33 @@ class YouTubeService:
                     existing_video.view_count = video_data.get("view_count", 0)
                     existing_video.like_count = video_data.get("like_count", 0)
                     existing_video.comment_count = video_data.get("comment_count", 0)
+                    if has_channel_language:
+                        existing_video.channel_language = video_data.get(
+                            "channel_language"
+                        )
                     existing_video.is_trending = True
+                    if has_archive_columns:
+                        existing_video.is_archived = False
+                        existing_video.archived_at = None
                 else:
+                    # 동일 채널 + 동일 제목 + 동일 게시일 중복 방어
+                    duplicate_query = select(YouTubeVideo).where(
+                        YouTubeVideo.channel_id == video_data.get("channel_id"),
+                        YouTubeVideo.title == video_data.get("title", ""),
+                        YouTubeVideo.published_at == published_at,
+                    )
+                    duplicate_row = (await db.execute(duplicate_query)).scalar_one_or_none()
+                    if duplicate_row:
+                        duplicate_row.is_trending = True
+                        if has_archive_columns:
+                            duplicate_row.is_archived = False
+                            duplicate_row.archived_at = None
+                        await db.commit()
+                        continue
+
                     # 새로 추가
-                    new_video = YouTubeVideo(
-                        video_id=video_data["video_id"],
+                    payload = dict(
+                        video_id=normalized_video_id,
                         title=video_data.get("title", ""),
                         channel_title=video_data.get("channel_title"),
                         channel_id=video_data.get("channel_id"),
@@ -237,6 +300,9 @@ class YouTubeService:
                         tags=video_data.get("tags", []),
                         is_trending=True,
                     )
+                    if has_channel_language:
+                        payload["channel_language"] = video_data.get("channel_language")
+                    new_video = YouTubeVideo(**payload)
                     db.add(new_video)
                     saved_count += 1
 
@@ -254,6 +320,7 @@ class YouTubeService:
         skip: int = 0,
         limit: int = 20,
         trending_only: bool = False,
+        include_archived: bool = False,
     ) -> List[YouTubeVideo]:
         """
         데이터베이스에서 비디오 목록 가져오기
@@ -268,6 +335,10 @@ class YouTubeService:
             비디오 목록
         """
         query = select(YouTubeVideo)
+
+        supports_archive = await has_archive_column(db, "youtube_videos")
+        if not include_archived and supports_archive:
+            query = query.where(YouTubeVideo.is_archived == False)
 
         if trending_only:
             query = query.where(YouTubeVideo.is_trending == True)

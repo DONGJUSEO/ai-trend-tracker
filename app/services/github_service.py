@@ -1,13 +1,13 @@
 """GitHub API 서비스"""
 import httpx
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.models.github import GitHubProject
-from app.schemas.github import GitHubProjectCreate
 from app.config import get_settings
+from app.db_compat import has_archive_column, has_columns
 
 settings = get_settings()
 
@@ -23,9 +23,86 @@ class GitHubService:
             api_token: GitHub Personal Access Token (선택사항, rate limit 증가)
         """
         self.api_token = api_token or getattr(settings, "github_token", "")
-        self.headers = {}
+        self.headers = {"Accept": "application/vnd.github+json"}
         if self.api_token:
             self.headers["Authorization"] = f"token {self.api_token}"
+
+    @staticmethod
+    def _get_cutoff_by_since(since: str) -> str:
+        """기간 옵션에 맞는 pushed 필터 날짜 계산."""
+        now = datetime.utcnow()
+        since_map = {
+            "daily": now - timedelta(days=7),
+            "weekly": now - timedelta(days=30),
+            "monthly": now - relativedelta(months=3),
+        }
+        cutoff = since_map.get(since, now - relativedelta(months=3))
+        return cutoff.strftime("%Y-%m-%d")
+
+    def _build_search_queries(self, language: str, since: str) -> List[str]:
+        """422가 발생하지 않는 GitHub 검색 쿼리군 구성."""
+        cutoff = self._get_cutoff_by_since(since)
+        language_filter = f" language:{language}" if language else ""
+
+        # NOTE: `topic:a OR topic:b` 는 422가 발생할 수 있어 단일 topic + 다중 쿼리 fan-out 사용
+        topic_queries = [
+            f"topic:machine-learning stars:>50 pushed:>{cutoff}{language_filter}",
+            f"topic:artificial-intelligence stars:>50 pushed:>{cutoff}{language_filter}",
+            f"topic:deep-learning stars:>50 pushed:>{cutoff}{language_filter}",
+            f"topic:llm stars:>50 pushed:>{cutoff}{language_filter}",
+            f"topic:transformers stars:>50 pushed:>{cutoff}{language_filter}",
+            f"topic:rag stars:>30 pushed:>{cutoff}{language_filter}",
+            f"topic:agentic-workflow stars:>20 pushed:>{cutoff}{language_filter}",
+            f"topic:autonomous-agents stars:>20 pushed:>{cutoff}{language_filter}",
+            f"topic:multimodal stars:>30 pushed:>{cutoff}{language_filter}",
+        ]
+        keyword_queries = [
+            f"(llm OR transformers OR rag OR 'ai agent' OR multimodal) in:name,description,readme stars:>100 pushed:>{cutoff}{language_filter}",
+            f"('machine learning' OR 'deep learning' OR 'artificial intelligence') in:name,description stars:>200 pushed:>{cutoff}{language_filter}",
+        ]
+        return topic_queries + keyword_queries
+
+    @staticmethod
+    def _parse_github_datetime(value: Optional[str]) -> Optional[datetime]:
+        """GitHub ISO datetime -> naive UTC datetime (DB TIMESTAMP 호환)."""
+        if not value:
+            return None
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if dt.tzinfo is not None:
+                return dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt
+        except Exception:
+            return None
+
+    async def _search_repositories(
+        self,
+        client: httpx.AsyncClient,
+        query: str,
+        per_page: int,
+    ) -> List[Dict[str, Any]]:
+        """GitHub Search API 호출 헬퍼."""
+        response = await client.get(
+            f"{self.BASE_URL}/search/repositories",
+            params={
+                "q": query,
+                "sort": "stars",
+                "order": "desc",
+                "per_page": per_page,
+            },
+            headers=self.headers,
+        )
+        if response.status_code >= 400:
+            rate_remaining = response.headers.get("X-RateLimit-Remaining")
+            rate_reset = response.headers.get("X-RateLimit-Reset")
+            print(
+                "❌ GitHub API 오류 "
+                f"(status={response.status_code}, remaining={rate_remaining}, reset={rate_reset}) "
+                f"query={query}\n{response.text}"
+            )
+            return []
+        data = response.json()
+        return data.get("items", [])
 
     async def fetch_trending_repos(
         self,
@@ -49,57 +126,43 @@ class GitHubService:
         """
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # AI/ML 관련 키워드로 검색
-                # 최근 생성되고 별이 많은 순으로 정렬
-                topics = [
-                    "machine-learning",
-                    "artificial-intelligence",
-                    "deep-learning",
-                    "neural-network",
-                    "pytorch",
-                    "tensorflow",
-                    "llm",
-                    "transformers",
-                ]
+                queries = self._build_search_queries(language=language, since=since)
+                per_query = max(10, min(30, max_results))
 
-                # 기본 쿼리: AI/ML 키워드 검색 + 최소 별 개수
-                # Phase 2: 동적으로 3개월 전 날짜 계산
-                three_months_ago = (datetime.now() - relativedelta(months=3)).strftime("%Y-%m-%d")
-                query_parts = [f"topic:{topics[0]}"]  # 첫 번째 토픽 사용
-                query_parts.append("stars:>100")  # 최소 100개 이상의 별
-                query_parts.append(f"pushed:>{three_months_ago}")  # 최근 3개월 내 업데이트
+                dedup: Dict[str, Dict[str, Any]] = {}
+                for query in queries:
+                    items = await self._search_repositories(
+                        client=client,
+                        query=query,
+                        per_page=per_query,
+                    )
+                    for item in items:
+                        repo_name = item.get("full_name")
+                        if not repo_name:
+                            continue
+                        # 같은 repo가 여러 쿼리에서 잡히면 stars 높은 데이터를 유지
+                        prev = dedup.get(repo_name)
+                        if (not prev) or item.get("stargazers_count", 0) > prev.get(
+                            "stargazers_count", 0
+                        ):
+                            dedup[repo_name] = item
 
-                if language:
-                    query_parts.append(f"language:{language}")
-
-                query = " ".join(query_parts)
-
-                params = {
-                    "q": query,
-                    "sort": "stars",
-                    "order": "desc",
-                    "per_page": min(max_results, 100),
-                }
-
-                response = await client.get(
-                    f"{self.BASE_URL}/search/repositories",
-                    params=params,
-                    headers=self.headers,
-                )
-                response.raise_for_status()
-                data = response.json()
+                sorted_items = sorted(
+                    dedup.values(),
+                    key=lambda x: x.get("stargazers_count", 0),
+                    reverse=True,
+                )[: max_results]
 
                 repos = []
-                for item in data.get("items", []):
+                for item in sorted_items:
                     repo_info = await self._parse_repo_data(item)
                     repos.append(repo_info)
 
-                print(f"✅ GitHub: {len(repos)}개 트렌딩 프로젝트 수집")
+                print(
+                    f"✅ GitHub: {len(repos)}개 트렌딩 프로젝트 수집 "
+                    f"(queries={len(queries)}, dedup={len(dedup)})"
+                )
                 return repos
-
-        except httpx.HTTPStatusError as e:
-            print(f"❌ GitHub API 오류: {e.response.status_code} - {e.response.text}")
-            return []
         except Exception as e:
             print(f"❌ GitHub 데이터 수집 실패: {e}")
             return []
@@ -115,32 +178,9 @@ class GitHubService:
             파싱된 레포지토리 정보
         """
         # 날짜 파싱
-        created_at = None
-        if item.get("created_at"):
-            try:
-                created_at = datetime.fromisoformat(
-                    item["created_at"].replace("Z", "+00:00")
-                )
-            except Exception:
-                pass
-
-        updated_at = None
-        if item.get("updated_at"):
-            try:
-                updated_at = datetime.fromisoformat(
-                    item["updated_at"].replace("Z", "+00:00")
-                )
-            except Exception:
-                pass
-
-        pushed_at = None
-        if item.get("pushed_at"):
-            try:
-                pushed_at = datetime.fromisoformat(
-                    item["pushed_at"].replace("Z", "+00:00")
-                )
-            except Exception:
-                pass
+        created_at = self._parse_github_datetime(item.get("created_at"))
+        updated_at = self._parse_github_datetime(item.get("updated_at"))
+        pushed_at = self._parse_github_datetime(item.get("pushed_at"))
 
         # 라이센스 정보
         license_name = None
@@ -182,9 +222,18 @@ class GitHubService:
             저장된 프로젝트 수
         """
         saved_count = 0
+        column_flags = await has_columns(
+            db,
+            "github_projects",
+            ["is_archived", "archived_at"],
+        )
+        has_archive_columns = (
+            column_flags["is_archived"] and column_flags["archived_at"]
+        )
 
         for project_data in projects:
             try:
+                inserted_new = False
                 # 이미 존재하는지 확인
                 result = await db.execute(
                     select(GitHubProject).where(
@@ -207,6 +256,9 @@ class GitHubService:
                     existing_project.watchers = project_data.get("watchers", 0)
                     existing_project.open_issues = project_data.get("open_issues", 0)
                     existing_project.is_trending = True
+                    if has_archive_columns:
+                        existing_project.is_archived = False
+                        existing_project.archived_at = None
                 else:
                     # 새로 추가
                     new_project = GitHubProject(
@@ -229,9 +281,11 @@ class GitHubService:
                         is_trending=True,
                     )
                     db.add(new_project)
-                    saved_count += 1
+                    inserted_new = True
 
                 await db.commit()
+                if inserted_new:
+                    saved_count += 1
 
             except Exception as e:
                 await db.rollback()
@@ -246,6 +300,7 @@ class GitHubService:
         limit: int = 30,
         trending_only: bool = False,
         language: Optional[str] = None,
+        include_archived: bool = False,
     ) -> List[GitHubProject]:
         """
         데이터베이스에서 프로젝트 목록 가져오기
@@ -261,6 +316,10 @@ class GitHubService:
             프로젝트 목록
         """
         query = select(GitHubProject)
+
+        supports_archive = await has_archive_column(db, "github_projects")
+        if not include_archived and supports_archive:
+            query = query.where(GitHubProject.is_archived == False)
 
         if trending_only:
             query = query.where(GitHubProject.is_trending == True)

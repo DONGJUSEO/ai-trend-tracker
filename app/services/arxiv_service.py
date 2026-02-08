@@ -1,4 +1,5 @@
 """arXiv API 서비스"""
+import re
 import httpx
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, Optional
@@ -7,12 +8,113 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.models.paper import AIPaper
 from app.schemas.paper import AIPaperCreate
+from app.db_compat import has_archive_column, has_columns
 
 
 class ArxivService:
     """arXiv API 서비스 (API 키 불필요)"""
 
     BASE_URL = "https://export.arxiv.org/api/query"
+
+    # Conference detection regex from ChatGPT deep research (2026-02)
+    CONFERENCE_REGEX = re.compile(
+        r"(?:accepted|published|to appear)\s+(?:at|in)\s+"
+        r"(NeurIPS|ICML|ICLR|CVPR|ACL|EMNLP|AAAI|IJCAI|NAACL|ECCV|ICCV|KDD|SIGIR|WSDM|INTERSPEECH|COLING)"
+        r"\s*(\d{4})?",
+        flags=re.IGNORECASE,
+    )
+
+    # Topic classification rules from ChatGPT deep research (2026-02)
+    TOPIC_RULES = {
+        "NLP": {
+            "primary_categories": ["cs.CL"],
+            "title_keywords": ["language model", "translation", "NLP", "text generation", "sentiment",
+                             "named entity", "question answering", "summarization", "dialogue", "tokenization"],
+        },
+        "CV": {
+            "primary_categories": ["cs.CV"],
+            "title_keywords": ["image classification", "object detection", "segmentation", "computer vision",
+                             "CNN", "GAN", "video", "YOLO", "pose estimation"],
+        },
+        "ML": {
+            "primary_categories": ["cs.LG"],
+            "title_keywords": ["machine learning", "classification", "regression", "clustering",
+                             "supervised", "unsupervised", "optimization", "ensemble"],
+        },
+        "강화학습": {
+            "primary_categories": ["cs.RO"],
+            "title_keywords": ["reinforcement learning", "policy gradient", "Q-learning", "actor-critic",
+                             "deep RL", "DQN", "reward"],
+        },
+        "멀티모달": {
+            "primary_categories": ["cs.CV", "cs.CL"],
+            "title_keywords": ["multimodal", "vision-language", "image-text", "audio-visual", "CLIP",
+                             "cross-modal"],
+        },
+    }
+
+    # Pipeline tag Korean mapping from ChatGPT deep research (2026-02)
+    PIPELINE_TAG_KO = {
+        "text-generation": "텍스트 생성",
+        "text-to-image": "이미지 생성",
+        "text-classification": "텍스트 분류",
+        "fill-mask": "단어 채우기",
+        "translation": "번역",
+        "speech-to-text": "음성 텍스트 변환",
+        "text-to-speech": "텍스트 음성 변환",
+        "image-classification": "이미지 분류",
+        "object-detection": "객체 탐지",
+        "image-segmentation": "이미지 분할",
+        "question-answering": "질의 응답",
+        "summarization": "요약",
+        "audio-classification": "오디오 분류",
+        "text-to-video": "텍스트-투-비디오",
+    }
+
+    @staticmethod
+    async def _has_paper_extra_columns(db: AsyncSession) -> bool:
+        """구버전 DB 호환: ai_papers 확장 컬럼 존재 여부 확인."""
+        found = await has_columns(
+            db,
+            "ai_papers",
+            ["topic", "conference_name", "conference_year"],
+        )
+        found = {column for column, exists in found.items() if exists}
+        return {"topic", "conference_name", "conference_year"}.issubset(found)
+
+    @classmethod
+    def extract_conference(cls, comment: str) -> Optional[Dict[str, str]]:
+        """arXiv comment에서 학회 정보 추출"""
+        if not comment:
+            return None
+        match = cls.CONFERENCE_REGEX.search(comment)
+        if match:
+            return {"conference_name": match.group(1), "year": match.group(2) or None}
+        return None
+
+    @classmethod
+    def classify_topic(cls, title: str, categories: List[str]) -> str:
+        """논문 제목과 카테고리로 주제 분류"""
+        title_lower = title.lower()
+
+        # 1. 멀티모달 우선 체크 (다중 카테고리 조건)
+        if any(kw in title_lower for kw in cls.TOPIC_RULES["멀티모달"]["title_keywords"]):
+            return "멀티모달"
+
+        # 2. 카테고리 기반 분류
+        for topic, rules in cls.TOPIC_RULES.items():
+            if topic == "멀티모달":
+                continue
+            for cat in categories:
+                if cat in rules["primary_categories"]:
+                    return topic
+
+        # 3. 키워드 기반 분류 (카테고리 매칭 실패 시)
+        for topic, rules in cls.TOPIC_RULES.items():
+            if any(kw in title_lower for kw in rules["title_keywords"]):
+                return topic
+
+        return "ML"  # default
 
     async def search_ai_papers(
         self,
@@ -142,6 +244,17 @@ class ArxivService:
                 journal_elem = entry.find("arxiv:journal_ref", ns)
                 journal_ref = journal_elem.text if journal_elem is not None else None
 
+                # 주제 분류 + 학회 정보 추출
+                topic = self.classify_topic(title=title, categories=categories)
+                conf_info = self.extract_conference(comment=comment or "")
+                conference_name = conf_info["conference_name"] if conf_info else None
+                conference_year = None
+                if conf_info and conf_info.get("year"):
+                    try:
+                        conference_year = int(conf_info["year"])
+                    except ValueError:
+                        conference_year = None
+
                 paper_info = {
                     "arxiv_id": arxiv_id,
                     "title": title,
@@ -154,6 +267,9 @@ class ArxivService:
                     "arxiv_url": arxiv_url,
                     "comment": comment,
                     "journal_ref": journal_ref,
+                    "topic": topic,
+                    "conference_name": conference_name,
+                    "conference_year": conference_year,
                 }
 
                 papers.append(paper_info)
@@ -206,6 +322,25 @@ class ArxivService:
             저장된 논문 수
         """
         saved_count = 0
+        column_flags = await has_columns(
+            db,
+            "ai_papers",
+            [
+                "topic",
+                "conference_name",
+                "conference_year",
+                "is_archived",
+                "archived_at",
+            ],
+        )
+        has_extra_columns = (
+            column_flags["topic"]
+            and column_flags["conference_name"]
+            and column_flags["conference_year"]
+        )
+        has_archive_columns = (
+            column_flags["is_archived"] and column_flags["archived_at"]
+        )
 
         for paper_data in papers:
             try:
@@ -219,23 +354,49 @@ class ArxivService:
                     # 업데이트 (업데이트 날짜 등)
                     if paper_data.get("updated_date"):
                         existing_paper.updated_date = paper_data["updated_date"]
+                    if has_extra_columns:
+                        if hasattr(existing_paper, "topic"):
+                            existing_paper.topic = paper_data.get("topic")
+                        if hasattr(existing_paper, "conference_name"):
+                                existing_paper.conference_name = paper_data.get("conference_name")
+                        if hasattr(existing_paper, "conference_year"):
+                            existing_paper.conference_year = paper_data.get("conference_year")
                     existing_paper.is_trending = True
+                    if has_archive_columns:
+                        existing_paper.is_archived = False
+                        existing_paper.archived_at = None
                 else:
                     # 새로 추가
-                    new_paper = AIPaper(
-                        arxiv_id=paper_data["arxiv_id"],
-                        title=paper_data.get("title", ""),
-                        authors=paper_data.get("authors", []),
-                        abstract=paper_data.get("abstract"),
-                        categories=paper_data.get("categories", []),
-                        published_date=paper_data.get("published_date"),
-                        updated_date=paper_data.get("updated_date"),
-                        pdf_url=paper_data.get("pdf_url"),
-                        arxiv_url=paper_data.get("arxiv_url"),
-                        comment=paper_data.get("comment"),
-                        journal_ref=paper_data.get("journal_ref"),
-                        is_trending=True,
-                    )
+                    paper_payload = {
+                        "arxiv_id": paper_data["arxiv_id"],
+                        "title": paper_data.get("title", ""),
+                        "authors": paper_data.get("authors", []),
+                        "abstract": paper_data.get("abstract"),
+                        "categories": paper_data.get("categories", []),
+                        "published_date": paper_data.get("published_date"),
+                        "updated_date": paper_data.get("updated_date"),
+                        "pdf_url": paper_data.get("pdf_url"),
+                        "arxiv_url": paper_data.get("arxiv_url"),
+                        "comment": paper_data.get("comment"),
+                        "journal_ref": paper_data.get("journal_ref"),
+                        "is_trending": True,
+                    }
+                    if has_archive_columns:
+                        paper_payload.update(
+                            {
+                                "is_archived": False,
+                                "archived_at": None,
+                            }
+                        )
+                    if has_extra_columns:
+                        paper_payload.update(
+                            {
+                                "topic": paper_data.get("topic"),
+                                "conference_name": paper_data.get("conference_name"),
+                                "conference_year": paper_data.get("conference_year"),
+                            }
+                        )
+                    new_paper = AIPaper(**paper_payload)
                     db.add(new_paper)
                     saved_count += 1
 
@@ -254,6 +415,7 @@ class ArxivService:
         limit: int = 20,
         trending_only: bool = False,
         category: Optional[str] = None,
+        include_archived: bool = False,
     ) -> List[AIPaper]:
         """
         데이터베이스에서 논문 목록 가져오기
@@ -269,6 +431,10 @@ class ArxivService:
             논문 목록
         """
         query = select(AIPaper)
+
+        supports_archive = await has_archive_column(db, "ai_papers")
+        if not include_archived and supports_archive:
+            query = query.where(AIPaper.is_archived == False)
 
         if trending_only:
             query = query.where(AIPaper.is_trending == True)

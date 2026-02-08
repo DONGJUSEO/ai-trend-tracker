@@ -72,7 +72,7 @@ class AIToolService:
             {
                 "tool_name": "Claude",
                 "tagline": "Anthropic's thoughtful AI assistant",
-                "description": "Advanced AI assistant with strong reasoning, long context (200K tokens), and code analysis. Known for safety and helpfulness.",
+                "description": "Claude 4.5 Sonnet/Opus 기반. Artifacts(앱/UI 즉시 생성), 긴 문맥(200K+) 처리 우수, 코딩 능력 탁월. 한국어 완벽 지원.",
                 "category": "LLM/Chatbot",
                 "pricing_model": "Freemium",
                 "price_range": "$0-200/mo",
@@ -87,7 +87,7 @@ class AIToolService:
             {
                 "tool_name": "Gemini",
                 "tagline": "Google's multimodal AI model",
-                "description": "Google DeepMind's most capable AI model with native multimodal understanding, deep research, and Google ecosystem integration.",
+                "description": "Gemini 3.0 Pro/Ultra 기반. 네이티브 멀티모달, 딥 리서치, Google 생태계 통합. 한국어 완벽 지원.",
                 "category": "LLM/Chatbot",
                 "pricing_model": "Freemium",
                 "price_range": "$0-20/mo",
@@ -102,7 +102,7 @@ class AIToolService:
             {
                 "tool_name": "Perplexity",
                 "tagline": "AI-powered answer engine",
-                "description": "AI search engine that provides cited, real-time answers by combining LLM reasoning with web search.",
+                "description": "V3 기반. AI 검색 엔진으로 LLM 추론 + 웹 검색을 결합해 출처 포함 실시간 답변 제공. 한국어 완벽 지원.",
                 "category": "LLM/Chatbot",
                 "pricing_model": "Freemium",
                 "price_range": "$0-20/mo",
@@ -132,7 +132,7 @@ class AIToolService:
             {
                 "tool_name": "HyperCLOVA X",
                 "tagline": "NAVER's Korean-optimized AI",
-                "description": "NAVER's large language model optimized for Korean language understanding and generation with enterprise features.",
+                "description": "네이버의 한국어·한국 법률/문화 특화 LLM. 커머스/금융 연동, Enterprise/B2B 중심. 한국어 네이티브 지원.",
                 "category": "LLM/Chatbot",
                 "pricing_model": "Freemium",
                 "price_range": "$0-30/mo",
@@ -178,7 +178,7 @@ class AIToolService:
             {
                 "tool_name": "Midjourney",
                 "tagline": "AI art generation platform",
-                "description": "Leading AI image generator known for artistic quality and photorealism. Version 7 with advanced style controls.",
+                "description": "v7 기반. 사실적 이미지 생성, 웹사이트 생성 기능 강화, 캐릭터 일관성 유지. 프롬프트는 영어만 지원.",
                 "category": "Image/Video",
                 "pricing_model": "Paid",
                 "price_range": "$10-120/mo",
@@ -284,7 +284,7 @@ class AIToolService:
             {
                 "tool_name": "Suno",
                 "tagline": "AI music generation platform",
-                "description": "Create full songs with vocals, lyrics, and instruments from text prompts. Supports multiple genres and styles.",
+                "description": "v4 기반. 방송 품질 음악 생성, 가사/보컬 포함, 라디오 품질. 한국어 부분 지원.",
                 "category": "Audio/Music",
                 "pricing_model": "Freemium",
                 "price_range": "$0-30/mo",
@@ -393,6 +393,14 @@ class AIToolService:
         print(f"📦 Fetching trending AI platforms ({len(sample_tools)} platforms from research data)...")
         return sample_tools[:max_results]
 
+    @staticmethod
+    def _normalize_url(url: str) -> str:
+        """URL 정규화: 후행 슬래시 제거, https 통일"""
+        url = url.strip().rstrip("/")
+        if url.startswith("http://"):
+            url = "https://" + url[7:]
+        return url
+
     async def save_to_db(self, tools: List[Dict[str, Any]], db: AsyncSession) -> int:
         """
         AI 도구 정보를 데이터베이스에 저장
@@ -404,38 +412,45 @@ class AIToolService:
         Returns:
             저장된 항목 수
         """
+        from sqlalchemy import or_
+
         saved_count = 0
 
         for tool_data in tools:
             try:
-                # 중복 확인 (웹사이트 URL 기준)
                 website = tool_data.get("website")
-                if not website:
+                tool_name = tool_data.get("tool_name")
+                if not website or not tool_name:
                     continue
 
+                # URL 정규화
+                website = self._normalize_url(website)
+                tool_data["website"] = website
+
+                # 중복 확인: tool_name 또는 website로 검색
                 result = await db.execute(
-                    select(AITool).where(AITool.website == website)
+                    select(AITool).where(
+                        or_(AITool.website == website, AITool.tool_name == tool_name)
+                    )
                 )
                 existing = result.scalar_one_or_none()
 
                 if existing:
-                    # 기존 항목 업데이트
                     for key, value in tool_data.items():
                         if hasattr(existing, key) and value is not None:
                             setattr(existing, key, value)
-                    print(f"📝 Updated: {tool_data.get('tool_name', 'Unknown')}")
+                    print(f"📝 Updated: {tool_name}")
                 else:
-                    # 새 항목 생성
                     new_tool = AITool(**tool_data)
                     db.add(new_tool)
                     saved_count += 1
-                    print(f"✨ Created: {tool_data.get('tool_name', 'Unknown')}")
+                    print(f"✨ Created: {tool_name}")
 
                 await db.commit()
 
             except Exception as e:
                 await db.rollback()
-                print(f"❌ Error saving AI tool: {e}")
+                print(f"❌ Error saving AI tool '{tool_data.get('tool_name', '?')}': {e}")
                 continue
 
         return saved_count

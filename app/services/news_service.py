@@ -3,10 +3,13 @@ import httpx
 import feedparser
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
+import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.models.news import AINews
 from app.schemas.news import AINewsCreate
+from app.db_compat import has_archive_column, has_columns
 
 
 class NewsService:
@@ -15,24 +18,51 @@ class NewsService:
     # AI 관련 주요 RSS 피드 소스
     # Phase 2: 한국 뉴스 소스 우선 배치
     # Updated based on Gemini deep research (2026-02): ZDNet Korea RSS deprecated, added confirmed active feeds
+    # RSS feeds validated by ChatGPT deep research (2026-02)
     RSS_FEEDS = {
         # ── 한국 AI 뉴스 소스 (우선) ──────────────────────
         "전자신문": "https://rss.etnews.com/Section901.xml",
-        "전자신문 AI": "http://rss.etnews.com/04046.xml",  # AI-specific feed
+        "전자신문 AI": "http://rss.etnews.com/04046.xml",  # AI-specific (~80% AI)
         "AI타임스": "https://www.aitimes.com/rss/allArticle.xml",
-        "블로터": "https://www.bloter.net/feed",  # fallback attempt
+        "블로터": "https://www.bloter.net/feed",
         "데일리안": "https://www.dailian.co.kr/rss/all.xml",
         "한국경제 IT": "https://www.hankyung.com/feed/it",
         "매일경제 과학기술": "https://www.mk.co.kr/rss/30500001/",
         # ── 글로벌 AI 뉴스 소스 ────────────────────────────
-        "TechCrunch AI": "https://techcrunch.com/tag/artificial-intelligence/feed/",
+        "TechCrunch AI": "https://techcrunch.com/category/artificial-intelligence/feed/",  # Fixed: /category/ not /tag/
         "VentureBeat AI": "https://venturebeat.com/category/ai/feed/",
         "MIT Technology Review AI": "https://www.technologyreview.com/topic/artificial-intelligence/feed",
         "The Verge AI": "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml",
         "AI News": "https://www.artificialintelligence-news.com/feed/",
-        "OpenAI Blog": "https://openai.com/blog/rss/",
+        "OpenAI Blog": "https://openai.com/news/rss.xml",  # Fixed: moved from /blog/rss/ to /news/rss.xml
         "Google AI Blog": "https://blog.google/technology/ai/rss/",
+        # ── 신규 피드 (ChatGPT deep research 추천) ────────
+        "Hugging Face Blog": "https://huggingface.co/blog/feed.xml",
+        "NVIDIA Blog": "https://blogs.nvidia.com/feed/",
+        "Google DeepMind": "https://deepmind.google/blog/rss.xml",
+        "Microsoft Research": "https://www.microsoft.com/en-us/research/feed/",
+        "Allen AI (AI2)": "https://blog.allenai.org/feed",
     }
+
+    @staticmethod
+    def _normalize_title(title: str) -> str:
+        """중복 제거를 위한 제목 정규화."""
+        if not title:
+            return ""
+        normalized = title.lower().strip()
+        normalized = re.sub(r"\[[^\]]+\]|\([^)]+\)", " ", normalized)
+        normalized = re.sub(r"[^a-z0-9가-힣\s]", " ", normalized)
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        return normalized
+
+    @staticmethod
+    def _is_similar_title(a: str, b: str, threshold: float = 0.88) -> bool:
+        """정규화된 제목 유사도 비교."""
+        if not a or not b:
+            return False
+        if a == b:
+            return True
+        return SequenceMatcher(None, a, b).ratio() >= threshold
 
     async def fetch_rss_feed(self, feed_url: str, source_name: str) -> List[Dict[str, Any]]:
         """
@@ -141,6 +171,14 @@ class NewsService:
             저장된 뉴스 수
         """
         saved_count = 0
+        column_flags = await has_columns(
+            db,
+            "ai_news",
+            ["is_archived", "archived_at"],
+        )
+        has_archive_columns = (
+            column_flags["is_archived"] and column_flags["archived_at"]
+        )
 
         for article_data in articles:
             try:
@@ -153,7 +191,32 @@ class NewsService:
                 if existing_news:
                     # 업데이트 (트렌딩 플래그)
                     existing_news.is_trending = True
+                    if has_archive_columns:
+                        existing_news.is_archived = False
+                        existing_news.archived_at = None
                 else:
+                    # 제목 유사도 기반 중복 제거 (동일 소스 최근 데이터 기준)
+                    title = article_data.get("title", "")
+                    normalized_title = self._normalize_title(title)
+                    source = article_data.get("source")
+                    if normalized_title and source:
+                        recent = await db.execute(
+                            select(AINews.title)
+                            .where(AINews.source == source)
+                            .order_by(desc(AINews.published_date))
+                            .limit(80)
+                        )
+                        is_duplicate = False
+                        for recent_title in recent.scalars().all():
+                            if self._is_similar_title(
+                                normalized_title,
+                                self._normalize_title(recent_title or ""),
+                            ):
+                                is_duplicate = True
+                                break
+                        if is_duplicate:
+                            continue
+
                     # 새로 추가
                     new_news = AINews(
                         url=article_data["url"],
@@ -186,6 +249,7 @@ class NewsService:
         limit: int = 20,
         trending_only: bool = False,
         source: Optional[str] = None,
+        include_archived: bool = False,
     ) -> List[AINews]:
         """
         데이터베이스에서 뉴스 목록 가져오기
@@ -201,6 +265,10 @@ class NewsService:
             뉴스 목록
         """
         query = select(AINews)
+
+        supports_archive = await has_archive_column(db, "ai_news")
+        if not include_archived and supports_archive:
+            query = query.where(AINews.is_archived == False)
 
         if trending_only:
             query = query.where(AINews.is_trending == True)

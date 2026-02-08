@@ -11,6 +11,81 @@ from app.models.policy import AIPolicy
 class PolicyService:
     """AI 정책 서비스"""
 
+    # Curated AI policy data from Gemini deep research (2026-02)
+    CURATED_POLICIES = [
+        # ── 한국 ──
+        {
+            "title": "인공지능 발전과 신뢰 기반 조성 등에 관한 기본법 (AI 기본법)",
+            "policy_type": "Legislation",
+            "country": "South Korea",
+            "status": "Enacted",
+            "description": "2026년 1월 22일 시행. 고영향 AI(의료·채용·대출 등) 관리 의무화, 생성형 AI 워터마크 표시 의무(제31조), "
+                           "인공지능안전연구소 설립, AI 사업자의 이용자 고지 의무. EU AI Act와 유사한 위험 기반 접근이나 "
+                           "처벌 수위는 상대적으로 낮음(최대 3천만원 과태료). 법률 제20676호.",
+            "source_url": "https://www.law.go.kr/법령/인공지능발전과신뢰기반조성등에관한기본법",
+            "impact_areas": ["Healthcare", "Finance", "Hiring", "Public Services"],
+            "is_trending": True,
+        },
+        {
+            "title": "2025년 개인정보보호위원회 주요 정책 추진계획",
+            "policy_type": "Guideline",
+            "country": "South Korea",
+            "status": "Active",
+            "description": "AI 개발에 원본 데이터 활용을 허용하는 'AI 특례' 마련, 비정형 데이터(텍스트·이미지 등)의 "
+                           "가명처리 가이드라인 고도화, 마이데이터 전 분야 확산. 2025년 1월 13일 발표.",
+            "source_url": "https://www.pipc.go.kr/np/cop/bbs/selectBoardArticle.do",
+            "impact_areas": ["Privacy", "Data Protection", "AI Development"],
+            "is_trending": True,
+        },
+        {
+            "title": "인공지능 투명성 확보 안내 지침",
+            "policy_type": "Guideline",
+            "country": "South Korea",
+            "status": "Active",
+            "description": "AI 기본법 시행(2026-01-22)에 맞춘 사업자용 가이드. 워터마크 기술 표준 및 표시 방법 제시. "
+                           "과학기술정보통신부 발표.",
+            "source_url": "https://www.msit.go.kr",
+            "impact_areas": ["Transparency", "Watermarking", "Compliance"],
+            "is_trending": True,
+        },
+        # ── EU ──
+        {
+            "title": "EU AI Act",
+            "policy_type": "Regulation",
+            "country": "European Union",
+            "status": "Enacted",
+            "description": "세계 최초의 포괄적 AI 규제법. 2024년 8월 발효, 2026년 8월 고위험 AI 의무 전면 시행 예정. "
+                           "위험 수준별 4단계(금지·고위험·제한·최소) 분류. 위반 시 최대 3,500만 유로 또는 전 세계 매출 7% 과징금.",
+            "source_url": "https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai",
+            "impact_areas": ["Healthcare", "Finance", "Public Services", "Law Enforcement"],
+            "is_trending": True,
+        },
+        # ── 미국 ──
+        {
+            "title": "US Executive Order on Safe, Secure, and Trustworthy AI",
+            "policy_type": "Executive Order",
+            "country": "United States",
+            "status": "Active",
+            "description": "바이든 행정부의 AI 행정명령(2023-10). 이중 사용 AI 모델의 안전 테스트 보고 의무, "
+                           "AI 생성 콘텐츠 워터마크 표준 개발, 연방 정부 AI 사용 가이드라인 수립.",
+            "source_url": "https://www.whitehouse.gov/ai",
+            "impact_areas": ["Security", "Privacy", "Innovation", "National Security"],
+            "is_trending": True,
+        },
+        # ── 중국 ──
+        {
+            "title": "생성형 인공지능 서비스 관리 잠행 방법",
+            "policy_type": "Regulation",
+            "country": "China",
+            "status": "Active",
+            "description": "2023년 8월 시행. 생성형 AI 서비스 제공 시 사전 등록(알고리즘 비안) 의무, "
+                           "사회주의 핵심 가치 준수, 학습 데이터 적법성 보장 요구.",
+            "source_url": "http://www.cac.gov.cn",
+            "impact_areas": ["Content Moderation", "Data Governance", "Social Stability"],
+            "is_trending": True,
+        },
+    ]
+
     def __init__(self):
         self.rss_feeds = {
             "AI News": "https://www.artificialintelligence-news.com/feed/",
@@ -69,7 +144,9 @@ class PolicyService:
             print(f"  ❌ Policy RSS 에러: {e}")
             return await self.fetch_sample_policies()
 
-        return policies if policies else await self.fetch_sample_policies()
+        # Always include curated policies alongside RSS-fetched ones
+        curated = await self.fetch_sample_policies()
+        return curated + policies
 
     def _extract_impact_areas(self, text: str) -> List[str]:
         """텍스트에서 영향 영역 추출"""
@@ -92,26 +169,9 @@ class PolicyService:
         return found_areas[:5] if found_areas else ["General"]
 
     async def fetch_sample_policies(self) -> List[Dict]:
-        """샘플 데이터 (백업용)"""
-        return [{
-            "title": "EU AI Act",
-            "policy_type": "Regulation",
-            "country": "European Union",
-            "status": "Enacted",
-            "description": "Comprehensive AI regulation framework",
-            "source_url": "https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai",
-            "impact_areas": ["Healthcare", "Finance", "Public Services"],
-            "is_trending": True,
-        }, {
-            "title": "US Executive Order on AI",
-            "policy_type": "Executive Order",
-            "country": "United States",
-            "status": "Active",
-            "description": "Safe, Secure, and Trustworthy AI",
-            "source_url": "https://www.whitehouse.gov/ai",
-            "impact_areas": ["Security", "Privacy", "Innovation"],
-            "is_trending": True,
-        }]
+        """Gemini deep research 기반 큐레이션 정책 데이터 반환"""
+        print(f"📦 Loading {len(self.CURATED_POLICIES)} curated AI policies from research data")
+        return self.CURATED_POLICIES
 
     async def save_to_db(self, items: List[Dict], db: AsyncSession) -> int:
         """데이터베이스에 저장"""

@@ -1,7 +1,11 @@
 """AI 요약 서비스 (Gemini API 사용)"""
 import json
+import os
+import re
 from typing import Dict, Any, Optional
+
 import google.generativeai as genai
+
 from app.config import get_settings
 
 settings = get_settings()
@@ -16,13 +20,64 @@ class AISummaryService:
             api_key: Gemini API 키 (없으면 settings에서 가져옴)
         """
         self.api_key = api_key or getattr(settings, "gemini_api_key", "")
+        self.model_name = os.getenv(
+            "GEMINI_MODEL",
+            getattr(settings, "gemini_model", "gemini-2.0-flash"),
+        )
 
         if self.api_key:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-pro')
+            self.model = genai.GenerativeModel(self.model_name)
         else:
             print("⚠️  Gemini API 키가 없습니다. 요약 기능이 비활성화됩니다.")
             self.model = None
+
+    @staticmethod
+    def _clean_json_text(text: str) -> str:
+        """Gemini 응답에서 JSON 파싱 가능한 문자열만 추출."""
+        if not text:
+            return ""
+
+        stripped = text.strip()
+        if stripped.startswith("```json"):
+            stripped = stripped[7:]
+        elif stripped.startswith("```"):
+            stripped = stripped[3:]
+        if stripped.endswith("```"):
+            stripped = stripped[:-3]
+        stripped = stripped.strip()
+
+        # 코드블록 외 텍스트가 섞일 수 있어 JSON object 구간만 추출
+        match = re.search(r"\{.*\}", stripped, flags=re.DOTALL)
+        return match.group(0) if match else stripped
+
+    async def _generate_json_summary(
+        self,
+        prompt: str,
+        default: Dict[str, Any],
+        list_fields: Optional[list] = None,
+    ) -> Dict[str, Any]:
+        """프롬프트 기반 공통 요약 호출 + JSON 파싱."""
+        if not self.model:
+            return default
+
+        list_fields = list_fields or []
+        try:
+            response = self.model.generate_content(prompt)
+            result_text = self._clean_json_text(getattr(response, "text", "") or "")
+            parsed = json.loads(result_text)
+
+            normalized = {}
+            for key, value in default.items():
+                raw_value = parsed.get(key, value)
+                if key in list_fields:
+                    normalized[key] = raw_value if isinstance(raw_value, list) else value
+                else:
+                    normalized[key] = raw_value
+            return normalized
+        except Exception as e:
+            print(f"❌ AI 요약 생성 실패: {e}")
+            return default
 
     async def summarize_huggingface_model(
         self,
@@ -47,12 +102,9 @@ class AISummaryService:
                 "use_cases": "사용 사례"
             }
         """
+        default = {"summary": None, "key_features": [], "use_cases": None}
         if not self.model:
-            return {
-                "summary": None,
-                "key_features": [],
-                "use_cases": None,
-            }
+            return default
 
         # 프롬프트 구성
         prompt = f"""
@@ -79,35 +131,11 @@ class AISummaryService:
 - JSON 형식만 출력 (다른 텍스트 없이)
 """
 
-        try:
-            # Gemini API 호출
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
-
-            # JSON 파싱
-            # 마크다운 코드 블록 제거
-            if result_text.startswith("```json"):
-                result_text = result_text[7:]
-            if result_text.startswith("```"):
-                result_text = result_text[3:]
-            if result_text.endswith("```"):
-                result_text = result_text[:-3]
-
-            result = json.loads(result_text.strip())
-
-            return {
-                "summary": result.get("summary"),
-                "key_features": result.get("key_features", []),
-                "use_cases": result.get("use_cases"),
-            }
-
-        except Exception as e:
-            print(f"❌ AI 요약 생성 실패: {e}")
-            return {
-                "summary": None,
-                "key_features": [],
-                "use_cases": None,
-            }
+        return await self._generate_json_summary(
+            prompt=prompt,
+            default=default,
+            list_fields=["key_features"],
+        )
 
     async def summarize_youtube_video(
         self,
@@ -130,12 +158,9 @@ class AISummaryService:
                 "key_points": ["핵심 포인트1", "핵심 포인트2", ...]
             }
         """
+        default = {"summary": None, "keywords": [], "key_points": []}
         if not self.model:
-            return {
-                "summary": None,
-                "keywords": [],
-                "key_points": [],
-            }
+            return default
 
         prompt = f"""
 다음은 AI 관련 YouTube 영상 정보입니다.
@@ -160,33 +185,11 @@ class AISummaryService:
 - JSON 형식만 출력
 """
 
-        try:
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
-
-            # 마크다운 제거
-            if result_text.startswith("```json"):
-                result_text = result_text[7:]
-            if result_text.startswith("```"):
-                result_text = result_text[3:]
-            if result_text.endswith("```"):
-                result_text = result_text[:-3]
-
-            result = json.loads(result_text.strip())
-
-            return {
-                "summary": result.get("summary"),
-                "keywords": result.get("keywords", []),
-                "key_points": result.get("key_points", []),
-            }
-
-        except Exception as e:
-            print(f"❌ AI 요약 생성 실패: {e}")
-            return {
-                "summary": None,
-                "keywords": [],
-                "key_points": [],
-            }
+        return await self._generate_json_summary(
+            prompt=prompt,
+            default=default,
+            list_fields=["keywords", "key_points"],
+        )
 
     async def summarize_paper(
         self,
@@ -211,12 +214,9 @@ class AISummaryService:
                 "key_contributions": [\"주요 기여1\", \"주요 기여2\", ...]
             }
         """
+        default = {"summary": None, "keywords": [], "key_contributions": []}
         if not self.model:
-            return {
-                "summary": None,
-                "keywords": [],
-                "key_contributions": [],
-            }
+            return default
 
         prompt = f"""
 다음은 arXiv에 게시된 AI 관련 논문 정보입니다.
@@ -242,33 +242,11 @@ class AISummaryService:
 - JSON 형식만 출력
 """
 
-        try:
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
-
-            # 마크다운 제거
-            if result_text.startswith("```json"):
-                result_text = result_text[7:]
-            if result_text.startswith("```"):
-                result_text = result_text[3:]
-            if result_text.endswith("```"):
-                result_text = result_text[:-3]
-
-            result = json.loads(result_text.strip())
-
-            return {
-                "summary": result.get("summary"),
-                "keywords": result.get("keywords", []),
-                "key_contributions": result.get("key_contributions", []),
-            }
-
-        except Exception as e:
-            print(f"❌ AI 요약 생성 실패: {e}")
-            return {
-                "summary": None,
-                "keywords": [],
-                "key_contributions": [],
-            }
+        return await self._generate_json_summary(
+            prompt=prompt,
+            default=default,
+            list_fields=["keywords", "key_contributions"],
+        )
 
     async def summarize_news(
         self,
@@ -291,12 +269,9 @@ class AISummaryService:
                 "key_points": [\"핵심 내용1\", \"핵심 내용2\", ...]
             }
         """
+        default = {"summary": None, "keywords": [], "key_points": []}
         if not self.model:
-            return {
-                "summary": None,
-                "keywords": [],
-                "key_points": [],
-            }
+            return default
 
         prompt = f"""
 다음은 AI 관련 뉴스 또는 블로그 포스트입니다.
@@ -321,33 +296,11 @@ class AISummaryService:
 - JSON 형식만 출력
 """
 
-        try:
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
-
-            # 마크다운 제거
-            if result_text.startswith("```json"):
-                result_text = result_text[7:]
-            if result_text.startswith("```"):
-                result_text = result_text[3:]
-            if result_text.endswith("```"):
-                result_text = result_text[:-3]
-
-            result = json.loads(result_text.strip())
-
-            return {
-                "summary": result.get("summary"),
-                "keywords": result.get("keywords", []),
-                "key_points": result.get("key_points", []),
-            }
-
-        except Exception as e:
-            print(f"❌ AI 요약 생성 실패: {e}")
-            return {
-                "summary": None,
-                "keywords": [],
-                "key_points": [],
-            }
+        return await self._generate_json_summary(
+            prompt=prompt,
+            default=default,
+            list_fields=["keywords", "key_points"],
+        )
 
     async def summarize_github_project(
         self,
@@ -372,12 +325,9 @@ class AISummaryService:
                 "use_cases": ["사용 사례1", "사용 사례2", ...]
             }
         """
+        default = {"summary": None, "keywords": [], "use_cases": []}
         if not self.model:
-            return {
-                "summary": None,
-                "keywords": [],
-                "use_cases": [],
-            }
+            return default
 
         prompt = f"""
 다음은 GitHub의 AI/ML 관련 오픈소스 프로젝트입니다.
@@ -403,30 +353,142 @@ class AISummaryService:
 - JSON 형식만 출력
 """
 
-        try:
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
+        return await self._generate_json_summary(
+            prompt=prompt,
+            default=default,
+            list_fields=["keywords", "use_cases"],
+        )
 
-            # 마크다운 제거
-            if result_text.startswith("```json"):
-                result_text = result_text[7:]
-            if result_text.startswith("```"):
-                result_text = result_text[3:]
-            if result_text.endswith("```"):
-                result_text = result_text[:-3]
+    async def summarize_policy(
+        self,
+        title: str,
+        description: Optional[str],
+        policy_type: Optional[str],
+        impact_areas: list,
+    ) -> Dict[str, Any]:
+        """AI 정책 정보를 한글로 요약."""
+        default = {"summary": None, "keywords": [], "key_points": []}
+        if not self.model:
+            return default
 
-            result = json.loads(result_text.strip())
+        prompt = f"""
+다음은 AI 정책/규제 정보입니다.
+한국어 사용자에게 이해하기 쉽게 요약해주세요.
 
-            return {
-                "summary": result.get("summary"),
-                "keywords": result.get("keywords", []),
-                "use_cases": result.get("use_cases", []),
-            }
+**제목**: {title}
+**정책 유형**: {policy_type or "알 수 없음"}
+**영향 영역**: {", ".join(impact_areas) if impact_areas else "없음"}
+**설명**: {description or "설명 없음"}
 
-        except Exception as e:
-            print(f"❌ AI 요약 생성 실패: {e}")
-            return {
-                "summary": None,
-                "keywords": [],
-                "use_cases": [],
-            }
+아래 JSON 형식으로만 응답하세요:
+{{
+  "summary": "정책 핵심 요약 (2-3문장)",
+  "keywords": ["핵심 키워드1", "핵심 키워드2", "핵심 키워드3"],
+  "key_points": ["핵심 포인트1", "핵심 포인트2", "핵심 포인트3"]
+}}
+"""
+        return await self._generate_json_summary(
+            prompt=prompt,
+            default=default,
+            list_fields=["keywords", "key_points"],
+        )
+
+    async def summarize_conference(
+        self,
+        name: str,
+        description: Optional[str],
+        topics: list,
+    ) -> Dict[str, Any]:
+        """AI 컨퍼런스 정보를 한글로 요약."""
+        default = {"summary": None, "keywords": [], "highlights": []}
+        if not self.model:
+            return default
+
+        prompt = f"""
+다음은 AI 컨퍼런스 정보입니다.
+한국어 사용자용으로 핵심 내용을 요약해주세요.
+
+**행사명**: {name}
+**주요 주제**: {", ".join(topics) if topics else "없음"}
+**설명**: {description or "설명 없음"}
+
+아래 JSON 형식으로만 응답하세요:
+{{
+  "summary": "행사 핵심 요약 (2-3문장)",
+  "keywords": ["핵심 키워드1", "핵심 키워드2", "핵심 키워드3"],
+  "highlights": ["하이라이트1", "하이라이트2", "하이라이트3"]
+}}
+"""
+        return await self._generate_json_summary(
+            prompt=prompt,
+            default=default,
+            list_fields=["keywords", "highlights"],
+        )
+
+    async def summarize_ai_tool(
+        self,
+        name: str,
+        description: Optional[str],
+        category: Optional[str],
+        use_cases: list,
+    ) -> Dict[str, Any]:
+        """AI 도구/플랫폼 정보를 한글로 요약."""
+        default = {"summary": None, "keywords": [], "best_for": []}
+        if not self.model:
+            return default
+
+        prompt = f"""
+다음은 AI 도구/플랫폼 정보입니다.
+한국어 사용자에게 핵심만 명확히 전달되도록 요약해주세요.
+
+**도구명**: {name}
+**카테고리**: {category or "알 수 없음"}
+**주요 사용 사례**: {", ".join(use_cases) if use_cases else "없음"}
+**설명**: {description or "설명 없음"}
+
+아래 JSON 형식으로만 응답하세요:
+{{
+  "summary": "도구 핵심 요약 (2-3문장)",
+  "keywords": ["핵심 키워드1", "핵심 키워드2", "핵심 키워드3"],
+  "best_for": ["추천 사용처1", "추천 사용처2", "추천 사용처3"]
+}}
+"""
+        return await self._generate_json_summary(
+            prompt=prompt,
+            default=default,
+            list_fields=["keywords", "best_for"],
+        )
+
+    async def summarize_job(
+        self,
+        title: str,
+        company: Optional[str],
+        description: Optional[str],
+        skills: list,
+    ) -> Dict[str, Any]:
+        """AI 채용 공고를 한글로 요약."""
+        default = {"summary": None, "keywords": [], "key_points": []}
+        if not self.model:
+            return default
+
+        prompt = f"""
+다음은 AI 관련 채용 공고 정보입니다.
+지원자가 빠르게 이해할 수 있도록 한국어로 요약해주세요.
+
+**직무명**: {title}
+**회사명**: {company or "알 수 없음"}
+**요구 스킬**: {", ".join(skills) if skills else "없음"}
+**설명**: {description or "설명 없음"}
+
+아래 JSON 형식으로만 응답하세요:
+{{
+  "summary": "채용 공고 핵심 요약 (2-3문장)",
+  "keywords": ["핵심 키워드1", "핵심 키워드2", "핵심 키워드3"],
+  "key_points": ["핵심 요구사항1", "핵심 요구사항2", "핵심 요구사항3"]
+}}
+"""
+        return await self._generate_json_summary(
+            prompt=prompt,
+            default=default,
+            list_fields=["keywords", "key_points"],
+        )
