@@ -12,10 +12,18 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - APP_PASSWORD=${APP_PASSWORD:-test1234}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin1234}
+      - ERROR_WEBHOOK_SLACK=${ERROR_WEBHOOK_SLACK}
+      - ERROR_WEBHOOK_DISCORD=${ERROR_WEBHOOK_DISCORD}
     depends_on:
       - db
       - redis
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     networks:
       - ai-trend-network
 
