@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v3.0-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-v3.1-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js" alt="Next.js" />
   <img src="https://img.shields.io/badge/FastAPI-0.128-009688?style=flat-square&logo=fastapi" alt="FastAPI" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
@@ -32,7 +32,7 @@
 ## 목차
 
 - [프로젝트 소개](#프로젝트-소개)
-- [v3.0 주요 변경사항](#v30-주요-변경사항)
+- [v3.1 주요 변경사항](#v31-주요-변경사항)
 - [시스템 아키텍처](#시스템-아키텍처)
 - [9개 AI 트렌드 카테고리](#9개-ai-트렌드-카테고리)
 - [주요 기능](#주요-기능)
@@ -67,45 +67,51 @@
 
 ---
 
-## v3.0 주요 변경사항
+## v3.1 주요 변경사항
 
-> 2026-02-08 | v2.0 → v3.0 대규모 업데이트
+> 2026-02-08 | v3.0 → v3.1 대시보드/백엔드 대규모 강화
+
+### 대시보드
+
+| 변경 | 상세 |
+|------|------|
+| **LivePulse 실시간 위젯** | 핫 토픽 + 수집 수치 + 최근 업데이트 3열 실시간 대시보드 |
+| **워드 클라우드** | react-d3-cloud 기반 트렌딩 키워드 시각화 (외부 API 3종) |
+| **앱 가이드** | 접기/펼치기 가능한 온보딩 가이드 섹션 |
+| **Top 10 카드** | 카테고리별 스크롤 가능한 상위 10건 + 외부 링크 |
+| **로그인 리디자인** | 회색 배경 + 깔끔한 SaaS 스타일 |
 
 ### 백엔드
 
 | 변경 | 상세 |
 |------|------|
-| **AI 요약 서비스 확장** | 4종 누락 메서드 추가, Gemini 2.0 Flash 모델 통일 |
-| **전역 검색 API** | `/api/v1/search` — FTS + ILIKE fallback 카테고리 통합 검색 |
-| **페이지네이션 통일** | 전체 API에 `page/page_size` + `skip/limit` 동시 지원 |
-| **소프트 아카이브** | 9개 테이블에 `is_archived`, `archived_at` 필드 추가 |
-| **중복 제거 강화** | 뉴스 제목 유사도 검사 (SequenceMatcher), YouTube 중복 방어 |
-| **GitHub fan-out** | 다중 쿼리 수집 전략 + rate-limit 로그 |
-| **에러 알림** | Slack/Discord 웹훅 알림 서비스 |
-| **DB 호환 유틸** | `db_compat.py` — 컬럼 존재 여부 체크로 무중단 마이그레이션 |
-| **스케줄러 확장** | 런타임 상태 추적, 캐시 무효화, 아카이브 작업 (매일 03:30) |
+| **외부 트렌딩 키워드** | HuggingFace + Hacker News + PapersWithCode 3종 API 수집 |
+| **LivePulse API** | `/api/v1/dashboard/live-pulse` — 핫 아이템 + 통계 + 수집 로그 |
+| **GitHub 다중쿼리** | 10개 토픽 검색 + mega-repo 제외 (tensorflow 등) |
+| **YouTube 채널 교체** | 한국 14개 + 해외 15개 AI 전문 채널 (채널 ID 검증) |
+| **뉴스 AI 필터링** | AI 키워드 필터 강화, 해외 뉴스 한글 요약 자동 생성 |
+| **채용 직무 분류** | 10개 직무 카테고리 자동 분류 + 트렌딩 스킬 집계 |
+| **컨퍼런스 날짜 수정** | datetime 파싱 버그 수정, 2025 이전 연도 필터링 |
+| **수집량 증가** | HF 50개/회, Papers 100개/회, GitHub 50개/쿼리 등 |
+| **API 요청 카운트** | Redis 기반 일별 API 호출 수 집계 미들웨어 |
 
 ### 프론트엔드
 
 | 변경 | 상세 |
 |------|------|
-| **SVG 아이콘 시스템** | 11개 카테고리 전용 SVG 아이콘 (이모지 제거) |
-| **로그인 리디자인** | 프리미엄 SaaS 스타일 로그인 화면 |
-| **대시보드 실데이터** | 하드코딩 제거, 실시간 API 데이터 기반 |
-| **탭 필터** | 전 카테고리 topic/지역/직군별 필터 탭 |
-| **전역 검색** | TopBar에 통합 검색 UI |
-| **북마크/최근본** | localStorage 기반 사용자 선호 저장 |
-| **SWR 전역 적용** | 공통 fetcher + SWRConfig |
-| **이미지 최적화** | `<img>` → `next/image` 전환 |
+| **컨퍼런스 캘린더** | FullCalendar 월간 뷰 + 티어별 색상 + 이벤트 상세 모달 |
+| **채용 탭 강화** | 10개 직무 카테고리 가로 스크롤 탭 + 트렌딩 스킬 TOP 10 |
+| **검색 네비게이션** | 검색 결과 클릭 시 카테고리 페이지/외부 URL 이동 |
+| **Sidebar 시계** | 실시간 KST 시간 표시 (사이드바 하단) |
+| **불필요 UI 정리** | 북마크/알림 아이콘 제거, 카테고리 현황 → System 이동 |
 
-### DB 마이그레이션
+### 신규 파일
 
-| 테이블 | 새 컬럼 |
-|--------|---------|
-| `huggingface_models` | `task_ko` |
-| `ai_papers` | `topic`, `conference_name`, `conference_year` |
-| `youtube_videos` | `channel_language` |
-| 전체 9개 테이블 | `is_archived`, `archived_at` |
+| 파일 | 용도 |
+|------|------|
+| `app/services/trending_keyword_service.py` | 외부 3종 키워드 수집 서비스 |
+| `web-next/src/components/dashboard/LivePulse.tsx` | 실시간 대시보드 3열 위젯 |
+| `web-next/src/components/conferences/CalendarView.tsx` | FullCalendar 캘린더 뷰 |
 
 ---
 
@@ -157,7 +163,7 @@
 | 5 | **GitHub** | GitHub Search API (fan-out) | 매 6시간 | 카테고리별 |
 | 6 | **컨퍼런스** | WikiCFP, AI Deadlines | 매일 | 티어별 (A*/A/B) |
 | 7 | **AI 플랫폼** | 구조화 데이터 | 매주 월요일 | 전체 |
-| 8 | **AI 채용** | RemoteOK API, RSS | 매 6시간 | 직군별 |
+| 8 | **AI 채용** | RemoteOK API, RSS | 매 6시간 | 직무 10종 (백엔드/AI SW/LLM/비전...) |
 | 9 | **AI 정책** | 정부 RSS, AI News | 매일 | 국가별 (한국/미국/EU/중국) |
 
 ---
@@ -220,6 +226,8 @@
 | Framer Motion | 애니메이션 |
 | Lucide React | 아이콘 |
 | next/image | 이미지 최적화 |
+| react-d3-cloud | 워드 클라우드 시각화 |
+| FullCalendar | 컨퍼런스 캘린더 뷰 |
 
 ### 백엔드
 
@@ -295,8 +303,12 @@ fastapi-starter/
 │   │   │   │   ├── CategoryIcons.tsx # 11개 카테고리 SVG
 │   │   │   │   └── CategoryIcon.tsx  # iconKey 기반 렌더러
 │   │   │   ├── dashboard/            # 대시보드 위젯
+│   │   │   │   ├── LivePulse.tsx     # 실시간 3열 위젯 (v3.1)
+│   │   │   │   └── TrendingKeywords.tsx # 워드 클라우드 (v3.1)
+│   │   │   ├── conferences/          # 컨퍼런스 컴포넌트
+│   │   │   │   └── CalendarView.tsx  # FullCalendar 뷰 (v3.1)
 │   │   │   ├── layout/               # Sidebar, TopBar, MobileNav, LoginScreen
-│   │   │   └── shared/               # BookmarkButton 등 공통 컴포넌트
+│   │   │   └── shared/               # 공통 컴포넌트
 │   │   │
 │   │   └── lib/                      # 유틸리티
 │   │       ├── types.ts              # 타입 정의
@@ -399,12 +411,14 @@ NEXT_PUBLIC_API_KEY=test1234
 | `GET` | `/api/v1/jobs/` | `items` | `page`, `page_size` |
 | `GET` | `/api/v1/policies/` | `items` | `page`, `page_size` |
 
-### 신규 API (v3.0)
+### 신규 API (v3.0 ~ v3.1)
 
 | 메서드 | 엔드포인트 | 설명 |
 |--------|-----------|------|
 | `GET` | `/api/v1/search?q=AI&page_size=10` | 전역 검색 (카테고리 통합) |
-| `GET` | `/api/v1/system/collection-logs` | 스케줄러 수집 로그 |
+| `GET` | `/api/v1/dashboard/live-pulse` | 실시간 핫 토픽 + 수집 통계 + 수집 로그 |
+| `GET` | `/api/v1/dashboard/external-trending-keywords?limit=50` | 외부 3종 API 트렌딩 키워드 |
+| `GET` | `/api/v1/system/status` | 시스템 상태 + API 요청 카운트 + DB/Redis 정보 |
 
 ### 공통 쿼리 파라미터 (v3.0)
 
@@ -458,21 +472,27 @@ AI봄은 **ChatGPT 5.3 Codex + Claude Code Opus 4.6** 듀얼 AI 바이브 코딩
 
 ## 버전 히스토리
 
+### v3.1.0 (2026-02-08) — 대시보드/백엔드 강화
+
+- LivePulse 실시간 3열 대시보드 위젯 (핫 토픽 / 수집 통계 / 수집 로그)
+- react-d3-cloud 워드 클라우드 (HuggingFace + HN + PapersWithCode 3종 외부 API)
+- FullCalendar 컨퍼런스 캘린더 뷰 (티어별 색상, 이벤트 모달)
+- 채용 10개 직무 카테고리 분류 + 트렌딩 스킬 TOP 10
+- YouTube 채널 전면 교체 (한국 14 + 해외 15 AI 전문 채널)
+- GitHub 다중쿼리 + mega-repo 제외
+- 뉴스 AI 키워드 필터링 강화 + 수집량 증가
+- 로그인 페이지 회색 배경 깔끔한 SaaS 스타일 리디자인
+- 대시보드 앱 가이드 + Top 10 스크롤 카드 + 외부 링크
+
 ### v3.0.0 (2026-02-08) — Codex 통합 대규모 개선
 
 - AI 요약 서비스 4종 메서드 추가, Gemini 2.0 Flash 통일
 - 전역 검색 API (`/api/v1/search`) 신규
 - 페이지네이션 통일 (page/page_size + skip/limit)
 - 소프트 아카이브 (9개 테이블, 매일 자동)
-- 중복 제거 강화 (뉴스 제목 유사도, YouTube 중복 방어)
-- GitHub fan-out 수집 전략
-- Slack/Discord 에러 웹훅 알림
 - SVG 아이콘 시스템 (이모지 제거)
-- 대시보드 실데이터 전환
-- 전 카테고리 탭 필터
-- 북마크/최근본/전역 검색 UI
+- 대시보드 실데이터 전환, 전 카테고리 탭 필터
 - SWR 전역 적용, next/image 최적화
-- Alembic 마이그레이션 2건 (task_ko, topic, archive 등)
 
 ### v2.0.0 (2026-02-07) — Next.js 전면 재구축
 
@@ -529,7 +549,7 @@ Copyright (c) 2026 서동주 (DONGJUSEO)
 ---
 
 <p align="center">
-  <strong>AI봄 - AI Trend Tracker</strong> | v3.0 | 2026-02-08
+  <strong>AI봄 - AI Trend Tracker</strong> | v3.1 | 2026-02-08
 </p>
 
 <p align="center">
