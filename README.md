@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v3.1-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-v3.1.1-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js" alt="Next.js" />
   <img src="https://img.shields.io/badge/FastAPI-0.128-009688?style=flat-square&logo=fastapi" alt="FastAPI" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
@@ -21,10 +21,11 @@
 </p>
 
 <p align="center">
+  <a href="https://ai-trend-tracker-beta.vercel.app">🌐 Live Demo</a> &bull;
   <a href="#빠른-시작">빠른 시작</a> &bull;
   <a href="#기술-스택">기술 스택</a> &bull;
   <a href="#api-엔드포인트">API 문서</a> &bull;
-  <a href="#듀얼-ai-개발-전략">개발 전략</a>
+  <a href="#배포">배포</a>
 </p>
 
 ---
@@ -32,6 +33,7 @@
 ## 목차
 
 - [프로젝트 소개](#프로젝트-소개)
+- [라이브 데모](#라이브-데모)
 - [v3.1 주요 변경사항](#v31-주요-변경사항)
 - [시스템 아키텍처](#시스템-아키텍처)
 - [9개 AI 트렌드 카테고리](#9개-ai-트렌드-카테고리)
@@ -42,6 +44,7 @@
 - [환경 변수 설정](#환경-변수-설정)
 - [API 엔드포인트](#api-엔드포인트)
 - [데이터 수집 파이프라인](#데이터-수집-파이프라인)
+- [배포](#배포)
 - [듀얼 AI 개발 전략](#듀얼-ai-개발-전략)
 - [버전 히스토리](#버전-히스토리)
 - [개발자](#개발자)
@@ -64,6 +67,17 @@
 | **신뢰** | 실시간 데이터 + 출처 명시 + 소프트 아카이브 |
 | **상용화 품질** | 글래스모피즘 UI, SVG 아이콘, 다크/라이트 테마 |
 | **스마트 수집** | 카테고리별 최적 주기 (뉴스 1시간 ~ 플랫폼 매주) |
+
+---
+
+## 라이브 데모
+
+| 서비스 | URL | 상태 |
+|--------|-----|------|
+| **프론트엔드 (Vercel)** | [ai-trend-tracker-beta.vercel.app](https://ai-trend-tracker-beta.vercel.app) | ✅ Production |
+| **백엔드 API (Railway)** | [ai-trend-tracker-production.up.railway.app](https://ai-trend-tracker-production.up.railway.app/docs) | ✅ Production |
+
+> 비밀번호: `test1234` (데모용) / 관리자: `admin1234`
 
 ---
 
@@ -198,16 +212,12 @@
 - 스케줄러 작업 실패 시 Slack/Discord 웹훅 자동 알림
 - `ERROR_WEBHOOK_SLACK`, `ERROR_WEBHOOK_DISCORD` 환경변수로 설정
 
-### 6. 북마크 & 최근 본 항목
-- localStorage 기반 (`aibom-bookmarks`, `aibom-recent`)
-- TopBar에서 빠른 접근
-
-### 7. SVG 아이콘 시스템
+### 6. SVG 아이콘 시스템
 - 11개 카테고리 전용 SVG 아이콘 (`CategoryIcons.tsx`)
 - `iconKey` 기반 렌더링 (이모지 완전 제거)
 - 다크/라이트 테마 대응
 
-### 8. 다크/라이트 테마
+### 7. 다크/라이트 테마
 - `aibom-theme` localStorage 키로 저장
 - 글래스모피즘 디자인 (backdrop-blur + bg-white/5)
 
@@ -452,6 +462,56 @@ APScheduler (카테고리별 최적 주기)
 
 ---
 
+## 배포
+
+### 프론트엔드: Vercel
+
+```bash
+# Vercel에 연결 (GitHub 연동으로 main 브랜치 자동 배포)
+# vercel.json (루트):
+# { "version": 2, "rootDirectory": "web-next" }
+
+# 환경 변수 (Vercel Dashboard에서 설정):
+# NEXT_PUBLIC_API_URL = https://ai-trend-tracker-production.up.railway.app
+# NEXT_PUBLIC_API_KEY = <your-api-key>
+```
+
+### 백엔드: Railway
+
+```bash
+# Railway에 연결 (GitHub 연동으로 main 브랜치 자동 배포)
+# Dockerfile 기반 빌드 (Python 3.9-slim)
+# start.sh: Alembic 마이그레이션 + Uvicorn 서버
+
+# 필수 환경 변수 (Railway Dashboard에서 설정):
+# DATABASE_URL = postgresql+asyncpg://<user>:<pass>@<host>:5432/ai_trends
+# REDIS_URL = redis://<host>:6379
+# GEMINI_API_KEY = <gemini-key>
+# YOUTUBE_API_KEY = <youtube-key>
+# GITHUB_TOKEN = <github-pat>
+```
+
+### 배포 URL
+
+| 서비스 | URL |
+|--------|-----|
+| 프론트엔드 | https://ai-trend-tracker-beta.vercel.app |
+| 백엔드 API | https://ai-trend-tracker-production.up.railway.app |
+| Swagger 문서 | https://ai-trend-tracker-production.up.railway.app/docs |
+| Health Check | https://ai-trend-tracker-production.up.railway.app/health |
+
+### 배포 프로세스
+
+```
+git push origin main
+    │
+    ├──→ Vercel: 자동 빌드 (Next.js) → CDN 배포 (~1분)
+    │
+    └──→ Railway: 자동 빌드 (Dockerfile) → Alembic 마이그레이션 → 서버 시작 (~3분)
+```
+
+---
+
 ## 듀얼 AI 개발 전략
 
 AI봄은 **ChatGPT 5.3 Codex + Claude Code Opus 4.6** 듀얼 AI 바이브 코딩으로 개발됩니다.
@@ -471,6 +531,18 @@ AI봄은 **ChatGPT 5.3 Codex + Claude Code Opus 4.6** 듀얼 AI 바이브 코딩
 ---
 
 ## 버전 히스토리
+
+### v3.1.1 (2026-02-08) — 데이터 품질 P0/P1 수정
+
+- **컨퍼런스 날짜 버그**: 1970년 epoch 날짜 → force-delete 후 2026 날짜 재삽입
+- **AI 논문 한글 요약**: Gemini `summarize_paper()` 자동 호출 (신규/기존 모두)
+- **HuggingFace 한글 설명**: Gemini `summarize_huggingface_model()` 자동 호출
+- **뉴스 AI 필터링 강화**: 광범위 키워드 제거 (네이버/삼성 → 네이버 ai/삼성 ai), 짧은 키워드 regex word boundary 매칭
+- **정책 HTML 태그 제거**: RSS 설명/제목에서 `<p>`, `<a>` 등 HTML 엔티티 자동 클리닝
+- **채용 직무 오분류 해결**: 2글자 키워드(ai, ml) 제거, 다중 단어 키워드 기반 정밀 분류
+- **GitHub 비AI 레포 제외**: EXCLUDE_REPOS 8개 → 28개 확장 (developer-roadmap, yt-dlp 등)
+- **YouTube 국내 탭 수정**: 프론트엔드 채널명 불일치 해결 (노마드코더 등)
+- **라이트 모드 CSS 보완**: Codex 생성 5개 컴포넌트 라이트 모드 + FullCalendar CSS 오버라이드
 
 ### v3.1.0 (2026-02-08) — 대시보드/백엔드 강화
 
@@ -549,7 +621,7 @@ Copyright (c) 2026 서동주 (DONGJUSEO)
 ---
 
 <p align="center">
-  <strong>AI봄 - AI Trend Tracker</strong> | v3.1 | 2026-02-08
+  <strong>AI봄 - AI Trend Tracker</strong> | v3.1.1 | 2026-02-08
 </p>
 
 <p align="center">
