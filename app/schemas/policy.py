@@ -10,8 +10,11 @@ class AIPolicyBase(BaseModel):
 class AIPolicyResponse(AIPolicyBase):
     id: int
     status: Optional[str] = None
+    effective_date: Optional[datetime] = None
     description: Optional[str] = None
+    source_url: Optional[str] = None
     impact_areas: List[str] = Field(default_factory=list)
+    summary: Optional[str] = None
     keywords: List[str] = Field(default_factory=list)
     created_at: datetime
     class Config:

@@ -10,6 +10,7 @@ from sqlalchemy import select, desc
 from app.models.news import AINews
 from app.schemas.news import AINewsCreate
 from app.db_compat import has_archive_column, has_columns
+from app.services.ai_summary_service import AISummaryService
 
 
 class NewsService:
@@ -44,6 +45,56 @@ class NewsService:
         "Allen AI (AI2)": "https://blog.allenai.org/feed",
     }
 
+    AI_KEYWORDS_FILTER = [
+        "인공지능",
+        "ai",
+        "machine learning",
+        "머신러닝",
+        "딥러닝",
+        "deep learning",
+        "llm",
+        "gpt",
+        "챗봇",
+        "생성형",
+        "generative",
+        "자연어처리",
+        "nlp",
+        "컴퓨터비전",
+        "computer vision",
+        "로봇",
+        "autonomous",
+        "클로드",
+        "제미나이",
+        "openai",
+        "anthropic",
+        "구글ai",
+        "meta ai",
+        "파인튜닝",
+        "트랜스포머",
+        "거대언어모델",
+        "초거대ai",
+        "mlops",
+        "ai반도체",
+        "npu",
+        "gpu",
+        "네이버",
+        "카카오",
+        "삼성",
+        "skt",
+        "kt",
+        "lg",
+    ]
+
+    KOREAN_SOURCES = {
+        "전자신문",
+        "전자신문 AI",
+        "AI타임스",
+        "블로터",
+        "데일리안",
+        "한국경제 IT",
+        "매일경제 과학기술",
+    }
+
     @staticmethod
     def _normalize_title(title: str) -> str:
         """중복 제거를 위한 제목 정규화."""
@@ -63,6 +114,25 @@ class NewsService:
         if a == b:
             return True
         return SequenceMatcher(None, a, b).ratio() >= threshold
+
+    @classmethod
+    def _contains_ai_keywords(cls, text: str) -> bool:
+        normalized = (text or "").lower()
+        if not normalized:
+            return False
+        return any(keyword in normalized for keyword in cls.AI_KEYWORDS_FILTER)
+
+    @classmethod
+    def _is_korean_source(cls, source: Optional[str]) -> bool:
+        if not source:
+            return False
+        if source in cls.KOREAN_SOURCES:
+            return True
+        normalized = source.lower()
+        return any(
+            token in normalized
+            for token in ["전자신문", "블로터", "한국경제", "매일경제", "데일리안", "aitimes"]
+        )
 
     async def fetch_rss_feed(self, feed_url: str, source_name: str) -> List[Dict[str, Any]]:
         """
@@ -84,7 +154,7 @@ class NewsService:
                 feed = feedparser.parse(response.text)
 
                 articles = []
-                for entry in feed.entries[:10]:  # 최대 10개씩
+                for entry in feed.entries[:15]:  # 최대 15개씩
                     # 발행일 파싱
                     published_date = None
                     if hasattr(entry, "published_parsed") and entry.published_parsed:
@@ -171,6 +241,7 @@ class NewsService:
             저장된 뉴스 수
         """
         saved_count = 0
+        ai_service = AISummaryService()
         column_flags = await has_columns(
             db,
             "ai_news",
@@ -182,6 +253,19 @@ class NewsService:
 
         for article_data in articles:
             try:
+                filter_text = " ".join(
+                    [
+                        article_data.get("title") or "",
+                        article_data.get("content") or "",
+                        article_data.get("excerpt") or "",
+                        " ".join(article_data.get("tags") or []),
+                    ]
+                )
+                if not self._contains_ai_keywords(filter_text):
+                    continue
+
+                is_korean_news = self._is_korean_source(article_data.get("source"))
+
                 # 이미 존재하는지 확인
                 result = await db.execute(
                     select(AINews).where(AINews.url == article_data["url"])
@@ -191,6 +275,22 @@ class NewsService:
                 if existing_news:
                     # 업데이트 (트렌딩 플래그)
                     existing_news.is_trending = True
+                    if (
+                        ai_service.model
+                        and (not is_korean_news)
+                        and not existing_news.summary
+                    ):
+                        summary_payload = await ai_service.summarize_news(
+                            title=existing_news.title,
+                            content=existing_news.content or existing_news.excerpt,
+                            source=existing_news.source,
+                        )
+                        if summary_payload.get("summary"):
+                            existing_news.summary = summary_payload["summary"]
+                        if summary_payload.get("keywords"):
+                            existing_news.keywords = summary_payload["keywords"]
+                        if summary_payload.get("key_points"):
+                            existing_news.key_points = summary_payload["key_points"]
                     if has_archive_columns:
                         existing_news.is_archived = False
                         existing_news.archived_at = None
@@ -217,6 +317,14 @@ class NewsService:
                         if is_duplicate:
                             continue
 
+                    summary_payload = None
+                    if ai_service.model and not is_korean_news:
+                        summary_payload = await ai_service.summarize_news(
+                            title=article_data.get("title", ""),
+                            content=article_data.get("content") or article_data.get("excerpt"),
+                            source=article_data.get("source"),
+                        )
+
                     # 새로 추가
                     new_news = AINews(
                         url=article_data["url"],
@@ -229,6 +337,10 @@ class NewsService:
                         excerpt=article_data.get("excerpt"),
                         image_url=article_data.get("image_url"),
                         tags=article_data.get("tags", []),
+                        summary=(summary_payload or {}).get("summary"),
+                        keywords=(summary_payload or {}).get("keywords", []),
+                        key_points=(summary_payload or {}).get("key_points", []),
+                        category="korean" if is_korean_news else "international",
                         is_trending=True,
                     )
                     db.add(new_news)

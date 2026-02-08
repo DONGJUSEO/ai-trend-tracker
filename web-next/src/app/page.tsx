@@ -6,6 +6,8 @@ import Link from "next/link";
 import { CATEGORIES, APP_NAME } from "@/lib/constants";
 import { CATEGORY_ICONS } from "@/components/icons/CategoryIcons";
 import { useTheme } from "@/lib/theme-context";
+import LivePulse from "@/components/dashboard/LivePulse";
+import TrendingKeywords from "@/components/dashboard/TrendingKeywords";
 
 // ─── API Config ─────────────────────────────────────────────
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
@@ -415,63 +417,15 @@ export default function DashboardPage() {
       </motion.section>
 
       {/* ═══════════════════════════════════════════════════════
-          SECTION 2: BREAKING NEWS TICKER
+          SECTION 2: AI 실시간 펄스 (LivePulse)
           ═══════════════════════════════════════════════════════ */}
-      {news.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.5 }}
-          className={`${
-            isLight
-              ? "bg-white/60 border-black/5"
-              : "bg-white/5 border-white/10"
-          } backdrop-blur-xl border rounded-2xl overflow-hidden`}
-        >
-          <div className="relative flex items-center h-12">
-            {/* Label */}
-            <div className="flex-shrink-0 px-4 h-full flex items-center bg-red-500/20 border-r border-red-500/30 z-10">
-              <span className="text-red-400 font-bold text-xs uppercase tracking-wider">LIVE</span>
-            </div>
-
-            {/* Scrolling container */}
-            <div className="overflow-hidden flex-1 relative">
-              <div
-                className="flex items-center gap-8 whitespace-nowrap"
-                style={{
-                  animation: `marquee ${Math.max(news.length * 8, 30)}s linear infinite`,
-                }}
-              >
-                {/* Duplicate items for seamless loop */}
-                {[...news, ...news].map((item, idx) => (
-                  <a
-                    key={`${item.id}-${idx}`}
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 flex-shrink-0 hover:text-red-400 transition-colors"
-                  >
-                    <span
-                      className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 uppercase"
-                    >
-                      {item.source}
-                    </span>
-                    <span className="text-sm text-white/70">{item.title}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Inline marquee keyframes */}
-          <style>{`
-            @keyframes marquee {
-              0% { transform: translateX(0); }
-              100% { transform: translateX(-50%); }
-            }
-          `}</style>
-        </motion.section>
-      )}
+      <motion.section
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6, duration: 0.5 }}
+      >
+        <LivePulse />
+      </motion.section>
 
       {/* ═══════════════════════════════════════════════════════
           SECTION 3: "지금 뜨는 것들" - 2x2 Grid (Top 10, scrollable)
@@ -677,50 +631,20 @@ export default function DashboardPage() {
       </motion.section>
 
       {/* ═══════════════════════════════════════════════════════
-          SECTION 5: TRENDING KEYWORDS (Tag Cloud)
+          SECTION 5: TRENDING KEYWORDS (Word Cloud)
           ═══════════════════════════════════════════════════════ */}
-      {keywords.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.4, duration: 0.6 }}
-          className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6"
-        >
-          <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
-            <span className="text-2xl">🏷️</span> 트렌딩 키워드
-          </h2>
-
-          <div className="flex flex-wrap gap-2">
-            {keywords.map((kw, i) => {
-              // Scale font size based on count relative to max
-              const maxCount = Math.max(...keywords.map((k) => k.count), 1);
-              const ratio = kw.count / maxCount;
-              const fontSize = 12 + ratio * 12; // 12px to 24px
-              const opacity = 0.5 + ratio * 0.5; // 0.5 to 1.0
-
-              return (
-                <motion.span
-                  key={kw.keyword}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1.5 + i * 0.03, duration: 0.3 }}
-                  className={`inline-flex items-center px-3 py-1.5 rounded-full border transition-all duration-200 cursor-default ${
-                    isLight
-                      ? "bg-white/60 border-black/10 hover:bg-white/80 text-gray-800"
-                      : "bg-white/[0.06] border-white/10 hover:bg-white/[0.12] text-white"
-                  }`}
-                  style={{ fontSize: `${fontSize}px`, opacity }}
-                >
-                  {kw.keyword}
-                  <span className="ml-1.5 text-[10px] text-white/30 font-mono">
-                    {kw.count}
-                  </span>
-                </motion.span>
-              );
-            })}
-          </div>
-        </motion.section>
-      )}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.4, duration: 0.6 }}
+      >
+        <TrendingKeywords keywords={keywords.map((kw) => ({
+          keyword: kw.keyword,
+          count: kw.count,
+          category: undefined,
+          trend: undefined,
+        }))} />
+      </motion.section>
 
       {/* ═══════════════════════════════════════════════════════
           SECTION 6: UPCOMING CONFERENCES

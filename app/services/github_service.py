@@ -16,6 +16,16 @@ class GitHubService:
     """GitHub API 서비스 (API 키 선택사항)"""
 
     BASE_URL = "https://api.github.com"
+    EXCLUDE_REPOS = {
+        "tensorflow/tensorflow",
+        "pytorch/pytorch",
+        "huggingface/transformers",
+        "keras-team/keras",
+        "scikit-learn/scikit-learn",
+        "apache/spark",
+        "microsoft/CNTK",
+        "caffe2/caffe2",
+    }
 
     def __init__(self, api_token: Optional[str] = None):
         """
@@ -40,27 +50,22 @@ class GitHubService:
         return cutoff.strftime("%Y-%m-%d")
 
     def _build_search_queries(self, language: str, since: str) -> List[str]:
-        """422가 발생하지 않는 GitHub 검색 쿼리군 구성."""
-        cutoff = self._get_cutoff_by_since(since)
+        """422를 피하는 다중 fan-out 검색 쿼리군 구성."""
+        _ = self._get_cutoff_by_since(since)
         language_filter = f" language:{language}" if language else ""
 
-        # NOTE: `topic:a OR topic:b` 는 422가 발생할 수 있어 단일 topic + 다중 쿼리 fan-out 사용
-        topic_queries = [
-            f"topic:machine-learning stars:>50 pushed:>{cutoff}{language_filter}",
-            f"topic:artificial-intelligence stars:>50 pushed:>{cutoff}{language_filter}",
-            f"topic:deep-learning stars:>50 pushed:>{cutoff}{language_filter}",
-            f"topic:llm stars:>50 pushed:>{cutoff}{language_filter}",
-            f"topic:transformers stars:>50 pushed:>{cutoff}{language_filter}",
-            f"topic:rag stars:>30 pushed:>{cutoff}{language_filter}",
-            f"topic:agentic-workflow stars:>20 pushed:>{cutoff}{language_filter}",
-            f"topic:autonomous-agents stars:>20 pushed:>{cutoff}{language_filter}",
-            f"topic:multimodal stars:>30 pushed:>{cutoff}{language_filter}",
+        return [
+            f"topic:llm created:>2025-11-01 stars:>50{language_filter}",
+            f"topic:ai-agent created:>2025-11-01 stars:>30{language_filter}",
+            f"topic:rag created:>2025-11-01 stars:>30{language_filter}",
+            f"topic:multimodal created:>2025-11-01 stars:>20{language_filter}",
+            f"topic:machine-learning pushed:>2026-01-25 stars:>100{language_filter}",
+            f"topic:deep-learning pushed:>2026-01-25 stars:>100{language_filter}",
+            f"topic:mcp-server stars:>10{language_filter}",
+            f"topic:ai-coding stars:>50 pushed:>2026-01-01{language_filter}",
+            f"topic:text-to-speech stars:>30 created:>2025-09-01{language_filter}",
+            f"topic:vision-language-model stars:>20 created:>2025-09-01{language_filter}",
         ]
-        keyword_queries = [
-            f"(llm OR transformers OR rag OR 'ai agent' OR multimodal) in:name,description,readme stars:>100 pushed:>{cutoff}{language_filter}",
-            f"('machine learning' OR 'deep learning' OR 'artificial intelligence') in:name,description stars:>200 pushed:>{cutoff}{language_filter}",
-        ]
-        return topic_queries + keyword_queries
 
     @staticmethod
     def _parse_github_datetime(value: Optional[str]) -> Optional[datetime]:
@@ -80,14 +85,16 @@ class GitHubService:
         client: httpx.AsyncClient,
         query: str,
         per_page: int,
+        sort: str = "updated",
+        order: str = "desc",
     ) -> List[Dict[str, Any]]:
         """GitHub Search API 호출 헬퍼."""
         response = await client.get(
             f"{self.BASE_URL}/search/repositories",
             params={
                 "q": query,
-                "sort": "stars",
-                "order": "desc",
+                "sort": sort,
+                "order": order,
                 "per_page": per_page,
             },
             headers=self.headers,
@@ -127,29 +134,38 @@ class GitHubService:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 queries = self._build_search_queries(language=language, since=since)
-                per_query = max(10, min(30, max_results))
+                per_query = max(10, min(50, max_results))
 
                 dedup: Dict[str, Dict[str, Any]] = {}
                 for query in queries:
+                    sort = "stars" if "created:>" in query else "updated"
                     items = await self._search_repositories(
                         client=client,
                         query=query,
                         per_page=per_query,
+                        sort=sort,
+                        order="desc",
                     )
                     for item in items:
                         repo_name = item.get("full_name")
                         if not repo_name:
                             continue
+                        if repo_name in self.EXCLUDE_REPOS:
+                            continue
                         # 같은 repo가 여러 쿼리에서 잡히면 stars 높은 데이터를 유지
                         prev = dedup.get(repo_name)
-                        if (not prev) or item.get("stargazers_count", 0) > prev.get(
-                            "stargazers_count", 0
+                        if (not prev) or (
+                            item.get("stargazers_count", 0)
+                            > prev.get("stargazers_count", 0)
                         ):
                             dedup[repo_name] = item
 
                 sorted_items = sorted(
                     dedup.values(),
-                    key=lambda x: x.get("stargazers_count", 0),
+                    key=lambda x: (
+                        x.get("updated_at", ""),
+                        x.get("stargazers_count", 0),
+                    ),
                     reverse=True,
                 )[: max_results]
 
@@ -327,7 +343,14 @@ class GitHubService:
         if language:
             query = query.where(GitHubProject.language == language)
 
-        query = query.order_by(desc(GitHubProject.stars)).offset(skip).limit(limit)
+        query = (
+            query.order_by(
+                desc(GitHubProject.updated_at_github),
+                desc(GitHubProject.stars),
+            )
+            .offset(skip)
+            .limit(limit)
+        )
 
         result = await db.execute(query)
         return result.scalars().all()

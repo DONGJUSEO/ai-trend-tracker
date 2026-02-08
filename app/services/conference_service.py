@@ -270,6 +270,7 @@ class ConferenceService:
             # 날짜 정보 추출 (WikiCFP 형식 파싱 필요)
             # 예: "Submission Deadline: Jan 15, 2026"
             submission_deadline = self._extract_date_from_text(description, "submission")
+            start_date = self._extract_date_from_text(description, "start")
 
             # Phase 2: 연도 필터 - 제목 또는 마감일 기준으로 대상 연도만 수집
             title_has_year = str(year_filter) in title
@@ -277,7 +278,8 @@ class ConferenceService:
                 submission_deadline is not None
                 and submission_deadline.year == year_filter
             )
-            if not title_has_year and not deadline_matches:
+            start_matches = start_date is not None and start_date.year == year_filter
+            if not title_has_year and not deadline_matches and not start_matches:
                 # 연도 정보가 없는 경우에도 통과 (데이터 손실 방지)
                 if submission_deadline is not None:
                     return None
@@ -287,6 +289,7 @@ class ConferenceService:
                 "conference_name": title,
                 "conference_acronym": acronym,
                 "website_url": link,
+                "start_date": start_date,
                 "submission_deadline": submission_deadline,
                 "year": year_filter,
                 "topics": [category.upper()],
@@ -350,6 +353,28 @@ class ConferenceService:
 
         return None
 
+    @staticmethod
+    def _coerce_datetime(value: Any) -> Optional[datetime]:
+        """문자열/날짜 값을 datetime으로 정규화."""
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return None
+            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"):
+                try:
+                    return datetime.strptime(raw, fmt)
+                except Exception:
+                    continue
+            try:
+                return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            except Exception:
+                return None
+        return None
+
     def _is_upcoming(self, deadline: Optional[datetime]) -> bool:
         """마감일이 다가오는 컨퍼런스인지 확인"""
         if not deadline:
@@ -376,6 +401,36 @@ class ConferenceService:
 
         for conf_data in conferences:
             try:
+                # 날짜 필드 파싱 보정
+                for field in ("start_date", "end_date", "submission_deadline"):
+                    parsed = self._coerce_datetime(conf_data.get(field))
+                    if parsed is not None:
+                        conf_data[field] = parsed
+
+                # 1970/1979 등 비정상 과거 데이터 제외
+                year_candidates = [
+                    conf_data.get("year"),
+                    conf_data.get("start_date").year
+                    if isinstance(conf_data.get("start_date"), datetime)
+                    else None,
+                    conf_data.get("end_date").year
+                    if isinstance(conf_data.get("end_date"), datetime)
+                    else None,
+                    conf_data.get("submission_deadline").year
+                    if isinstance(conf_data.get("submission_deadline"), datetime)
+                    else None,
+                ]
+                normalized_year = next(
+                    (year for year in year_candidates if isinstance(year, int)),
+                    None,
+                )
+                if normalized_year is not None and normalized_year < 2025:
+                    print(
+                        f"⚠️ Skip invalid conference year ({normalized_year}): "
+                        f"{conf_data.get('conference_name', 'Unknown')}"
+                    )
+                    continue
+
                 # 중복 확인 (URL 기준)
                 website_url = conf_data.get("website_url")
                 if not website_url:

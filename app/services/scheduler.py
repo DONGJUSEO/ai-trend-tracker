@@ -18,6 +18,7 @@ from app.services.ai_tool_service import AIToolService
 from app.services.job_trend_service import JobTrendService
 from app.services.policy_service import PolicyService
 from app.services.ai_summary_service import AISummaryService
+from app.services.trending_keyword_service import ExternalTrendingKeywordService
 from app.models.huggingface import HuggingFaceModel
 from app.models.youtube import YouTubeVideo
 from app.models.paper import AIPaper
@@ -167,7 +168,7 @@ async def collect_huggingface_data():
         try:
             # 1. 트렌딩 모델 수집
             hf_service = HuggingFaceService()
-            result = await hf_service.collect_trending_models(db, limit=20)
+            result = await hf_service.collect_trending_models(db, limit=50)
 
             if result["success"]:
                 print(f"✅ Hugging Face: {result['count']}개 신규 모델 저장")
@@ -253,10 +254,18 @@ async def collect_youtube_data():
             channel_videos_count = 0
             for channel in channels:
                 try:
+                    category_text = (channel.category or "").lower()
+                    is_korean_channel = any(
+                        token in category_text
+                        for token in ["국내", "korean", "ko"]
+                    )
+                    channel_lang = "ko" if is_korean_channel else "en"
                     videos = await yt_service.get_channel_videos(
                         channel_id=channel.channel_id,
-                        max_results=3,  # 채널당 최신 3개
+                        max_results=15,  # 채널당 최신 15개
                         order="date",
+                        relevance_language=channel_lang,
+                        default_language=channel_lang,
                     )
 
                     if videos:
@@ -284,17 +293,22 @@ async def collect_youtube_data():
             # 2. 키워드 검색으로 추가 AI 트렌드 영상 수집
             print("📌 키워드 검색으로 추가 AI 트렌드 영상 수집 중...")
             queries = [
-                "AI artificial intelligence tutorial 2026",
-                "machine learning explained",
-                "deep learning tutorial",
-                "ChatGPT GPT-4",
-                "stable diffusion AI art",
+                ("AI artificial intelligence tutorial 2026", "en"),
+                ("machine learning explained", "en"),
+                ("deep learning tutorial", "en"),
+                ("ChatGPT GPT-4", "en"),
+                ("stable diffusion AI art", "en"),
+                ("인공지능 개발 튜토리얼", "ko"),
+                ("LLM 실무 활용", "ko"),
             ]
 
             keyword_videos_count = 0
-            for query in queries:
+            for query, lang in queries:
                 videos = await yt_service.search_ai_videos(
-                    query=query, max_results=5, order="viewCount"
+                    query=query,
+                    max_results=15,
+                    order="viewCount",
+                    relevance_language=lang,
                 )
 
                 if videos:
@@ -375,7 +389,7 @@ async def collect_papers_data():
 
             # 최근 7일간의 AI 논문 수집
             papers = await arxiv_service.search_recent_papers(
-                days=7, max_results=20
+                days=7, max_results=100
             )
 
             if papers:
@@ -520,7 +534,7 @@ async def collect_github_data():
             github_service = GitHubService()
 
             projects = await github_service.fetch_trending_repos(
-                language="", max_results=30
+                language="", max_results=50
             )
 
             if projects:
@@ -734,7 +748,11 @@ async def collect_job_data():
             # 1. RemoteOK에서 AI/ML 채용 공고 수집
             job_service = JobTrendService()
 
-            jobs = await job_service.fetch_remoteok_jobs(max_results=30)
+            jobs = await job_service.fetch_remoteok_jobs(max_results=100)
+            if len(jobs) < 100:
+                fallback_jobs = await job_service.fetch_sample_jobs()
+                jobs.extend(fallback_jobs)
+                jobs = jobs[:100]
 
             if jobs:
                 saved = await job_service.save_to_db(jobs, db)
@@ -865,6 +883,25 @@ async def collect_policy_data():
     print(f"{'='*60}\n")
 
 
+async def collect_external_trending_keywords():
+    """외부 트렌딩 키워드 캐시 갱신."""
+    print(f"\n{'='*60}")
+    print(f"📈 외부 키워드 수집 시작: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"{'='*60}\n")
+
+    try:
+        service = ExternalTrendingKeywordService()
+        payload = await service.get_keywords(limit=50, force_refresh=True)
+        print(
+            "✅ 외부 트렌딩 키워드 갱신 완료 "
+            f"(count={len(payload.get('keywords', []))})"
+        )
+    except Exception as e:
+        print(f"❌ 외부 트렌딩 키워드 수집 실패: {e}")
+
+    await _invalidate_cache_after_collection("collect_external_trending_keywords")
+
+
 async def collect_all_data():
     """모든 데이터 수집 작업"""
     print(f"\n{'='*80}")
@@ -896,6 +933,9 @@ async def collect_all_data():
     await asyncio.sleep(3)  # 잠깐 대기
 
     await collect_policy_data()
+
+    # 외부 트렌딩 키워드 캐시 갱신
+    await collect_external_trending_keywords()
 
     print(f"\n{'='*80}")
     print(f"🎉 전체 수집 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -939,6 +979,15 @@ def start_scheduler():
         trigger=CronTrigger(hour="1,7,13,19", minute=15),
         id="collect_github",
         name="GitHub 수집 (매 6시간)",
+        replace_existing=True,
+    )
+
+    # ── 중빈도: 외부 트렌딩 키워드 (매 6시간) ──
+    scheduler.add_job(
+        collect_external_trending_keywords,
+        trigger=CronTrigger(hour="0,6,12,18", minute=25),
+        id="collect_external_trending_keywords",
+        name="외부 트렌딩 키워드 수집 (매 6시간)",
         replace_existing=True,
     )
 
@@ -1001,7 +1050,7 @@ def start_scheduler():
     schedule_info = (
         "⏰ 스케줄러 시작 (카테고리별 최적 주기):\n"
         "  - 뉴스: 매 1시간 | YouTube: 매 4시간\n"
-        "  - HuggingFace/GitHub/채용: 매 6시간\n"
+        "  - HuggingFace/GitHub/채용/외부키워드: 매 6시간\n"
         "  - 논문: 매 12시간 | 컨퍼런스/정책: 매일\n"
         "  - 플랫폼: 매주 월요일"
     )

@@ -79,6 +79,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.middleware("http")
+async def count_api_requests(request: Request, call_next):
+    """API 요청 횟수를 일자별로 Redis에 기록."""
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        try:
+            today = datetime.utcnow().strftime("%Y-%m-%d")
+            key = f"api_requests:{today}"
+            redis = await get_redis()
+            await redis.incr(key)
+            ttl = await redis.ttl(key)
+            if ttl is None or ttl < 0:
+                await redis.expire(key, 60 * 60 * 24 * 8)  # 8일 보관
+        except Exception:
+            pass
+    return response
+
+
 # 보안 미들웨어 추가
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1000)  # 압축

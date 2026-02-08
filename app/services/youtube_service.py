@@ -18,40 +18,42 @@ class YouTubeService:
 
     BASE_URL = "https://www.googleapis.com/youtube/v3"
 
-    # Curated AI YouTube channels from Gemini deep research (2026-02)
+    # Curated AI YouTube channels (verified list, 2026-02)
     CURATED_CHANNELS = {
-        # Korean AI YouTubers
+        # Korean AI YouTubers (14)
         "korean": [
-            {"handle": "@jocoding", "name": "조코딩 JoCoding", "category": "앱개발/수익화"},
-            {"handle": "@teddynote", "name": "테디노트 Teddy Note", "category": "RAG/실무"},
-            {"handle": "@bbanghyong", "name": "빵형의 개발도상국", "category": "토이프로젝트"},
-            {"handle": "@nadocoding", "name": "나도코딩", "category": "기초교육"},
-            {"handle": "@nomadcoders", "name": "노마드 코더", "category": "글로벌트렌드"},
-            {"handle": "@undeal", "name": "안될공학", "category": "테크리뷰"},
-            {"handle": "@ITSub", "name": "ITSub잇섭", "category": "디바이스"},
-            {"handle": "@visionbear", "name": "비전곰", "category": "CV연구"},
-            {"handle": "@aitalktalk", "name": "AI톡톡", "category": "툴소개"},
-            {"handle": "@deepdive_kr", "name": "딥다이브", "category": "산업분석"},
-            {"handle": "@eo_studio", "name": "EO", "category": "스타트업"},
-            {"handle": "@syukaworld", "name": "슈카월드", "category": "경제/사회"},
-            {"handle": "@codefactory", "name": "코드팩토리", "category": "백엔드/AI도구"},
-            {"handle": "@codinghaneungeoni", "name": "코딩하는거니", "category": "개발자커리어"},
+            {"handle": "@jocoding", "channel_id": "UCQNE2JmbasNYbjGAcuBiRRg", "name": "조코딩", "category": "AI코딩교육", "language": "ko"},
+            {"handle": "@teddynote", "channel_id": "UCt2wAAXgm87ACiqqnDIjOjg", "name": "테디노트", "category": "AI실습", "language": "ko"},
+            {"handle": "@bbanghyong", "channel_id": "UC9PB9nKYVIvRzn9M9KDftbg", "name": "빵형의 개발도상국", "category": "AI개발", "language": "ko"},
+            {"handle": "@codefactory", "channel_id": "UCdfcSGOM6-U6jP2fj8sL4yA", "name": "코드팩토리", "category": "개발교육", "language": "ko"},
+            {"handle": "@nomadcoders", "channel_id": "UCUpJs89fSBXNolQGOYKn0YQ", "name": "노마드코더", "category": "개발교육", "language": "ko"},
+            {"handle": "@aitalktalk", "channel_id": "UCxkickmF3xdJv7sU0hBERDQ", "name": "AI톡톡", "category": "AI뉴스", "language": "ko"},
+            {"handle": "@undeal", "channel_id": "UCGx4_xr7cMATgEsOR-GwKJg", "name": "안될공학", "category": "과학기술", "language": "ko"},
+            {"handle": "@deepdive_kr", "channel_id": "UC1JmT0jMpGOyGgW6_X23wew", "name": "딥다이브", "category": "AI심층분석", "language": "ko"},
+            {"handle": "@eo_studio", "channel_id": "UCQ2DWm5Md16Dc3xRwwhVE7Q", "name": "EO", "category": "스타트업", "language": "ko"},
+            {"handle": "@syukaworld", "channel_id": "UCsJ6RuBiTVWRX156FVbeaGg", "name": "슈카월드", "category": "경제IT", "language": "ko"},
+            {"handle": "@nadocoding", "channel_id": "UC7iAOLiALt2rtMVAWWF4ZXg", "name": "나도코딩", "category": "코딩교육", "language": "ko"},
+            {"handle": "@생활코딩", "channel_id": "UCvc8kv-i5fvFTJBFAk6n1SA", "name": "생활코딩", "category": "코딩교육", "language": "ko"},
+            {"handle": "@ITSub", "channel_id": "UCF4Wxdo3inmxP-Y59wXDsFw", "name": "잇섭", "category": "IT리뷰", "language": "ko"},
+            {"handle": "@codinghaneungeoni", "channel_id": "UCKY6lyoOHnP8Bnrs5dJoVHA", "name": "코딩하는거니", "category": "AI코딩", "language": "ko"},
         ],
-        # International AI YouTubers
+        # International AI YouTubers (15)
         "international": [
-            {"handle": "@3blue1brown", "name": "3Blue1Brown", "category": "Math/Theory"},
-            {"handle": "@TwoMinutePapers", "name": "Two Minute Papers", "category": "Paper Review"},
-            {"handle": "@sentdex", "name": "Sentdex", "category": "Dev/Coding"},
-            {"handle": "@WesRoth", "name": "Wes Roth", "category": "News"},
-            {"handle": "@matthew_berman", "name": "Matthew Berman", "category": "OpenSource/LLM"},
-            {"handle": "@AndrejKarpathy", "name": "Andrej Karpathy", "category": "Expert/Lecture"},
-            {"handle": "@YannicKilcher", "name": "Yannic Kilcher", "category": "Research"},
-            {"handle": "@aiexplained", "name": "AI Explained", "category": "Analysis"},
-            {"handle": "@DavidShapiroAutomator", "name": "David Shapiro", "category": "Philosophy"},
-            {"handle": "@krishnaik06", "name": "Krish Naik", "category": "Education"},
-            {"handle": "@RobertMilesAI", "name": "Robert Miles", "category": "AI Safety"},
-            {"handle": "@lexfridman", "name": "Lex Fridman", "category": "Podcast"},
-            {"handle": "@DeepMind", "name": "DeepMind", "category": "Official"},
+            {"handle": "@TwoMinutePapers", "channel_id": "UCbfYPyITQ-7l4upoX8nvctg", "name": "Two Minute Papers", "category": "AI논문리뷰", "language": "en"},
+            {"handle": "@YannicKilcher", "channel_id": "UCZHmQk67mSJgfCCTn7xBfew", "name": "Yannic Kilcher", "category": "AI논문심층", "language": "en"},
+            {"handle": "@aiexplained", "channel_id": "UCNJ1Ymd5yFuUPtn21xtRbbw", "name": "AI Explained", "category": "AI분석", "language": "en"},
+            {"handle": "@matthew_berman", "channel_id": "UCRI57CYakIZnJqnR-rN7TFg", "name": "Matthew Berman", "category": "AI리뷰", "language": "en"},
+            {"handle": "@WesRoth", "channel_id": "UC_xGMsl6_HCu1MPyDZaLxSg", "name": "Wes Roth", "category": "AI뉴스", "language": "en"},
+            {"handle": "@TheAIGRID", "channel_id": "UCwmhMQmRxLHj2BYjmOAkYNQ", "name": "TheAIGRID", "category": "AI뉴스", "language": "en"},
+            {"handle": "@Fireship", "channel_id": "UCsBjURrPoezykLs9EqgamOA", "name": "Fireship", "category": "개발트렌드", "language": "en"},
+            {"handle": "@AndrejKarpathy", "channel_id": "UCXUPKJO5MZQN11PqgIvyuvQ", "name": "Andrej Karpathy", "category": "AI교육", "language": "en"},
+            {"handle": "@3blue1brown", "channel_id": "UCYO_jab_esuFRV4b17AJtAw", "name": "3Blue1Brown", "category": "수학/AI", "language": "en"},
+            {"handle": "@sentdex", "channel_id": "UCfzlCWGWYyIQ0aLC5w48gBQ", "name": "Sentdex", "category": "파이썬ML", "language": "en"},
+            {"handle": "@RobertMilesAI", "channel_id": "UCLB7AzTwc6VFZrBsO2ucBMg", "name": "Robert Miles", "category": "AI안전", "language": "en"},
+            {"handle": "@MachineLearningStreetTalk", "channel_id": "UCMLtBahI5DMrt0NPvDSoIRQ", "name": "Machine Learning Street Talk", "category": "AI팟캐스트", "language": "en"},
+            {"handle": "@samwitteveenai", "channel_id": "UCNmkycz3a2bAkLSoRdDBxPg", "name": "Sam Witteveen", "category": "LLM실습", "language": "en"},
+            {"handle": "@DavesGarage", "channel_id": "UCNzszbnvQeFzObW0ghk0Ckw", "name": "Dave's Garage", "category": "테크토크", "language": "en"},
+            {"handle": "@PromptEngineering", "channel_id": "UCDq7SjbgRKty5TgGafW8Clg", "name": "Prompt Engineering", "category": "프롬프트엔지니어링", "language": "en"},
         ],
     }
 
@@ -85,11 +87,46 @@ class YouTubeService:
                 return match.group(1)
         return None
 
+    @staticmethod
+    def _normalize_channel_language(language: Optional[str], fallback: str = "en") -> str:
+        """YouTube 언어 코드를 ko/en으로 정규화."""
+        raw = (language or "").lower()
+        if raw.startswith("ko"):
+            return "ko"
+        if raw.startswith("en"):
+            return "en"
+        return fallback
+
+    @staticmethod
+    def _fallback_language_from_video(video_data: Dict[str, Any]) -> str:
+        text = " ".join(
+            [
+                video_data.get("channel_title", "") or "",
+                video_data.get("title", "") or "",
+            ]
+        )
+        if re.search(r"[가-힣]", text):
+            return "ko"
+        return "en"
+
+    def _language_from_handle(self, handle: Optional[str]) -> Optional[str]:
+        if not handle:
+            return None
+        for region, channels in self.CURATED_CHANNELS.items():
+            for channel in channels:
+                if channel.get("handle", "").lower() == handle.lower():
+                    language = channel.get("language")
+                    if language:
+                        return language
+                    return "ko" if region == "korean" else "en"
+        return None
+
     async def search_ai_videos(
         self,
         query: str = "AI artificial intelligence",
         max_results: int = 20,
         order: str = "viewCount",
+        relevance_language: str = "en",
     ) -> List[Dict[str, Any]]:
         """
         AI 관련 YouTube 비디오 검색
@@ -115,7 +152,7 @@ class YouTubeService:
                     "type": "video",
                     "maxResults": max_results,
                     "order": order,
-                    "relevanceLanguage": "en",
+                    "relevanceLanguage": relevance_language,
                     "videoDuration": "medium",  # 4-20분 영상
                     "publishedAfter": self._get_recent_date(),
                     "key": self.api_key,
@@ -133,7 +170,12 @@ class YouTubeService:
 
                 # 2. 비디오 상세 정보 가져오기
                 video_ids = [item["id"]["videoId"] for item in search_data["items"]]
-                video_details = await self._get_video_details(video_ids)
+                video_details = await self._get_video_details(
+                    video_ids,
+                    default_language=self._normalize_channel_language(
+                        relevance_language, fallback="en"
+                    ),
+                )
 
                 return video_details
 
@@ -144,7 +186,11 @@ class YouTubeService:
             print(f"❌ YouTube 데이터 수집 실패: {e}")
             return []
 
-    async def _get_video_details(self, video_ids: List[str]) -> List[Dict[str, Any]]:
+    async def _get_video_details(
+        self,
+        video_ids: List[str],
+        default_language: str = "en",
+    ) -> List[Dict[str, Any]]:
         """
         비디오 상세 정보 가져오기
 
@@ -177,8 +223,11 @@ class YouTubeService:
                         "title": snippet.get("title", ""),
                         "channel_title": snippet.get("channelTitle", ""),
                         "channel_id": snippet.get("channelId", ""),
-                        "channel_language": snippet.get("defaultLanguage")
-                        or snippet.get("defaultAudioLanguage"),
+                        "channel_language": self._normalize_channel_language(
+                            snippet.get("defaultLanguage")
+                            or snippet.get("defaultAudioLanguage"),
+                            fallback=default_language,
+                        ),
                         "description": snippet.get("description", ""),
                         "published_at": snippet.get("publishedAt", ""),
                         "thumbnail_url": snippet.get("thumbnails", {})
@@ -261,8 +310,9 @@ class YouTubeService:
                     existing_video.like_count = video_data.get("like_count", 0)
                     existing_video.comment_count = video_data.get("comment_count", 0)
                     if has_channel_language:
-                        existing_video.channel_language = video_data.get(
-                            "channel_language"
+                        existing_video.channel_language = self._normalize_channel_language(
+                            video_data.get("channel_language"),
+                            fallback=self._fallback_language_from_video(video_data),
                         )
                     existing_video.is_trending = True
                     if has_archive_columns:
@@ -301,7 +351,10 @@ class YouTubeService:
                         is_trending=True,
                     )
                     if has_channel_language:
-                        payload["channel_language"] = video_data.get("channel_language")
+                        payload["channel_language"] = self._normalize_channel_language(
+                            video_data.get("channel_language"),
+                            fallback=self._fallback_language_from_video(video_data),
+                        )
                     new_video = YouTubeVideo(**payload)
                     db.add(new_video)
                     saved_count += 1
@@ -371,6 +424,8 @@ class YouTubeService:
         channel_id: str,
         max_results: int = 10,
         order: str = "date",
+        relevance_language: Optional[str] = None,
+        default_language: str = "en",
     ) -> List[Dict[str, Any]]:
         """
         특정 채널의 최신 비디오 가져오기
@@ -399,6 +454,8 @@ class YouTubeService:
                     "publishedAfter": self._get_recent_date(),
                     "key": self.api_key,
                 }
+                if relevance_language:
+                    search_params["relevanceLanguage"] = relevance_language
 
                 search_response = await client.get(
                     f"{self.BASE_URL}/search", params=search_params
@@ -411,7 +468,10 @@ class YouTubeService:
 
                 # 2. 비디오 상세 정보 가져오기
                 video_ids = [item["id"]["videoId"] for item in search_data["items"]]
-                video_details = await self._get_video_details(video_ids)
+                video_details = await self._get_video_details(
+                    video_ids,
+                    default_language=default_language,
+                )
 
                 return video_details
 
@@ -502,6 +562,7 @@ class YouTubeService:
             return []
 
         try:
+            expected_language = self._language_from_handle(handle) or "en"
             async with httpx.AsyncClient() as client:
                 # 1. 핸들로 채널 검색하여 채널 ID 확인
                 search_params = {
@@ -529,6 +590,8 @@ class YouTubeService:
                     channel_id=channel_id,
                     max_results=max_results,
                     order="date",
+                    relevance_language=expected_language,
+                    default_language=expected_language,
                 )
 
         except httpx.HTTPStatusError as e:

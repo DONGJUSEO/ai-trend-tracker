@@ -6,6 +6,7 @@ import feedparser
 from datetime import datetime
 
 from app.models.policy import AIPolicy
+from app.services.ai_summary_service import AISummaryService
 
 
 class PolicyService:
@@ -90,6 +91,11 @@ class PolicyService:
         self.rss_feeds = {
             "AI News": "https://www.artificialintelligence-news.com/feed/",
         }
+
+    @staticmethod
+    def _is_korean_policy(country: str) -> bool:
+        normalized = (country or "").strip().lower()
+        return normalized in {"south korea", "korea", "kr", "한국", "대한민국"}
 
     async def fetch_policy_news(self, max_results: int = 20) -> List[Dict]:
         """RSS 피드에서 AI 정책 뉴스 수집"""
@@ -176,12 +182,49 @@ class PolicyService:
     async def save_to_db(self, items: List[Dict], db: AsyncSession) -> int:
         """데이터베이스에 저장"""
         saved = 0
+        ai_service = AISummaryService()
         for item in items:
             url = item.get('source_url')
+            country = item.get("country", "")
+
+            # 해외 정책은 저장 시점에 한국어 요약 생성
+            if ai_service.model and (not self._is_korean_policy(country)) and not item.get("summary"):
+                summary_data = await ai_service.summarize_policy(
+                    title=item.get("title", ""),
+                    description=item.get("description", ""),
+                    policy_type=item.get("policy_type"),
+                    impact_areas=item.get("impact_areas", []) or [],
+                )
+                if summary_data.get("summary"):
+                    item["summary"] = summary_data["summary"]
+                if summary_data.get("keywords"):
+                    item["keywords"] = summary_data["keywords"]
+
             if url:
                 result = await db.execute(select(AIPolicy).where(AIPolicy.source_url == url))
-                if not result.scalar_one_or_none():
+                existing = result.scalar_one_or_none()
+                if not existing:
                     db.add(AIPolicy(**item))
                     saved += 1
+                else:
+                    for key, value in item.items():
+                        if hasattr(existing, key) and value is not None:
+                            setattr(existing, key, value)
+
+                    if (
+                        ai_service.model
+                        and (not self._is_korean_policy(existing.country or ""))
+                        and not existing.summary
+                    ):
+                        summary_data = await ai_service.summarize_policy(
+                            title=existing.title,
+                            description=existing.description or "",
+                            policy_type=existing.policy_type,
+                            impact_areas=existing.impact_areas or [],
+                        )
+                        if summary_data.get("summary"):
+                            existing.summary = summary_data["summary"]
+                        if summary_data.get("keywords"):
+                            existing.keywords = summary_data["keywords"]
         await db.commit()
         return saved

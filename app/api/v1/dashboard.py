@@ -7,9 +7,9 @@ Phase 2: 대시보드용 집계/통계 API
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, desc
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from collections import Counter
 
 from app.database import get_db
@@ -23,6 +23,8 @@ from app.models.ai_tool import AITool
 from app.models.job_trend import AIJobTrend
 from app.models.policy import AIPolicy
 from app.cache import cache_get, cache_set, TTL_SYSTEM_STATUS, TTL_KEYWORDS, TTL_LIST_QUERY
+from app.services.scheduler import get_scheduler_runtime_status, scheduler
+from app.services.trending_keyword_service import ExternalTrendingKeywordService
 
 router = APIRouter()
 
@@ -276,3 +278,261 @@ async def _get_prev_period_count(
         .where(date_col >= period_start, date_col < period_end)
     )
     return result.scalar() or 0
+
+
+def _safe_iso(dt: Any) -> Optional[str]:
+    if isinstance(dt, datetime):
+        return dt.isoformat()
+    return None
+
+
+def _hours_since(dt: Optional[datetime]) -> float:
+    if not dt:
+        return 9999.0
+    now = datetime.utcnow()
+    if dt.tzinfo is not None:
+        now = now.replace(tzinfo=dt.tzinfo)
+    delta = now - dt
+    return max(delta.total_seconds() / 3600.0, 0.0)
+
+
+@router.get("/external-trending-keywords")
+async def get_external_trending_keywords(
+    limit: int = Query(50, ge=1, le=100, description="반환할 키워드 수"),
+) -> Dict[str, Any]:
+    """외부 데이터 소스 기반 AI 트렌딩 키워드."""
+    service = ExternalTrendingKeywordService()
+    return await service.get_keywords(limit=limit)
+
+
+async def _get_hot_item(db: AsyncSession) -> Optional[Dict[str, Any]]:
+    now = datetime.utcnow()
+    since_24h = now - timedelta(hours=24)
+    candidates: List[Dict[str, Any]] = []
+
+    # News: 최신성 + 트렌딩 가중치
+    news_rows = (
+        await db.execute(
+            select(AINews)
+            .where(AINews.published_date >= since_24h)
+            .order_by(desc(AINews.published_date))
+            .limit(30)
+        )
+    ).scalars().all()
+    for row in news_rows:
+        published = row.published_date
+        recency_score = max(0.0, 24.0 - _hours_since(published))
+        score = recency_score + (4.0 if row.is_trending else 0.0)
+        candidates.append(
+            {
+                "category": "news",
+                "title": row.title,
+                "summary": row.summary or row.excerpt or row.content,
+                "url": row.url,
+                "source": row.source,
+                "published_at": _safe_iso(published) or _safe_iso(row.created_at),
+                "score": round(score, 3),
+            }
+        )
+
+    # Hugging Face: likes/downloads + 최신성
+    hf_rows = (
+        await db.execute(
+            select(HuggingFaceModel)
+            .where(HuggingFaceModel.collected_at >= since_24h)
+            .order_by(desc(HuggingFaceModel.collected_at))
+            .limit(30)
+        )
+    ).scalars().all()
+    for row in hf_rows:
+        recency_score = max(0.0, 24.0 - _hours_since(row.collected_at))
+        score = (
+            recency_score
+            + float((row.likes or 0) / 100.0)
+            + float((row.downloads or 0) / 50000.0)
+        )
+        candidates.append(
+            {
+                "category": "huggingface",
+                "title": row.model_name or row.model_id,
+                "summary": row.summary or row.description,
+                "url": row.url
+                or (
+                    f"https://huggingface.co/{row.model_id}"
+                    if row.model_id
+                    else None
+                ),
+                "source": "Hugging Face",
+                "published_at": _safe_iso(row.collected_at),
+                "score": round(score, 3),
+            }
+        )
+
+    # GitHub: stars + recency
+    gh_rows = (
+        await db.execute(
+            select(GitHubProject)
+            .where(
+                func.coalesce(
+                    GitHubProject.updated_at_github,
+                    GitHubProject.pushed_at,
+                    GitHubProject.created_at,
+                )
+                >= since_24h
+            )
+            .order_by(desc(GitHubProject.updated_at_github))
+            .limit(30)
+        )
+    ).scalars().all()
+    for row in gh_rows:
+        published = row.updated_at_github or row.pushed_at or row.created_at
+        recency_score = max(0.0, 24.0 - _hours_since(published))
+        score = recency_score + float((row.stars or 0) / 20.0)
+        candidates.append(
+            {
+                "category": "github",
+                "title": row.repo_name or row.name,
+                "summary": row.summary or row.description,
+                "url": row.url,
+                "source": "GitHub",
+                "published_at": _safe_iso(published),
+                "score": round(score, 3),
+            }
+        )
+
+    # Papers: 최신성 중심
+    paper_rows = (
+        await db.execute(
+            select(AIPaper)
+            .where(AIPaper.published_date >= since_24h)
+            .order_by(desc(AIPaper.published_date))
+            .limit(30)
+        )
+    ).scalars().all()
+    for row in paper_rows:
+        recency_score = max(0.0, 24.0 - _hours_since(row.published_date))
+        score = recency_score + float(len(row.keywords or []) * 0.3)
+        candidates.append(
+            {
+                "category": "papers",
+                "title": row.title,
+                "summary": row.summary or row.abstract,
+                "url": row.url
+                or (
+                    f"https://arxiv.org/abs/{row.arxiv_id}"
+                    if row.arxiv_id
+                    else None
+                ),
+                "source": "arXiv",
+                "published_at": _safe_iso(row.published_date),
+                "score": round(score, 3),
+            }
+        )
+
+    if not candidates:
+        return None
+    return sorted(candidates, key=lambda x: x["score"], reverse=True)[0]
+
+
+def _build_recent_logs(limit: int = 5) -> List[Dict[str, Any]]:
+    runtime = get_scheduler_runtime_status()
+    jobs_meta = {job.id: job for job in scheduler.get_jobs()}
+    entries: List[Dict[str, Any]] = []
+    for job_id, meta in runtime.items():
+        last_run = meta.get("last_run")
+        if not last_run:
+            continue
+        job = jobs_meta.get(job_id)
+        entries.append(
+            {
+                "job_id": job_id,
+                "job_name": job.name if job else job_id,
+                "last_run": last_run,
+                "last_status": meta.get("last_status"),
+                "last_error": meta.get("last_error"),
+            }
+        )
+    entries.sort(key=lambda x: x["last_run"], reverse=True)
+    return entries[:limit]
+
+
+@router.get("/live-pulse")
+async def get_live_pulse(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+    """대시보드 LIVE 섹션용 집계 데이터."""
+    cache_key = "dashboard:live_pulse"
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    now = datetime.utcnow()
+    start_of_day = datetime(now.year, now.month, now.day)
+    yesterday_start = start_of_day - timedelta(days=1)
+
+    today_counts: Dict[str, int] = {}
+    yesterday_counts: Dict[str, int] = {}
+    for key, meta in CATEGORY_META.items():
+        date_col = getattr(meta["model"], meta["date_field"])
+        today_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(meta["model"])
+                .where(date_col >= start_of_day)
+            )
+        ).scalar() or 0
+        yesterday_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(meta["model"])
+                .where(date_col >= yesterday_start, date_col < start_of_day)
+            )
+        ).scalar() or 0
+        today_counts[key] = int(today_count)
+        yesterday_counts[key] = int(yesterday_count)
+
+    total_today = sum(today_counts.values())
+    total_yesterday = sum(yesterday_counts.values())
+
+    conf_row = (
+        await db.execute(
+            select(AIConference)
+            .where(AIConference.start_date >= now)
+            .order_by(AIConference.start_date.asc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    next_conference = None
+    if conf_row:
+        conference_start = conf_row.start_date
+        days_left = None
+        if conference_start:
+            if conference_start.tzinfo is not None:
+                naive_now = now.replace(tzinfo=conference_start.tzinfo)
+                days_left = max((conference_start - naive_now).days, 0)
+            else:
+                days_left = max((conference_start - now).days, 0)
+        next_conference = {
+            "name": conf_row.conference_name,
+            "start_date": _safe_iso(conf_row.start_date),
+            "d_day": days_left,
+            "location": conf_row.location,
+        }
+
+    keyword_service = ExternalTrendingKeywordService()
+    keyword_data = await keyword_service.get_keywords(limit=3)
+    trending_keywords = keyword_data.get("keywords", [])
+
+    response = {
+        "hot_item": await _get_hot_item(db),
+        "today_stats": {
+            "by_category": today_counts,
+            "total_today": total_today,
+            "total_yesterday": total_yesterday,
+            "delta": total_today - total_yesterday,
+            "trending_keywords": trending_keywords,
+            "next_conference": next_conference,
+        },
+        "recent_logs": _build_recent_logs(limit=5),
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+    await cache_set(cache_key, response, ttl=TTL_SYSTEM_STATUS)
+    return response

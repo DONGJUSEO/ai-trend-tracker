@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, List
 from collections import Counter
 from pathlib import Path
@@ -329,9 +329,33 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
 
     # Redis connectivity
     redis_running = False
+    redis_memory_usage = "unknown"
+    today_requests = 0
+    yesterday_requests = 0
+    weekly_avg_requests = 0
     try:
         redis = await get_redis()
         redis_running = bool(await redis.ping())
+        if redis_running:
+            info = await redis.info("memory")
+            redis_memory_usage = str(
+                info.get("used_memory_human")
+                or info.get("used_memory")
+                or "unknown"
+            )
+
+            today = datetime.utcnow().date()
+            today_key = f"api_requests:{today.isoformat()}"
+            yesterday_key = f"api_requests:{(today - timedelta(days=1)).isoformat()}"
+            today_requests = int(await redis.get(today_key) or 0)
+            yesterday_requests = int(await redis.get(yesterday_key) or 0)
+
+            last_7_days = []
+            for day_offset in range(7):
+                day = today - timedelta(days=day_offset)
+                key = f"api_requests:{day.isoformat()}"
+                last_7_days.append(int(await redis.get(key) or 0))
+            weekly_avg_requests = int(sum(last_7_days) / max(len(last_7_days), 1))
     except Exception:
         redis_running = False
 
@@ -379,6 +403,52 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
 
     next_crawl = sorted(next_run_candidates)[0] if next_run_candidates else None
 
+    recent_errors = []
+    for job_id, meta in runtime.items():
+        if meta.get("last_status") != "error":
+            continue
+        recent_errors.append(
+            {
+                "job_id": job_id,
+                "last_run": meta.get("last_run"),
+                "error": meta.get("last_error"),
+            }
+        )
+    recent_errors = sorted(
+        recent_errors,
+        key=lambda x: x.get("last_run") or "",
+        reverse=True,
+    )[:5]
+
+    table_sizes = {}
+    try:
+        table_size_rows = await db.execute(
+            text(
+                """
+                SELECT relname AS table_name,
+                       pg_size_pretty(pg_total_relation_size(relid)) AS total_size
+                FROM pg_catalog.pg_statio_user_tables
+                ORDER BY pg_total_relation_size(relid) DESC
+                """
+            )
+        )
+        tracked_tables = {
+            "huggingface_models",
+            "github_projects",
+            "youtube_videos",
+            "ai_papers",
+            "ai_news",
+            "ai_conferences",
+            "ai_tools",
+            "ai_job_trends",
+            "ai_policies",
+        }
+        for row in table_size_rows:
+            if row.table_name in tracked_tables:
+                table_sizes[row.table_name] = row.total_size
+    except Exception:
+        table_sizes = {}
+
     if db_connected and healthy_categories == len(categories_status):
         status = "healthy"
     elif db_connected:
@@ -420,6 +490,7 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
             "status": "connected" if db_connected else "disconnected",
             "size": db_size,
             "collections": len(categories_status),
+            "table_sizes": table_sizes,
         },
         "crawler": {
             "status": "running" if scheduler.running else "stopped",
@@ -427,7 +498,17 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
             "completed_today": completed_today,
             "failed_today": failed_today,
         },
+        "redis": {
+            "status": "running" if redis_running else "error",
+            "memory_usage": redis_memory_usage,
+        },
+        "usage": {
+            "today_requests": today_requests,
+            "yesterday_requests": yesterday_requests,
+            "weekly_avg_requests": weekly_avg_requests,
+        },
         "scheduler_jobs": scheduler_jobs,
+        "recent_errors": recent_errors,
         # backward-compat fields
         "backend_status": "online",
         "database_status": "connected" if db_connected else "disconnected",

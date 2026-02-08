@@ -15,6 +15,7 @@ from sqlalchemy import select, desc
 
 from app.models.ai_tool import AITool
 from app.config import get_settings
+from app.services.ai_summary_service import AISummaryService
 
 
 class AIToolService:
@@ -415,6 +416,7 @@ class AIToolService:
         from sqlalchemy import or_
 
         saved_count = 0
+        ai_service = AISummaryService()
 
         for tool_data in tools:
             try:
@@ -426,6 +428,21 @@ class AIToolService:
                 # URL 정규화
                 website = self._normalize_url(website)
                 tool_data["website"] = website
+
+                # 해외 설명문 기반 한글 요약 생성
+                if ai_service.model and not tool_data.get("summary"):
+                    summary_payload = await ai_service.summarize_ai_tool(
+                        name=tool_data.get("tool_name", ""),
+                        description=tool_data.get("description"),
+                        category=tool_data.get("category"),
+                        use_cases=tool_data.get("use_cases", []) or [],
+                    )
+                    if summary_payload.get("summary"):
+                        tool_data["summary"] = summary_payload["summary"]
+                    if summary_payload.get("keywords"):
+                        tool_data["keywords"] = summary_payload["keywords"]
+                    if summary_payload.get("best_for"):
+                        tool_data["best_for"] = summary_payload["best_for"]
 
                 # 중복 확인: tool_name 또는 website로 검색
                 result = await db.execute(
@@ -439,6 +456,20 @@ class AIToolService:
                     for key, value in tool_data.items():
                         if hasattr(existing, key) and value is not None:
                             setattr(existing, key, value)
+
+                    if ai_service.model and not existing.summary:
+                        summary_payload = await ai_service.summarize_ai_tool(
+                            name=existing.tool_name,
+                            description=existing.description,
+                            category=existing.category,
+                            use_cases=existing.use_cases or [],
+                        )
+                        if summary_payload.get("summary"):
+                            existing.summary = summary_payload["summary"]
+                        if summary_payload.get("keywords"):
+                            existing.keywords = summary_payload["keywords"]
+                        if summary_payload.get("best_for"):
+                            existing.best_for = summary_payload["best_for"]
                     print(f"📝 Updated: {tool_name}")
                 else:
                     new_tool = AITool(**tool_data)

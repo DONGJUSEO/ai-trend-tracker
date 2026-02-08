@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
 import { AIConference } from "@/lib/types";
 import CategoryIcon from "@/components/icons/CategoryIcon";
+import CalendarView from "@/components/conferences/CalendarView";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
@@ -500,7 +501,7 @@ export default function ConferencesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterTier, setFilterTier] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"list" | "timeline">("list");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
   useEffect(() => {
     async function fetchData() {
@@ -595,14 +596,14 @@ export default function ConferencesPage() {
               리스트
             </button>
             <button
-              onClick={() => setViewMode("timeline")}
+              onClick={() => setViewMode("calendar")}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                viewMode === "timeline"
+                viewMode === "calendar"
                   ? "bg-white/10 text-white"
                   : "text-white/50 hover:text-white/70"
               }`}
             >
-              타임라인
+              캘린더
             </button>
           </div>
 
@@ -657,7 +658,7 @@ export default function ConferencesPage() {
             {viewMode === "list" ? (
               <ListView conferences={filteredConferences} />
             ) : (
-              <TimelineView conferences={filteredConferences} />
+              <CalendarView conferences={filteredConferences} />
             )}
           </motion.div>
         </AnimatePresence>
