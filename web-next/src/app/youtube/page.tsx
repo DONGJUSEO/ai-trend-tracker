@@ -1,16 +1,40 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import { CATEGORIES } from "@/lib/constants";
 import type { YouTubeVideo } from "@/lib/types";
 import GlassmorphicCard from "@/components/shared/GlassmorphicCard";
+import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const category = CATEGORIES.find((c) => c.id === "youtube")!;
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
 const headers = { "X-API-Key": API_KEY, "Content-Type": "application/json" };
+
+const KOREAN_CHANNELS = ["조코딩", "테디노트", "빵형의 개발도상국", "나도코딩", "노마드 코더", "안될공학", "잇섭", "코드팩토리", "생활코딩", "AI톡톡", "EO", "슈카월드", "딥다이브", "비전곰"];
+
+type TabFilter = "all" | "korean" | "international";
+
+const TABS: { id: TabFilter; label: string }[] = [
+  { id: "all", label: "전체" },
+  { id: "korean", label: "국내" },
+  { id: "international", label: "해외" },
+];
+
+function isKoreanChannelName(channelName?: string): boolean {
+  if (!channelName) return false;
+  return KOREAN_CHANNELS.some((name) => channelName.includes(name));
+}
+
+function isKoreanVideo(video: YouTubeVideo): boolean {
+  const lang = (video.channel_language || "").toLowerCase();
+  if (lang.startsWith("ko")) return true;
+  const channel = video.channel_name || video.channel_title || "";
+  return isKoreanChannelName(channel);
+}
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -160,6 +184,9 @@ function VideoCard({
   video: YouTubeVideo;
   index: number;
 }) {
+  const channelName = video.channel_name || video.channel_title || "Unknown Channel";
+  const videoUrl = video.url || (video.video_id ? `https://www.youtube.com/watch?v=${video.video_id}` : "#");
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -167,7 +194,7 @@ function VideoCard({
       transition={{ duration: 0.3, delay: index * 0.05 }}
     >
       <a
-        href={video.url}
+        href={videoUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="block group"
@@ -176,11 +203,13 @@ function VideoCard({
           {/* Thumbnail */}
           <div className="relative aspect-video bg-white/5 overflow-hidden">
             {video.thumbnail_url ? (
-              <img
+              <Image
                 src={video.thumbnail_url}
                 alt={video.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                loading="lazy"
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                unoptimized
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -221,7 +250,13 @@ function VideoCard({
               {video.title}
             </h3>
 
-            <p className="text-white/40 text-sm mb-3">{video.channel_name}</p>
+            {video.summary && (
+              <p className="text-white/50 text-xs line-clamp-2 mb-2">
+                {video.summary}
+              </p>
+            )}
+
+            <p className="text-white/40 text-sm mb-3">{channelName}</p>
 
             <div className="flex items-center gap-3 text-xs text-white/40">
               {/* Views */}
@@ -303,6 +338,13 @@ export default function YouTubePage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [activeTab, setActiveTab] = useState<TabFilter>("all");
+
+  const filteredVideos = useMemo(() => {
+    if (activeTab === "all") return videos;
+    if (activeTab === "korean") return videos.filter((v) => isKoreanVideo(v));
+    return videos.filter((v) => !isKoreanVideo(v));
+  }, [videos, activeTab]);
 
   const fetchVideos = useCallback(async () => {
     setLoading(true);
@@ -339,7 +381,9 @@ export default function YouTubePage() {
       <GlassmorphicCard className="p-8" hover={false}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <span className="text-4xl">{category.icon}</span>
+            <span className="text-4xl" style={{ color: category.color }}>
+              <CategoryIcon iconKey={category.iconKey} size={34} />
+            </span>
             <div>
               <h1 className="text-2xl font-bold text-white">
                 {category.koreanName}
@@ -375,6 +419,23 @@ export default function YouTubePage() {
         </div>
       </GlassmorphicCard>
 
+      {/* Tab Filter */}
+      <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-1 w-fit">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === tab.id
+                ? "bg-white/10 text-white"
+                : "text-white/50 hover:text-white/70"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Content */}
       <AnimatePresence mode="wait">
         {loading ? (
@@ -386,7 +447,7 @@ export default function YouTubePage() {
           >
             <LoadingSkeleton />
           </motion.div>
-        ) : videos.length === 0 ? (
+        ) : filteredVideos.length === 0 ? (
           <motion.div
             key="empty"
             initial={{ opacity: 0 }}
@@ -403,7 +464,7 @@ export default function YouTubePage() {
             exit={{ opacity: 0 }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {videos.map((video, index) => (
+              {filteredVideos.map((video, index) => (
                 <VideoCard key={video.id} video={video} index={index} />
               ))}
             </div>

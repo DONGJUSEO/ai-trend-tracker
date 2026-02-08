@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
+import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
@@ -256,7 +257,9 @@ export default function PlatformsPage() {
         className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8"
       >
         <div className="flex items-center gap-4">
-          <span className="text-4xl">{category.icon}</span>
+          <span className="text-4xl" style={{ color: category.color }}>
+            <CategoryIcon iconKey={category.iconKey} size={34} />
+          </span>
           <div>
             <h1 className="text-2xl font-bold text-white">
               {category.koreanName}

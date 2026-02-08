@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
 import { AIPolicy } from "@/lib/types";
+import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
@@ -36,6 +37,44 @@ const STATUS_STYLES: Record<
     label: "철회됨",
   },
 };
+
+// Country/region tab definitions
+type RegionTab = "전체" | "한국" | "미국" | "EU" | "중국" | "기타";
+
+const REGION_TABS: RegionTab[] = ["전체", "한국", "미국", "EU", "중국", "기타"];
+
+const REGION_KEYWORDS: Record<Exclude<RegionTab, "전체" | "기타">, string[]> = {
+  한국: ["korea", "한국", "과기정통부", "개인정보보호", "기본법", "msit", "kisa"],
+  미국: ["us", "united states", "america", "white house", "nist", "ftc", "congress"],
+  EU: ["eu", "european", "europe", "gdpr", "ai act", "brussels"],
+  중국: ["china", "chinese", "中国", "beijing"],
+};
+
+function matchesRegion(policy: AIPolicy, region: Exclude<RegionTab, "전체" | "기타">): boolean {
+  const keywords = REGION_KEYWORDS[region];
+  const fields = [
+    policy.country,
+    policy.description,
+    policy.source,
+    policy.title,
+    policy.organization,
+    policy.category,
+  ]
+    .filter(Boolean)
+    .map((f) => f!.toLowerCase());
+
+  return keywords.some((kw) =>
+    fields.some((f) => f.includes(kw.toLowerCase()))
+  );
+}
+
+function getPolicyRegion(policy: AIPolicy): RegionTab {
+  const regionKeys: Exclude<RegionTab, "전체" | "기타">[] = ["한국", "미국", "EU", "중국"];
+  for (const region of regionKeys) {
+    if (matchesRegion(policy, region)) return region;
+  }
+  return "기타";
+}
 
 // Country flag mapping (common countries)
 const COUNTRY_FLAGS: Record<string, string> = {
@@ -101,7 +140,8 @@ const COUNTRY_FLAGS: Record<string, string> = {
   International: "🌐",
 };
 
-function getCountryFlag(country: string): string {
+function getCountryFlag(country?: string): string {
+  if (!country) return "🏳️";
   return (
     COUNTRY_FLAGS[country] ||
     // Try partial match
@@ -213,7 +253,7 @@ export default function PoliciesPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [filterCountry, setFilterCountry] = useState<string>("all");
+  const [activeRegion, setActiveRegion] = useState<RegionTab>("전체");
 
   useEffect(() => {
     async function fetchData() {
@@ -237,16 +277,19 @@ export default function PoliciesPage() {
     fetchData();
   }, [page]);
 
-  // Collect unique countries for filter
-  const countries = useMemo(() => {
-    const countrySet = new Set(policies.map((p) => p.country));
-    return Array.from(countrySet).sort();
-  }, [policies]);
-
   const filteredPolicies = useMemo(() => {
-    if (filterCountry === "all") return policies;
-    return policies.filter((p) => p.country === filterCountry);
-  }, [policies, filterCountry]);
+    if (activeRegion === "전체") return policies;
+
+    return policies.filter((policy) => {
+      const policyRegion = getPolicyRegion(policy);
+
+      if (activeRegion === "기타") {
+        return policyRegion === "기타";
+      }
+
+      return policyRegion === activeRegion;
+    });
+  }, [policies, activeRegion]);
 
   return (
     <div className="space-y-6">
@@ -258,7 +301,9 @@ export default function PoliciesPage() {
         className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8"
       >
         <div className="flex items-center gap-4">
-          <span className="text-4xl">{category.icon}</span>
+          <span className="text-4xl" style={{ color: category.color }}>
+            <CategoryIcon iconKey={category.iconKey} size={34} />
+          </span>
           <div>
             <h1 className="text-2xl font-bold text-white">
               {category.koreanName}
@@ -278,40 +323,27 @@ export default function PoliciesPage() {
         </div>
       </motion.div>
 
-      {/* Country Filter */}
-      {countries.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="flex flex-wrap gap-2"
-        >
+      {/* Region Tabs */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="inline-flex bg-white/5 border border-white/10 rounded-full p-1"
+      >
+        {REGION_TABS.map((tab) => (
           <button
-            onClick={() => setFilterCountry("all")}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              filterCountry === "all"
-                ? "bg-indigo-500/20 border border-indigo-400/50 text-indigo-300"
-                : "bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white/80"
+            key={tab}
+            onClick={() => setActiveRegion(tab)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeRegion === tab
+                ? "bg-white/10 text-white"
+                : "text-white/50 hover:text-white/70"
             }`}
           >
-            전체
+            {tab}
           </button>
-          {countries.map((country) => (
-            <button
-              key={country}
-              onClick={() => setFilterCountry(country)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all inline-flex items-center gap-1.5 ${
-                filterCountry === country
-                  ? "bg-indigo-500/20 border border-indigo-400/50 text-indigo-300"
-                  : "bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white/80"
-              }`}
-            >
-              <span>{getCountryFlag(country)}</span>
-              {country}
-            </button>
-          ))}
-        </motion.div>
-      )}
+        ))}
+      </motion.div>
 
       {/* Content */}
       {loading ? (
@@ -333,7 +365,7 @@ export default function PoliciesPage() {
       ) : (
         <AnimatePresence mode="wait">
           <motion.div
-            key={filterCountry}
+            key={activeRegion}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -341,9 +373,10 @@ export default function PoliciesPage() {
             className="grid grid-cols-1 lg:grid-cols-2 gap-4"
           >
             {filteredPolicies.map((policy, idx) => {
-              const statusStyle =
-                STATUS_STYLES[policy.status] || STATUS_STYLES.proposed;
+              const statusKey = (policy.status || "proposed") as keyof typeof STATUS_STYLES;
+              const statusStyle = STATUS_STYLES[statusKey] || STATUS_STYLES.proposed;
               const flag = getCountryFlag(policy.country);
+              const policyUrl = policy.url || policy.source_url;
 
               return (
                 <motion.div
@@ -370,9 +403,9 @@ export default function PoliciesPage() {
 
                   {/* Title */}
                   <h3 className="text-white font-semibold text-base mb-2 group-hover:text-indigo-300 transition-colors">
-                    {policy.url ? (
+                    {policyUrl ? (
                       <a
-                        href={policy.url}
+                        href={policyUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:underline"
@@ -383,6 +416,13 @@ export default function PoliciesPage() {
                       policy.title
                     )}
                   </h3>
+
+                  {/* AI Summary (Korean) */}
+                  {policy.summary && (
+                    <p className="text-indigo-300/80 text-sm mb-2 line-clamp-2">
+                      {policy.summary}
+                    </p>
+                  )}
 
                   {/* Organization */}
                   {policy.organization && (

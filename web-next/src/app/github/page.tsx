@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
 import type { GitHubProject, PaginatedResponse } from "@/lib/types";
 import GlassmorphicCard from "@/components/shared/GlassmorphicCard";
+import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const category = CATEGORIES.find((c) => c.id === "github")!;
 
@@ -69,6 +70,69 @@ const LANGUAGE_COLORS: Record<string, string> = {
 
 function getLanguageColor(language: string): string {
   return LANGUAGE_COLORS[language] || "#8b8b8b";
+}
+
+// ─── Tab Filter ─────────────────────────────────────────────
+
+type TabId = "all" | "llm-nlp" | "cv" | "mlops" | "ai-agents" | "etc";
+
+interface TabDef {
+  id: TabId;
+  label: string;
+  keywords: string[];
+}
+
+const TABS: TabDef[] = [
+  { id: "all", label: "전체", keywords: [] },
+  {
+    id: "llm-nlp",
+    label: "LLM/NLP",
+    keywords: ["llm", "gpt", "bert", "transformer", "language", "nlp", "text", "chat", "rag"],
+  },
+  {
+    id: "cv",
+    label: "CV",
+    keywords: ["vision", "image", "video", "detection", "segmentation", "diffusion", "stable"],
+  },
+  {
+    id: "mlops",
+    label: "MLOps",
+    keywords: ["mlops", "deploy", "serving", "kubernetes", "docker", "pipeline", "monitoring", "infra"],
+  },
+  {
+    id: "ai-agents",
+    label: "AI Agents",
+    keywords: ["agent", "autogen", "crew", "langchain", "langgraph", "tool-use", "function-call"],
+  },
+  { id: "etc", label: "기타", keywords: [] },
+];
+
+function matchesTab(project: GitHubProject, tab: TabDef): boolean {
+  if (tab.id === "all") return true;
+
+  const searchable = [
+    project.name,
+    project.full_name,
+    project.description,
+    ...(project.topics || []),
+    ...(project.keywords || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return tab.keywords.some((kw) => searchable.includes(kw));
+}
+
+function matchesAnyCategory(project: GitHubProject): boolean {
+  return TABS.filter((t) => t.keywords.length > 0).some((t) => matchesTab(project, t));
+}
+
+function filterProjects(projects: GitHubProject[], tabId: TabId): GitHubProject[] {
+  if (tabId === "all") return projects;
+  if (tabId === "etc") return projects.filter((p) => !matchesAnyCategory(p));
+  const tab = TABS.find((t) => t.id === tabId)!;
+  return projects.filter((p) => matchesTab(p, tab));
 }
 
 // ─── Loading Skeleton ───────────────────────────────────────
@@ -213,9 +277,16 @@ function ProjectCard({
               </h3>
 
               {/* Description */}
-              <p className="text-white/45 text-sm leading-relaxed mb-4 line-clamp-2">
+              <p className={`text-white/45 text-sm leading-relaxed line-clamp-2 ${project.summary ? "mb-1" : "mb-4"}`}>
                 {project.description || "설명이 없습니다."}
               </p>
+
+              {/* AI Summary */}
+              {project.summary && (
+                <p className="text-white/50 text-sm leading-relaxed mb-4 line-clamp-2">
+                  {project.summary}
+                </p>
+              )}
 
               {/* Stats row */}
               <div className="flex items-center gap-4 text-sm mb-4">
@@ -318,16 +389,20 @@ function ProjectCard({
 
 // ─── Empty State ────────────────────────────────────────────
 
-function EmptyState() {
+function EmptyState({ filtered = false }: { filtered?: boolean }) {
   return (
     <GlassmorphicCard className="p-12" hover={false}>
       <div className="text-center">
-        <div className="text-5xl mb-4 opacity-50">💻</div>
+        <div className="text-5xl mb-4 opacity-50">{filtered ? "🔍" : "💻"}</div>
         <h3 className="text-white/70 text-lg font-medium mb-2">
-          데이터를 수집 중입니다...
+          {filtered
+            ? "해당 카테고리에 맞는 프로젝트가 없습니다."
+            : "데이터를 수집 중입니다..."}
         </h3>
         <p className="text-white/40 text-sm">
-          GitHub AI 프로젝트 데이터가 곧 업데이트됩니다.
+          {filtered
+            ? "다른 탭을 선택해 보세요."
+            : "GitHub AI 프로젝트 데이터가 곧 업데이트됩니다."}
         </p>
       </div>
     </GlassmorphicCard>
@@ -342,6 +417,12 @@ export default function GitHubPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [activeTab, setActiveTab] = useState<TabId>("all");
+
+  const filteredProjects = useMemo(
+    () => filterProjects(projects, activeTab),
+    [projects, activeTab]
+  );
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -378,7 +459,9 @@ export default function GitHubPage() {
       <GlassmorphicCard className="p-8" hover={false}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <span className="text-4xl">{category.icon}</span>
+            <span className="text-4xl" style={{ color: category.color }}>
+              <CategoryIcon iconKey={category.iconKey} size={34} />
+            </span>
             <div>
               <h1 className="text-2xl font-bold text-white">
                 {category.koreanName}
@@ -414,6 +497,28 @@ export default function GitHubPage() {
         </div>
       </GlassmorphicCard>
 
+      {/* Tab Filter */}
+      <div className="flex flex-wrap gap-2">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === tab.id
+                ? "bg-white/10 text-white"
+                : "text-white/50 hover:text-white/70"
+            }`}
+          >
+            {tab.label}
+            {!loading && activeTab === "all" && tab.id !== "all" && (
+              <span className="ml-1.5 text-xs opacity-60">
+                {filterProjects(projects, tab.id).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Content */}
       <AnimatePresence mode="wait">
         {loading ? (
@@ -425,14 +530,14 @@ export default function GitHubPage() {
           >
             <LoadingSkeleton />
           </motion.div>
-        ) : projects.length === 0 ? (
+        ) : filteredProjects.length === 0 ? (
           <motion.div
             key="empty"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <EmptyState />
+            <EmptyState filtered={projects.length > 0} />
           </motion.div>
         ) : (
           <motion.div
@@ -442,7 +547,7 @@ export default function GitHubPage() {
             exit={{ opacity: 0 }}
           >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {projects.map((project, index) => (
+              {filteredProjects.map((project, index) => (
                 <ProjectCard
                   key={project.id}
                   project={project}
@@ -455,7 +560,7 @@ export default function GitHubPage() {
       </AnimatePresence>
 
       {/* Pagination */}
-      {!loading && projects.length > 0 && (
+      {!loading && filteredProjects.length > 0 && (
         <Pagination
           page={page}
           totalPages={totalPages}

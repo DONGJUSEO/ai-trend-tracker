@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
 import type { HuggingFaceModel, PaginatedResponse } from "@/lib/types";
 import GlassmorphicCard from "@/components/shared/GlassmorphicCard";
+import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const category = CATEGORIES.find((c) => c.id === "huggingface")!;
 
@@ -170,23 +171,25 @@ function ModelCard({
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex-1 min-w-0">
               <h3 className="text-white font-semibold text-base truncate">
-                {model.name}
+                {model.model_name || model.name}
               </h3>
               <p className="text-white/40 text-sm mt-0.5">
                 {model.author}
               </p>
             </div>
-            {model.pipeline_tag && (
+            {(model.task || model.pipeline_tag) && (
               <span className="shrink-0 px-2.5 py-1 rounded-full text-xs font-medium bg-category-huggingface/15 text-category-huggingface border border-category-huggingface/20">
-                {model.pipeline_tag}
+                {model.task || model.pipeline_tag}
               </span>
             )}
           </div>
 
-          {/* Description */}
-          <p className="text-white/50 text-sm leading-relaxed mb-4 line-clamp-2">
-            {model.description || "설명이 없습니다."}
-          </p>
+          {/* Description - prefer AI summary over raw description */}
+          {(model.summary || model.description) && (
+            <p className="text-white/50 text-sm leading-relaxed mb-4 line-clamp-2">
+              {model.summary || model.description}
+            </p>
+          )}
 
           {/* Stats */}
           <div className="flex items-center gap-5 mb-4 text-sm">
@@ -309,7 +312,9 @@ export default function HuggingFacePage() {
       <GlassmorphicCard className="p-8" hover={false}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <span className="text-4xl">{category.icon}</span>
+            <span className="text-4xl" style={{ color: category.color }}>
+              <CategoryIcon iconKey={category.iconKey} size={34} />
+            </span>
             <div>
               <h1 className="text-2xl font-bold text-white">
                 {category.koreanName}

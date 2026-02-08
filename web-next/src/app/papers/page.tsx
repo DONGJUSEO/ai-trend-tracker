@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
 import type { AIPaper } from "@/lib/types";
 import GlassmorphicCard from "@/components/shared/GlassmorphicCard";
+import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const category = CATEGORIES.find((c) => c.id === "papers")!;
 
@@ -69,6 +70,73 @@ function getSourceStyle(source: string): string {
   if (s.includes("acl") || s.includes("neurips") || s.includes("icml"))
     return "bg-purple-500/15 text-purple-300 border-purple-500/20";
   return "bg-white/10 text-white/60 border-white/10";
+}
+
+// ─── Tab Filter ─────────────────────────────────────────────
+
+type TabId = "all" | "nlp" | "cv" | "ml" | "rl" | "multimodal";
+
+interface TabDef {
+  id: TabId;
+  label: string;
+  keywords: string[];
+}
+
+const TABS: TabDef[] = [
+  { id: "all", label: "전체", keywords: [] },
+  {
+    id: "nlp",
+    label: "NLP",
+    keywords: ["nlp", "language", "text", "translation", "gpt", "llm", "transformer", "bert"],
+  },
+  {
+    id: "cv",
+    label: "CV",
+    keywords: ["vision", "image", "video", "detection", "segmentation", "yolo"],
+  },
+  {
+    id: "ml",
+    label: "ML",
+    keywords: ["learning", "optimization", "neural", "training", "architecture"],
+  },
+  {
+    id: "rl",
+    label: "강화학습",
+    keywords: ["reinforcement", "rl", "reward", "policy", "agent"],
+  },
+  {
+    id: "multimodal",
+    label: "멀티모달",
+    keywords: ["multimodal", "vision-language", "vlm", "cross-modal"],
+  },
+];
+
+function matchesTab(paper: AIPaper, tab: TabDef): boolean {
+  if (tab.id === "all") return true;
+
+  const topic = (paper.topic || "").toLowerCase();
+  const topicByTab: Record<Exclude<TabId, "all">, string[]> = {
+    nlp: ["nlp", "language"],
+    cv: ["cv", "vision"],
+    ml: ["ml", "machine"],
+    rl: ["강화학습", "reinforcement"],
+    multimodal: ["멀티모달", "multimodal"],
+  };
+  if (topic && topicByTab[tab.id].some((t) => topic.includes(t))) {
+    return true;
+  }
+
+  const paperKeywords = [
+    ...(paper.keywords || []),
+    ...(paper.categories || []),
+  ].map((k) => k.toLowerCase());
+
+  const paperText = `${paper.title} ${paper.abstract}`.toLowerCase();
+
+  return tab.keywords.some(
+    (tk) =>
+      paperKeywords.some((pk) => pk.includes(tk)) || paperText.includes(tk)
+  );
 }
 
 // ─── Loading Skeleton ───────────────────────────────────────
@@ -231,6 +299,13 @@ function PaperCard({
             </div>
           </div>
 
+          {/* AI Korean Summary */}
+          {paper.summary && (
+            <p className="text-white/50 text-sm line-clamp-2 leading-relaxed">
+              {paper.summary}
+            </p>
+          )}
+
           {/* Authors & date */}
           <div className="flex items-center gap-3 text-sm">
             <span className="text-white/50">
@@ -319,6 +394,13 @@ export default function PapersPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [activeTab, setActiveTab] = useState<TabId>("all");
+
+  const filteredPapers = useMemo(() => {
+    if (activeTab === "all") return papers;
+    const tab = TABS.find((t) => t.id === activeTab)!;
+    return papers.filter((paper) => matchesTab(paper, tab));
+  }, [papers, activeTab]);
 
   const fetchPapers = useCallback(async () => {
     setLoading(true);
@@ -355,7 +437,9 @@ export default function PapersPage() {
       <GlassmorphicCard className="p-8" hover={false}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <span className="text-4xl">{category.icon}</span>
+            <span className="text-4xl" style={{ color: category.color }}>
+              <CategoryIcon iconKey={category.iconKey} size={34} />
+            </span>
             <div>
               <h1 className="text-2xl font-bold text-white">
                 {category.koreanName}
@@ -391,6 +475,28 @@ export default function PapersPage() {
         </div>
       </GlassmorphicCard>
 
+      {/* Tab Filters */}
+      <div className="flex flex-wrap gap-2">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === tab.id
+                ? "bg-white/10 text-white"
+                : "text-white/50 hover:text-white/70"
+            }`}
+          >
+            {tab.label}
+            {!loading && activeTab !== tab.id && tab.id !== "all" && (
+              <span className="ml-1.5 text-xs opacity-60">
+                {papers.filter((p) => matchesTab(p, tab)).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Content */}
       <AnimatePresence mode="wait">
         {loading ? (
@@ -402,24 +508,38 @@ export default function PapersPage() {
           >
             <LoadingSkeleton />
           </motion.div>
-        ) : papers.length === 0 ? (
+        ) : filteredPapers.length === 0 ? (
           <motion.div
             key="empty"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <EmptyState />
+            {activeTab !== "all" && papers.length > 0 ? (
+              <GlassmorphicCard className="p-12" hover={false}>
+                <div className="text-center">
+                  <div className="text-5xl mb-4 opacity-50">🔍</div>
+                  <h3 className="text-white/70 text-lg font-medium mb-2">
+                    해당 분야의 논문이 없습니다
+                  </h3>
+                  <p className="text-white/40 text-sm">
+                    다른 탭을 선택하거나 전체 목록을 확인하세요.
+                  </p>
+                </div>
+              </GlassmorphicCard>
+            ) : (
+              <EmptyState />
+            )}
           </motion.div>
         ) : (
           <motion.div
-            key="content"
+            key={`content-${activeTab}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <div className="space-y-4">
-              {papers.map((paper, index) => (
+              {filteredPapers.map((paper, index) => (
                 <PaperCard key={paper.id} paper={paper} index={index} />
               ))}
             </div>
@@ -428,7 +548,7 @@ export default function PapersPage() {
       </AnimatePresence>
 
       {/* Pagination */}
-      {!loading && papers.length > 0 && (
+      {!loading && filteredPapers.length > 0 && (
         <Pagination
           page={page}
           totalPages={totalPages}

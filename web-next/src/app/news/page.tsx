@@ -1,16 +1,27 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import { CATEGORIES } from "@/lib/constants";
 import type { AINews } from "@/lib/types";
 import GlassmorphicCard from "@/components/shared/GlassmorphicCard";
+import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const category = CATEGORIES.find((c) => c.id === "news")!;
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
 const headers = { "X-API-Key": API_KEY, "Content-Type": "application/json" };
+
+const KOREAN_SOURCES = ["전자신문", "AI타임스", "블로터", "데일리안", "한국경제", "매일경제", "IT조선", "디지털타임스", "지디넷코리아", "테크M", "아이뉴스24", "뉴스1", "조선일보", "중앙일보", "동아일보"];
+
+type TabFilter = "전체" | "국내" | "해외";
+const TABS: TabFilter[] = ["전체", "국내", "해외"];
+
+function isKoreanSource(source: string): boolean {
+  return KOREAN_SOURCES.some((ks) => source.includes(ks));
+}
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -191,6 +202,7 @@ function NewsCard({
   index: number;
 }) {
   const sentimentConfig = getSentimentConfig(news.sentiment);
+  const [imageFailed, setImageFailed] = useState(false);
 
   return (
     <motion.div
@@ -206,16 +218,16 @@ function NewsCard({
       >
         <GlassmorphicCard className="overflow-hidden h-full">
           {/* Optional image */}
-          {news.image_url && (
+          {news.image_url && !imageFailed && (
             <div className="relative h-44 bg-white/5 overflow-hidden">
-              <img
+              <Image
                 src={news.image_url}
                 alt={news.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                loading="lazy"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                unoptimized
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                onError={() => setImageFailed(true)}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0f] via-transparent to-transparent" />
             </div>
@@ -265,9 +277,16 @@ function NewsCard({
               {news.title}
             </h3>
 
+            {/* AI Summary */}
+            {news.summary && (
+              <p className="text-white/50 text-sm line-clamp-2 mb-2">
+                {news.summary}
+              </p>
+            )}
+
             {/* Description */}
             <p className="text-white/45 text-sm leading-relaxed mb-4 line-clamp-3">
-              {truncateText(news.description, 150)}
+              {truncateText(news.description || news.excerpt || news.content || "", 150)}
             </p>
 
             {/* Keywords */}
@@ -321,6 +340,13 @@ export default function NewsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [activeTab, setActiveTab] = useState<TabFilter>("전체");
+
+  const filteredNews = useMemo(() => {
+    if (activeTab === "전체") return news;
+    if (activeTab === "국내") return news.filter((item) => isKoreanSource(item.source));
+    return news.filter((item) => !isKoreanSource(item.source));
+  }, [news, activeTab]);
 
   const fetchNews = useCallback(async () => {
     setLoading(true);
@@ -357,7 +383,9 @@ export default function NewsPage() {
       <GlassmorphicCard className="p-8" hover={false}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <span className="text-4xl">{category.icon}</span>
+            <span className="text-4xl" style={{ color: category.color }}>
+              <CategoryIcon iconKey={category.iconKey} size={34} />
+            </span>
             <div>
               <h1 className="text-2xl font-bold text-white">
                 {category.koreanName}
@@ -393,6 +421,23 @@ export default function NewsPage() {
         </div>
       </GlassmorphicCard>
 
+      {/* Tab Filter */}
+      <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-full w-fit">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === tab
+                ? "bg-white/10 text-white"
+                : "text-white/50 hover:text-white/70"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
       {/* Content */}
       <AnimatePresence mode="wait">
         {loading ? (
@@ -404,7 +449,7 @@ export default function NewsPage() {
           >
             <LoadingSkeleton />
           </motion.div>
-        ) : news.length === 0 ? (
+        ) : filteredNews.length === 0 ? (
           <motion.div
             key="empty"
             initial={{ opacity: 0 }}
@@ -421,7 +466,7 @@ export default function NewsPage() {
             exit={{ opacity: 0 }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {news.map((item, index) => (
+              {filteredNews.map((item, index) => (
                 <NewsCard key={item.id} news={item} index={index} />
               ))}
             </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
 import { AIJob } from "@/lib/types";
+import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
@@ -40,6 +41,57 @@ const LEVEL_LABELS: Record<string, string> = {
   senior: "시니어",
   lead: "리드",
 };
+
+type RoleCategory = "전체" | "ML Engineer" | "Data Scientist" | "Backend/Infra";
+
+const ROLE_TABS: RoleCategory[] = [
+  "전체",
+  "ML Engineer",
+  "Data Scientist",
+  "Backend/Infra",
+];
+
+const ROLE_KEYWORDS: Record<Exclude<RoleCategory, "전체">, string[]> = {
+  "ML Engineer": ["ml engineer", "machine learning", "deep learning", "pytorch", "tensorflow", "mlops"],
+  "Data Scientist": ["data scientist", "data analyst", "analytics", "statistics", "sql", "pandas"],
+  "Backend/Infra": ["backend", "infrastructure", "devops", "cloud", "kubernetes", "aws", "gcp", "sre"],
+};
+
+function getJobSearchText(job: AIJob): string {
+  const parts = [
+    job.title || "",
+    job.description || "",
+    ...(job.skills || []),
+    ...(job.requirements || []),
+  ];
+  return parts.join(" ").toLowerCase();
+}
+
+function classifyJob(job: AIJob): Exclude<RoleCategory, "전체"> {
+  const text = getJobSearchText(job);
+  for (const [role, keywords] of Object.entries(ROLE_KEYWORDS) as [Exclude<RoleCategory, "전체">, string[]][]) {
+    if (keywords.some((kw) => text.includes(kw))) {
+      return role;
+    }
+  }
+  // 기본값은 ML Engineer로 분류
+  return "ML Engineer";
+}
+
+const SKILL_PILL_COLORS = [
+  { bg: "bg-violet-500/15", border: "border-violet-500/25", text: "text-violet-400" },
+  { bg: "bg-pink-500/15", border: "border-pink-500/25", text: "text-pink-400" },
+  { bg: "bg-amber-500/15", border: "border-amber-500/25", text: "text-amber-400" },
+  { bg: "bg-teal-500/15", border: "border-teal-500/25", text: "text-teal-400" },
+  { bg: "bg-rose-500/15", border: "border-rose-500/25", text: "text-rose-400" },
+  { bg: "bg-indigo-500/15", border: "border-indigo-500/25", text: "text-indigo-400" },
+  { bg: "bg-lime-500/15", border: "border-lime-500/25", text: "text-lime-400" },
+  { bg: "bg-sky-500/15", border: "border-sky-500/25", text: "text-sky-400" },
+];
+
+function getSkillColor(idx: number) {
+  return SKILL_PILL_COLORS[idx % SKILL_PILL_COLORS.length];
+}
 
 function LoadingSkeleton() {
   return (
@@ -133,6 +185,16 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [activeTab, setActiveTab] = useState<RoleCategory>("전체");
+
+  const filteredJobs = useMemo(() => {
+    if (activeTab === "전체") return jobs;
+    const keywords = ROLE_KEYWORDS[activeTab];
+    return jobs.filter((job) => {
+      const text = getJobSearchText(job);
+      return keywords.some((kw) => text.includes(kw));
+    });
+  }, [jobs, activeTab]);
 
   useEffect(() => {
     async function fetchData() {
@@ -166,7 +228,9 @@ export default function JobsPage() {
         className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8"
       >
         <div className="flex items-center gap-4">
-          <span className="text-4xl">{category.icon}</span>
+          <span className="text-4xl" style={{ color: category.color }}>
+            <CategoryIcon iconKey={category.iconKey} size={34} />
+          </span>
           <div>
             <h1 className="text-2xl font-bold text-white">
               {category.koreanName}
@@ -186,10 +250,42 @@ export default function JobsPage() {
         </div>
       </motion.div>
 
+      {/* Role Category Tabs */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="bg-white/5 border border-white/10 rounded-full p-1.5 flex flex-wrap gap-1"
+      >
+        {ROLE_TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === tab
+                ? "bg-white/10 text-white"
+                : "text-white/50 hover:text-white/70"
+            }`}
+          >
+            {tab}
+            {!loading && (
+              <span className="ml-1.5 text-xs opacity-60">
+                {tab === "전체"
+                  ? jobs.length
+                  : jobs.filter((j) => {
+                      const text = getJobSearchText(j);
+                      return ROLE_KEYWORDS[tab].some((kw) => text.includes(kw));
+                    }).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </motion.div>
+
       {/* Content */}
       {loading ? (
         <LoadingSkeleton />
-      ) : jobs.length === 0 ? (
+      ) : filteredJobs.length === 0 ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -197,16 +293,20 @@ export default function JobsPage() {
         >
           <div className="text-4xl mb-4">📋</div>
           <p className="text-white/50 text-lg">
-            등록된 채용 공고가 없습니다
+            {activeTab === "전체"
+              ? "등록된 채용 공고가 없습니다"
+              : `"${activeTab}" 카테고리에 해당하는 채용 공고가 없습니다`}
           </p>
           <p className="text-white/30 text-sm mt-2">
-            데이터가 곧 업데이트됩니다
+            {activeTab === "전체"
+              ? "데이터가 곧 업데이트됩니다"
+              : "다른 카테고리를 선택해 보세요"}
           </p>
         </motion.div>
       ) : (
         <div className="space-y-4">
           <AnimatePresence>
-            {jobs.map((job, idx) => {
+            {filteredJobs.map((job, idx) => {
               const typeStyle = TYPE_COLORS[job.type] || TYPE_COLORS["full-time"];
               const levelStyle =
                 LEVEL_COLORS[job.experience_level] || LEVEL_COLORS.mid;
@@ -339,17 +439,20 @@ export default function JobsPage() {
                         </div>
                       )}
 
-                      {/* Skills Tags */}
+                      {/* Skills Tags (colored pills) */}
                       {job.skills && job.skills.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
-                          {job.skills.map((skill, sIdx) => (
-                            <span
-                              key={sIdx}
-                              className="px-2 py-0.5 rounded-md text-xs bg-cyan-500/10 border border-cyan-500/20 text-cyan-400/80"
-                            >
-                              {skill}
-                            </span>
-                          ))}
+                          {job.skills.map((skill, sIdx) => {
+                            const color = getSkillColor(sIdx);
+                            return (
+                              <span
+                                key={sIdx}
+                                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${color.bg} ${color.border} ${color.text}`}
+                              >
+                                {skill}
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
