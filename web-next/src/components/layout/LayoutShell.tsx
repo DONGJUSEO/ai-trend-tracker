@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Clock } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
+import { getCategoryByHref } from "@/lib/constants";
+import { pushRecentItem } from "@/lib/user-preferences";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import MobileNav from "./MobileNav";
@@ -17,6 +20,18 @@ export default function LayoutShell({ children }: LayoutShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { isAuthenticated } = useAuth();
   const { theme } = useTheme();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const category = getCategoryByHref(pathname);
+    pushRecentItem({
+      id: category.id,
+      title: category.koreanName,
+      category: category.id,
+      url: category.href,
+    });
+  }, [isAuthenticated, pathname]);
 
   if (!isAuthenticated) {
     return <LoginScreen />;

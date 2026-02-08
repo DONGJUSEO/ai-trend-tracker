@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
-import { SystemStatus, ServiceStatus } from "@/lib/types";
+import { SystemStatus, ServiceStatus, SchedulerJob } from "@/lib/types";
+import CategoryIcon from "@/components/icons/CategoryIcon";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "test1234";
@@ -13,7 +13,6 @@ const headers = { "X-API-Key": API_KEY, "Content-Type": "application/json" };
 const category = CATEGORIES.find((c) => c.id === "system")!;
 
 function useAdminAuth() {
-  const router = useRouter();
   const [authenticated, setAuthenticated] = useState(false);
   const [checking, setChecking] = useState(true);
 
@@ -22,14 +21,14 @@ function useAdminAuth() {
     const expires = localStorage.getItem("admin_expires");
 
     if (!token || !expires) {
-      router.replace("/login");
+      setChecking(false);
       return;
     }
 
     if (new Date(expires) < new Date()) {
       localStorage.removeItem("admin_token");
       localStorage.removeItem("admin_expires");
-      router.replace("/login");
+      setChecking(false);
       return;
     }
 
@@ -44,7 +43,6 @@ function useAdminAuth() {
         } else {
           localStorage.removeItem("admin_token");
           localStorage.removeItem("admin_expires");
-          router.replace("/login");
         }
       })
       .catch(() => {
@@ -52,15 +50,35 @@ function useAdminAuth() {
         setAuthenticated(true);
       })
       .finally(() => setChecking(false));
-  }, [router]);
+  }, []);
+
+  const login = async (password: string): Promise<string | null> => {
+    try {
+      const res = await fetch(`${API_URL}/api/v1/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem("admin_token", data.token);
+        localStorage.setItem("admin_expires", data.expires_at);
+        setAuthenticated(true);
+        return null;
+      }
+      return "비밀번호가 올바르지 않습니다";
+    } catch {
+      return "서버에 연결할 수 없습니다";
+    }
+  };
 
   const logout = () => {
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_expires");
-    router.replace("/login");
+    setAuthenticated(false);
   };
 
-  return { authenticated, checking, logout };
+  return { authenticated, checking, login, logout };
 }
 
 const STATUS_INDICATOR: Record<
@@ -147,8 +165,73 @@ function formatDateTime(dateStr: string): string {
   });
 }
 
+function InlineAdminLogin({ onLogin }: { onLogin: (password: string) => Promise<string | null> }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const err = await onLogin(password);
+    if (err) {
+      setError(err);
+      setPassword("");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 w-full max-w-md"
+      >
+        <div className="text-center mb-6">
+          <span className="text-4xl inline-flex" style={{ color: category.color }}>
+            <CategoryIcon iconKey={category.iconKey} size={34} />
+          </span>
+          <h1 className="text-xl font-bold text-white mt-3">시스템 관리</h1>
+          <p className="text-sm text-white/40 mt-2">
+            관리자 비밀번호를 입력하세요
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="관리자 비밀번호"
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all text-center tracking-widest"
+            autoFocus
+            required
+          />
+          {error && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-red-400 text-sm text-center"
+            >
+              {error}
+            </motion.p>
+          )}
+          <button
+            type="submit"
+            disabled={loading || !password}
+            className="w-full py-3 rounded-xl bg-white/10 border border-white/20 text-white font-medium hover:bg-white/15 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            {loading ? "확인 중..." : "로그인"}
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function SystemPage() {
-  const { authenticated, checking, logout } = useAdminAuth();
+  const { authenticated, checking, login, logout } = useAdminAuth();
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -184,7 +267,7 @@ export default function SystemPage() {
   }
 
   if (!authenticated) {
-    return null;
+    return <InlineAdminLogin onLogin={login} />;
   }
 
   const handleRefresh = () => {
@@ -206,7 +289,9 @@ export default function SystemPage() {
         className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8"
       >
         <div className="flex items-center gap-4">
-          <span className="text-4xl">{category.icon}</span>
+          <span className="text-4xl" style={{ color: category.color }}>
+            <CategoryIcon iconKey={category.iconKey} size={34} />
+          </span>
           <div>
             <h1 className="text-2xl font-bold text-white">
               {category.koreanName}

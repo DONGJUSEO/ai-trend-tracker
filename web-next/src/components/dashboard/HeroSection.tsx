@@ -43,7 +43,7 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
               transition={{ delay: 0.2 }}
               className="text-3xl md:text-4xl font-bold text-white"
             >
-              Ain싸
+              AI봄
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-red-400 to-orange-400 ml-2">
                 AI Trending
               </span>

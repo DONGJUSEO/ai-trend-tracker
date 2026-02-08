@@ -10,6 +10,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { CATEGORIES, APP_NAME, APP_VERSION } from "@/lib/constants";
+import { CATEGORY_ICONS } from "@/components/icons/CategoryIcons";
 import { useTheme } from "@/lib/theme-context";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +42,7 @@ export default function MobileNav({ open, onOpenChange }: MobileNavProps) {
           <div className="flex items-center gap-3">
             <Image
               src="/logo.png"
-              alt="Ain싸"
+              alt="AI봄"
               width={44}
               height={44}
               className="rounded-xl"
@@ -86,8 +87,11 @@ export default function MobileNav({ open, onOpenChange }: MobileNavProps) {
                     />
                   )}
 
-                  <span className="text-lg w-7 text-center">
-                    {category.icon}
+                  <span className="w-7 text-center flex items-center justify-center">
+                    {(() => {
+                      const Icon = CATEGORY_ICONS[category.iconKey];
+                      return Icon ? <Icon size={18} /> : null;
+                    })()}
                   </span>
                   <span className="text-sm font-medium">{category.name}</span>
                   <span className="ml-auto text-[10px] opacity-50">

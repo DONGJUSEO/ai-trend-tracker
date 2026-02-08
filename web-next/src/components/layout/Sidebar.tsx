@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { CATEGORIES, APP_NAME, APP_VERSION } from "@/lib/constants";
+import { CATEGORY_ICONS } from "@/components/icons/CategoryIcons";
 import { useTheme } from "@/lib/theme-context";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +23,7 @@ export default function Sidebar() {
       )}>
         <Image
           src="/logo.png"
-          alt="Ain싸"
+          alt="AI봄"
           width={44}
           height={44}
           className="rounded-xl"
@@ -89,8 +90,11 @@ export default function Sidebar() {
                   )}
 
                   {/* Icon */}
-                  <span className="text-lg relative z-10 w-7 text-center">
-                    {category.icon}
+                  <span className="relative z-10 w-7 text-center flex items-center justify-center">
+                    {(() => {
+                      const Icon = CATEGORY_ICONS[category.iconKey];
+                      return Icon ? <Icon size={18} /> : null;
+                    })()}
                   </span>
 
                   {/* Name */}

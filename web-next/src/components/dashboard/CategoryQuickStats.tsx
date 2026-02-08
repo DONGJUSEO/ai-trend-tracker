@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { CATEGORIES } from "@/lib/constants";
+import CategoryIcon from "@/components/icons/CategoryIcon";
 
 interface CategoryStat {
   category: string;
@@ -41,7 +42,9 @@ export default function CategoryQuickStats({ stats }: { stats: CategoryStat[] })
             <Link href={cat.href}>
               <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 hover:bg-white/[0.08] hover:border-white/[0.15] transition-all duration-300 group cursor-pointer">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xl">{cat.icon}</span>
+                  <span className="text-xl" style={{ color: cat.color }}>
+                    <CategoryIcon iconKey={cat.iconKey} size={20} />
+                  </span>
                   <span className={`text-xs font-medium ${arrow.color}`}>
                     {arrow.icon} {stat?.change_percent ?? 0}%
                   </span>
