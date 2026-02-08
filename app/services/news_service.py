@@ -45,9 +45,10 @@ class NewsService:
         "Allen AI (AI2)": "https://blog.allenai.org/feed",
     }
 
+    # Core AI keywords (must match at least one for article to be saved)
     AI_KEYWORDS_FILTER = [
         "인공지능",
-        "ai",
+        "artificial intelligence",
         "machine learning",
         "머신러닝",
         "딥러닝",
@@ -55,34 +56,62 @@ class NewsService:
         "llm",
         "gpt",
         "챗봇",
-        "생성형",
-        "generative",
+        "chatbot",
+        "생성형 ai",
+        "생성형ai",
+        "generative ai",
         "자연어처리",
         "nlp",
         "컴퓨터비전",
         "computer vision",
-        "로봇",
-        "autonomous",
         "클로드",
+        "claude",
         "제미나이",
+        "gemini",
         "openai",
         "anthropic",
-        "구글ai",
-        "meta ai",
         "파인튜닝",
+        "fine-tuning",
         "트랜스포머",
+        "transformer",
         "거대언어모델",
+        "large language model",
         "초거대ai",
         "mlops",
         "ai반도체",
-        "npu",
-        "gpu",
-        "네이버",
-        "카카오",
-        "삼성",
-        "skt",
-        "kt",
-        "lg",
+        "ai 반도체",
+        "ai칩",
+        "ai 칩",
+        "ai모델",
+        "ai 모델",
+        "ai 규제",
+        "ai규제",
+        "ai 윤리",
+        "ai기본법",
+        "ai 기본법",
+        "네이버 ai",
+        "카카오 ai",
+        "삼성 ai",
+        "skt ai",
+        "하이퍼클로바",
+        "hyperclova",
+        "copilot",
+        "midjourney",
+        "stable diffusion",
+        "sora",
+        "rag",
+        "ai agent",
+        "ai 에이전트",
+        "멀티모달",
+        "multimodal",
+        "강화학습",
+        "reinforcement learning",
+        "신경망",
+        "neural network",
+        "텍스트 생성",
+        "이미지 생성",
+        "음성 인식",
+        "자율주행",
     ]
 
     KOREAN_SOURCES = {
@@ -120,7 +149,17 @@ class NewsService:
         normalized = (text or "").lower()
         if not normalized:
             return False
-        return any(keyword in normalized for keyword in cls.AI_KEYWORDS_FILTER)
+        # Short keywords need word boundary check to avoid false matches
+        for keyword in cls.AI_KEYWORDS_FILTER:
+            if len(keyword) <= 3:
+                # Word boundary: check keyword is surrounded by non-alphanumeric
+                import re as _re
+                if _re.search(r'(?<![a-z])' + _re.escape(keyword) + r'(?![a-z])', normalized):
+                    return True
+            else:
+                if keyword in normalized:
+                    return True
+        return False
 
     @classmethod
     def _is_korean_source(cls, source: Optional[str]) -> bool:

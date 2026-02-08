@@ -1,4 +1,5 @@
 """AI 정책 및 규제 데이터 수집 서비스"""
+import re
 from typing import List, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -93,6 +94,17 @@ class PolicyService:
         }
 
     @staticmethod
+    def _strip_html(text: str) -> str:
+        """HTML 태그 제거 + 엔티티 디코딩."""
+        if not text:
+            return ""
+        import html
+        cleaned = re.sub(r"<[^>]+>", " ", text)
+        cleaned = html.unescape(cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned
+
+    @staticmethod
     def _is_korean_policy(country: str) -> bool:
         normalized = (country or "").strip().lower()
         return normalized in {"south korea", "korea", "kr", "한국", "대한민국"}
@@ -127,11 +139,11 @@ class PolicyService:
                         impact_areas = self._extract_impact_areas(description)
 
                         policies.append({
-                            "title": title,
+                            "title": self._strip_html(title),
                             "policy_type": "News",
                             "country": "Global",
                             "status": "Proposed",
-                            "description": description[:500],
+                            "description": self._strip_html(description)[:500],
                             "source_url": entry.get("link", ""),
                             "impact_areas": impact_areas,
                             "is_trending": True,
@@ -184,6 +196,11 @@ class PolicyService:
         saved = 0
         ai_service = AISummaryService()
         for item in items:
+            # HTML 태그 제거
+            if item.get("description"):
+                item["description"] = self._strip_html(item["description"])
+            if item.get("title"):
+                item["title"] = self._strip_html(item["title"])
             url = item.get('source_url')
             country = item.get("country", "")
 

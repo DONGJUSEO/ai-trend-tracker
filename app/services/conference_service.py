@@ -399,6 +399,24 @@ class ConferenceService:
         """
         saved_count = 0
 
+        # 확인된 2026 컨퍼런스는 항상 최신 데이터로 강제 갱신 (1970 날짜 버그 방지)
+        confirmed_acronyms = {
+            name.split(" ")[0] for name in self.CONFERENCES_2026.keys()
+        }
+        try:
+            stale = await db.execute(
+                select(AIConference).where(
+                    AIConference.conference_acronym.in_(confirmed_acronyms)
+                )
+            )
+            for row in stale.scalars().all():
+                await db.delete(row)
+            await db.commit()
+            print(f"🗑️ Cleared {len(confirmed_acronyms)} confirmed conferences for clean re-insert")
+        except Exception as e:
+            await db.rollback()
+            print(f"⚠️ Error clearing old conferences: {e}")
+
         for conf_data in conferences:
             try:
                 # 날짜 필드 파싱 보정

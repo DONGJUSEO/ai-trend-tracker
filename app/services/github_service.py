@@ -17,6 +17,7 @@ class GitHubService:
 
     BASE_URL = "https://api.github.com"
     EXCLUDE_REPOS = {
+        # Mega-repos (too generic, always at the top)
         "tensorflow/tensorflow",
         "pytorch/pytorch",
         "huggingface/transformers",
@@ -25,6 +26,27 @@ class GitHubService:
         "apache/spark",
         "microsoft/CNTK",
         "caffe2/caffe2",
+        # Popular non-AI repos that match AI topic queries
+        "kamranahmedse/developer-roadmap",
+        "yt-dlp/yt-dlp",
+        "awesome-selfhosted/awesome-selfhosted",
+        "microsoft/PowerToys",
+        "sindresorhus/awesome",
+        "public-apis/public-apis",
+        "donnemartin/system-design-primer",
+        "jwasham/coding-interview-university",
+        "torvalds/linux",
+        "microsoft/vscode",
+        "facebook/react",
+        "vercel/next.js",
+        "golang/go",
+        "rust-lang/rust",
+        "denoland/deno",
+        "flutter/flutter",
+        "ohmyzsh/ohmyzsh",
+        "freeCodeCamp/freeCodeCamp",
+        "EbookFoundation/free-programming-books",
+        "practical-tutorials/project-based-learning",
     }
 
     def __init__(self, api_token: Optional[str] = None):

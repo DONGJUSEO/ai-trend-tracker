@@ -27,30 +27,42 @@ class JobTrendService:
     }
 
     CATEGORY_KEYWORDS: Dict[str, List[str]] = {
-        "backend": ["backend", "서버", "api", "fastapi", "django", "spring"],
-        "frontend": ["frontend", "프론트엔드", "react", "vue", "next.js"],
-        "ai_sw": ["ai engineer", "ai 개발", "ml engineer", "machine learning engineer"],
-        "data_scientist": ["data scientist", "데이터 분석", "analytics", "statistical"],
-        "vision": ["computer vision", "비전", "영상", "image", "detection", "segmentation"],
-        "llm": ["llm", "nlp", "자연어", "language model", "gpt", "fine-tuning", "rlhf"],
-        "robotics": ["robotics", "로봇", "humanoid", "휴머노이드", "ros", "embodied"],
-        "on_premise": ["on-premise", "온프레미스", "edge", "배포", "inference", "serving"],
-        "mlops": ["mlops", "devops", "kubernetes", "docker", "ci/cd", "파이프라인"],
-        "research": ["research", "연구", "phd", "paper", "논문"],
+        "research": ["research scientist", "ai research", "ml research", "phd", "논문", "연구원"],
+        "llm": ["llm", "nlp engineer", "자연어처리", "language model", "fine-tuning", "rlhf", "prompt engineer"],
+        "vision": ["computer vision", "비전 엔지니어", "object detection", "image recognition", "segmentation engineer"],
+        "data_scientist": ["data scientist", "데이터 사이언티스트", "data analyst", "데이터 분석가"],
+        "mlops": ["mlops", "ml infrastructure", "ml platform", "model deployment", "kubeflow"],
+        "robotics": ["robotics engineer", "로봇 엔지니어", "humanoid", "ros engineer", "embodied ai"],
+        "on_premise": ["on-premise ai", "edge ai", "inference engineer", "model serving", "tensorrt"],
+        "ai_sw": ["ai engineer", "ai 개발", "ml engineer", "machine learning engineer", "deep learning engineer"],
+        "backend": ["backend engineer", "서버 개발", "api engineer", "fastapi", "django developer"],
+        "frontend": ["frontend engineer", "프론트엔드 개발", "react developer", "ui engineer"],
     }
 
+    # AI/ML specific keywords — job title/description must match at least one
     AI_KEYWORDS = [
-        "ai",
-        "ml",
         "machine learning",
         "deep learning",
         "data scientist",
-        "nlp",
+        "data science",
+        "natural language processing",
         "computer vision",
         "pytorch",
         "tensorflow",
         "llm",
-        "gpt",
+        "large language model",
+        "artificial intelligence",
+        "neural network",
+        "ml engineer",
+        "ai engineer",
+        "mlops",
+        "ai research",
+        "reinforcement learning",
+        "transformer",
+        "fine-tuning",
+        "rag",
+        "langchain",
+        "prompt engineer",
     ]
 
     COMMON_SKILLS = {
@@ -141,8 +153,9 @@ class JobTrendService:
                     description = (job.get("description", "") or "").lower()
                     tags = [str(tag).lower() for tag in (job.get("tags") or [])]
 
+                    combined_text = f"{position} {description} {' '.join(tags)}"
                     is_ai_related = any(
-                        keyword in position or keyword in description or keyword in tags
+                        keyword in combined_text
                         for keyword in self.AI_KEYWORDS
                     )
                     if not is_ai_related:

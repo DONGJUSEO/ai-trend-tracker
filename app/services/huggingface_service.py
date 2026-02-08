@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db_compat import has_column, has_columns
 from app.models.huggingface import HuggingFaceModel
+from app.services.ai_summary_service import AISummaryService
 
 settings = get_settings()
 
@@ -200,6 +201,7 @@ class HuggingFaceService:
             저장된 모델 개수
         """
         saved_count = 0
+        ai_service = AISummaryService()
         column_flags = await has_columns(
             db,
             "huggingface_models",
@@ -232,7 +234,28 @@ class HuggingFaceService:
                     existing_model.is_archived = False
                     existing_model.archived_at = None
                 existing_model.collected_at = datetime.utcnow()
+                # 기존 모델에 한글 요약이 없으면 생성
+                if ai_service.model and not getattr(existing_model, "summary", None):
+                    summary_data = await ai_service.summarize_huggingface_model(
+                        model_name=existing_model.model_id,
+                        description=existing_model.description,
+                        task=existing_model.task,
+                        tags=existing_model.tags or [],
+                    )
+                    if summary_data.get("summary"):
+                        existing_model.summary = summary_data["summary"]
             else:
+                # Gemini 한글 요약 생성
+                if ai_service.model:
+                    summary_data = await ai_service.summarize_huggingface_model(
+                        model_name=parsed_data.get("model_id", ""),
+                        description=parsed_data.get("description"),
+                        task=parsed_data.get("task"),
+                        tags=parsed_data.get("tags", []),
+                    )
+                    if summary_data.get("summary"):
+                        parsed_data["summary"] = summary_data["summary"]
+
                 # 새로 생성
                 new_model = HuggingFaceModel(
                     **parsed_data,

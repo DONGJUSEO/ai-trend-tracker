@@ -9,6 +9,7 @@ from sqlalchemy import select, desc
 from app.models.paper import AIPaper
 from app.schemas.paper import AIPaperCreate
 from app.db_compat import has_archive_column, has_columns
+from app.services.ai_summary_service import AISummaryService
 
 
 class ArxivService:
@@ -322,6 +323,7 @@ class ArxivService:
             저장된 논문 수
         """
         saved_count = 0
+        ai_service = AISummaryService()
         column_flags = await has_columns(
             db,
             "ai_papers",
@@ -361,11 +363,33 @@ class ArxivService:
                                 existing_paper.conference_name = paper_data.get("conference_name")
                         if hasattr(existing_paper, "conference_year"):
                             existing_paper.conference_year = paper_data.get("conference_year")
+                    # 기존 논문에 한글 요약이 없으면 생성
+                    if ai_service.model and not getattr(existing_paper, "summary", None):
+                        summary_data = await ai_service.summarize_paper(
+                            title=existing_paper.title,
+                            abstract=existing_paper.abstract,
+                            authors=existing_paper.authors or [],
+                            categories=existing_paper.categories or [],
+                        )
+                        if summary_data.get("summary"):
+                            existing_paper.summary = summary_data["summary"]
+                        if summary_data.get("keywords"):
+                            existing_paper.keywords = summary_data["keywords"]
                     existing_paper.is_trending = True
                     if has_archive_columns:
                         existing_paper.is_archived = False
                         existing_paper.archived_at = None
                 else:
+                    # Gemini 한글 요약 생성
+                    summary_data = None
+                    if ai_service.model:
+                        summary_data = await ai_service.summarize_paper(
+                            title=paper_data.get("title", ""),
+                            abstract=paper_data.get("abstract"),
+                            authors=paper_data.get("authors", []),
+                            categories=paper_data.get("categories", []),
+                        )
+
                     # 새로 추가
                     paper_payload = {
                         "arxiv_id": paper_data["arxiv_id"],
@@ -379,6 +403,8 @@ class ArxivService:
                         "arxiv_url": paper_data.get("arxiv_url"),
                         "comment": paper_data.get("comment"),
                         "journal_ref": paper_data.get("journal_ref"),
+                        "summary": (summary_data or {}).get("summary"),
+                        "keywords": (summary_data or {}).get("keywords", []),
                         "is_trending": True,
                     }
                     if has_archive_columns:
