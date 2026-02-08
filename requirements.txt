@@ -26,9 +26,8 @@ httpx==0.28.1
 openai==1.59.5
 huggingface-hub==0.27.0
 google-generativeai==0.8.3
-keybert==0.8.5
-spacy==3.8.4
-konlpy==0.6.0
+# keybert, spacy, konlpy: 선택적 (로컬 전용, Railway 배포 시 메모리 초과)
+# pip install keybert spacy konlpy  # 로컬에서 키워드 추출 고도화 시 설치
 
 # 웹 크롤링 및 RSS
 beautifulsoup4==4.12.3
