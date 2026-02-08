@@ -76,6 +76,7 @@ async def get_news(
     payload = AINewsList(
         total=total,
         news=news,
+        items=news,
         page=current_page,
         page_size=effective_limit,
         total_pages=total_pages,

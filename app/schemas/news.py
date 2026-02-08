@@ -59,6 +59,7 @@ class AINewsList(BaseModel):
 
     total: int
     news: List[AINews]
+    items: List[AINews] = Field(default_factory=list)
     page: int = 1
     page_size: int = 20
     total_pages: int = 1

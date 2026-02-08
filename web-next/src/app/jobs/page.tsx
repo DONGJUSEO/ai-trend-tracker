@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
+import { apiFetcher } from "@/lib/fetcher";
+import { timeAgo } from "@/lib/format";
+import type { AIJob } from "@/lib/types";
 import CategoryIcon from "@/components/icons/CategoryIcon";
+import ErrorState from "@/components/ui/ErrorState";
 
 
 type RoleKey =
@@ -17,23 +21,13 @@ type RoleKey =
   | "robotics"
   | "on_premise"
   | "mlops"
-  | "research";
-
-interface JobItem {
-  id: number;
-  job_title: string;
-  company_name?: string;
-  location?: string;
-  is_remote?: boolean;
-  description?: string;
-  salary_min?: number;
-  salary_max?: number;
-  required_skills?: string[];
-  keywords?: string[];
-  role_category?: string;
-  created_at: string;
-  job_url?: string;
-}
+  | "research"
+  | "ai_pm"
+  | "ai_ethics"
+  | "prompt_engineer"
+  | "ai_trainer"
+  | "ai_sales"
+  | "ai_security";
 
 interface TrendingSkill {
   skill: string;
@@ -42,7 +36,7 @@ interface TrendingSkill {
 
 interface JobsResponse {
   total: number;
-  items: JobItem[];
+  items: AIJob[];
   page: number;
   page_size: number;
   total_pages: number;
@@ -61,6 +55,12 @@ const ROLE_TABS: Array<{ key: RoleKey; label: string }> = [
   { key: "on_premise", label: "온프레미스" },
   { key: "mlops", label: "MLOps" },
   { key: "research", label: "리서치" },
+  { key: "ai_pm", label: "AI PM/PO" },
+  { key: "ai_ethics", label: "AI 윤리" },
+  { key: "prompt_engineer", label: "프롬프트" },
+  { key: "ai_trainer", label: "AI 트레이너" },
+  { key: "ai_sales", label: "AI 세일즈" },
+  { key: "ai_security", label: "AI 보안" },
 ];
 
 const ROLE_LABEL: Record<string, string> = {
@@ -74,6 +74,12 @@ const ROLE_LABEL: Record<string, string> = {
   on_premise: "온프레미스",
   mlops: "MLOps",
   research: "리서치",
+  ai_pm: "AI PM/PO",
+  ai_ethics: "AI 윤리/거버넌스",
+  prompt_engineer: "프롬프트 엔지니어",
+  ai_trainer: "AI 트레이너/RLHF",
+  ai_sales: "AI 세일즈/컨설턴트",
+  ai_security: "AI 보안",
 };
 
 function formatSalary(min?: number, max?: number) {
@@ -82,16 +88,6 @@ function formatSalary(min?: number, max?: number) {
     return `$${min.toLocaleString()} - $${max.toLocaleString()}`;
   }
   return `$${(min || max || 0).toLocaleString()}+`;
-}
-
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const diffDay = Math.floor(diff / 86400000);
-  if (diffDay <= 0) return "오늘";
-  if (diffDay === 1) return "어제";
-  if (diffDay < 7) return `${diffDay}일 전`;
-  if (diffDay < 30) return `${Math.floor(diffDay / 7)}주 전`;
-  return `${Math.floor(diffDay / 30)}개월 전`;
 }
 
 function stripHtml(text?: string): string {
@@ -106,33 +102,35 @@ function stripHtml(text?: string): string {
 export default function JobsPage() {
   const category = CATEGORIES.find((c) => c.id === "jobs")!;
   const [activeRole, setActiveRole] = useState<RoleKey>("all");
-  const [jobs, setJobs] = useState<JobItem[]>([]);
+  const [jobs, setJobs] = useState<AIJob[]>([]);
   const [trendingSkills, setTrendingSkills] = useState<TrendingSkill[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+
+  const fetchJobs = useCallback(async () => {
+    setLoading(true);
+    setFetchError(false);
+    try {
+      const json = await apiFetcher<JobsResponse>(
+        `/api/v1/jobs/?page=${page}&page_size=30`
+      );
+      setJobs(json.items || []);
+      setTrendingSkills((json.trending_skills || []).slice(0, 10));
+      setTotalPages(json.total_pages || 1);
+    } catch {
+      setFetchError(true);
+      setJobs([]);
+      setTrendingSkills([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [page]);
 
   useEffect(() => {
-    async function fetchJobs() {
-      setLoading(true);
-      try {
-        const res = await fetch(
-          `/api/v1/jobs/?page=${page}&page_size=30`
-        );
-        if (!res.ok) throw new Error("jobs fetch failed");
-        const json: JobsResponse = await res.json();
-        setJobs(json.items || []);
-        setTrendingSkills((json.trending_skills || []).slice(0, 10));
-        setTotalPages(json.total_pages || 1);
-      } catch {
-        setJobs([]);
-        setTrendingSkills([]);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchJobs();
-  }, [page]);
+  }, [fetchJobs]);
 
   const filtered = useMemo(() => {
     if (activeRole === "all") return jobs;
@@ -202,6 +200,8 @@ export default function JobsPage() {
             <div key={idx} className="h-28 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
           ))}
         </div>
+      ) : fetchError && jobs.length === 0 ? (
+        <ErrorState onRetry={fetchJobs} />
       ) : filtered.length === 0 ? (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-12 text-center text-white/50">
           해당 카테고리 채용 공고가 없습니다.
@@ -243,7 +243,7 @@ export default function JobsPage() {
 
                 <div className="text-right">
                   <div className="text-xs text-white/60">{formatSalary(job.salary_min, job.salary_max)}</div>
-                  <div className="mt-1 text-[11px] text-white/50">{timeAgo(job.created_at)}</div>
+                  <div className="mt-1 text-[11px] text-white/50">{timeAgo(job.created_at || job.posted_date || "")}</div>
                 </div>
               </div>
 

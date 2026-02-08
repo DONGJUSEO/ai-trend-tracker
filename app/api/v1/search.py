@@ -1,5 +1,6 @@
 """전역 검색 API 엔드포인트"""
 from typing import Any, Dict, List
+import logging
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
@@ -9,6 +10,7 @@ from app.cache import TTL_LIST_QUERY, cache_get, cache_set
 from app.database import get_db
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 SEARCH_QUERIES = {
@@ -243,7 +245,7 @@ async def global_search(
                 )
         except Exception as e:
             # 스키마 불일치나 특정 테이블 오류가 있어도 전체 검색은 계속 동작
-            print(f"⚠️ search query skipped ({category}): {e}")
+            logger.warning("search query skipped (%s): %s", category, e)
             continue
 
     rows.sort(

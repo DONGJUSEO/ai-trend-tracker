@@ -4,12 +4,25 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 import html
 import re
+import logging
 
 import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.job_trend import AIJobTrend
+from app.services.keyword_extraction_service import get_keyword_extractor
+
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    message = sep.join(str(arg) for arg in args)
+    logger.info(message)
+
+
+print = _log_print  # type: ignore[assignment]
 
 
 class JobTrendService:
@@ -124,6 +137,7 @@ class JobTrendService:
 
     def __init__(self):
         self.remoteok_api_url = "https://remoteok.com/api"
+        self.keyword_extractor = get_keyword_extractor()
 
     @staticmethod
     def _normalize_skill(skill: str) -> str:
@@ -277,18 +291,37 @@ class JobTrendService:
         ]
 
     async def get_trending_skills(self, db: AsyncSession, limit: int = 10) -> List[Dict[str, Any]]:
-        """DB 기준 트렌딩 스킬 빈도 집계."""
+        """DB 기준 트렌딩 스킬/지식 키워드 집계."""
         result = await db.execute(
-            select(AIJobTrend.required_skills).where(AIJobTrend.required_skills.isnot(None))
+            select(AIJobTrend.required_skills, AIJobTrend.description).where(
+                (AIJobTrend.required_skills.isnot(None)) | (AIJobTrend.description.isnot(None))
+            )
         )
         counter: Counter[str] = Counter()
-        for row in result.scalars().all():
-            if not isinstance(row, list):
+        descriptions: List[str] = []
+
+        for row in result.all():
+            skills = row[0]
+            description = row[1]
+            if isinstance(description, str) and description.strip():
+                descriptions.append(description[:1200])
+
+            if not isinstance(skills, list):
                 continue
-            for skill in row:
+            for skill in skills:
                 normalized = self._normalize_skill(str(skill))
                 if normalized:
                     counter[normalized] += 1
+
+        for keyword, count in self.keyword_extractor.extract_trending_keywords(
+            descriptions,
+            top_k=max(10, limit * 2),
+            per_text_limit=6,
+        ):
+            normalized = self._normalize_skill(keyword)
+            if normalized:
+                counter[normalized] += count
+
         return [
             {"skill": skill, "count": count}
             for skill, count in counter.most_common(limit)
@@ -304,6 +337,17 @@ class JobTrendService:
             url = item.get("job_url")
             if not url:
                 continue
+
+            extracted_keywords = self.keyword_extractor.extract_keywords(
+                " ".join(
+                    [
+                        item.get("job_title", "") or "",
+                        item.get("description", "") or "",
+                        " ".join(item.get("required_skills", []) or []),
+                    ]
+                ),
+                top_k=8,
+            )
 
             role_category = item.get("role_category") or self.classify_role_category(
                 title=item.get("job_title", ""),
@@ -328,11 +372,13 @@ class JobTrendService:
 
                 keywords = set(existing.keywords or [])
                 keywords.add(self.JOB_CATEGORIES.get(role_category, role_category))
+                keywords.update(extracted_keywords)
                 existing.keywords = list(keywords)[:20]
                 continue
 
             payload_keywords = payload.get("keywords") or []
             payload_keywords.append(self.JOB_CATEGORIES.get(role_category, role_category))
+            payload_keywords.extend(extracted_keywords)
             payload["keywords"] = list(dict.fromkeys(payload_keywords))[:20]
 
             db.add(AIJobTrend(**payload))

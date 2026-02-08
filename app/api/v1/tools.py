@@ -9,6 +9,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
+from datetime import datetime
+from typing import List, Set
 
 from app.database import get_db
 from app.db_compat import has_archive_column
@@ -17,6 +19,31 @@ from app.schemas.ai_tool import AIToolList, AIToolResponse
 from app.cache import cache_get, cache_set, TTL_LIST_QUERY
 
 router = APIRouter()
+
+
+def _build_data_sources(tools: List[AITool]) -> List[str]:
+    sources: Set[str] = set()
+    for item in tools:
+        if getattr(item, "product_hunt_url", None):
+            sources.add("Product Hunt")
+        if getattr(item, "github_url", None):
+            sources.add("GitHub")
+        if getattr(item, "website", None):
+            sources.add("공식 웹사이트")
+    if not sources:
+        sources.add("Gemini Deep Research Seed")
+    return sorted(sources)
+
+
+def _max_updated_at(tools: List[AITool]):
+    candidates = [
+        item.updated_at or item.created_at
+        for item in tools
+        if (item.updated_at or item.created_at) is not None
+    ]
+    if not candidates:
+        return None
+    return max(candidates)
 
 
 @router.get("/", response_model=AIToolList)
@@ -77,6 +104,8 @@ async def list_tools(
     payload = AIToolList(
         total=total or 0,
         items=tools,
+        data_sources=_build_data_sources(tools),
+        last_updated=_max_updated_at(tools),
         page=page,
         page_size=page_size,
         total_pages=max(((total or 0) + page_size - 1) // page_size, 1),

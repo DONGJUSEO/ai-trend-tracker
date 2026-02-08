@@ -9,6 +9,8 @@ python-multipart==0.0.20
 # 데이터베이스
 sqlalchemy==2.0.36
 asyncpg==0.30.0
+aiosqlite==0.20.0
+greenlet==3.1.1
 alembic==1.14.0
 
 # Redis
@@ -24,6 +26,9 @@ httpx==0.28.1
 openai==1.59.5
 huggingface-hub==0.27.0
 google-generativeai==0.8.3
+keybert==0.8.5
+spacy==3.8.4
+konlpy==0.6.0
 
 # 웹 크롤링 및 RSS
 beautifulsoup4==4.12.3

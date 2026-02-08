@@ -3,33 +3,17 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
-import type { GitHubProject, PaginatedResponse } from "@/lib/types";
+import { apiFetcher } from "@/lib/fetcher";
+import { formatNumber, timeAgo } from "@/lib/format";
+import type { GitHubProject } from "@/lib/types";
 import GlassmorphicCard from "@/components/shared/GlassmorphicCard";
 import CategoryIcon from "@/components/icons/CategoryIcon";
+import ErrorState from "@/components/ui/ErrorState";
 
 const category = CATEGORIES.find((c) => c.id === "github")!;
 
 
 // ─── Helpers ────────────────────────────────────────────────
-
-function formatNumber(num: number): string {
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
-  return num.toLocaleString();
-}
-
-function timeAgo(dateStr: string): string {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "오늘";
-  if (diffDays === 1) return "어제";
-  if (diffDays < 7) return `${diffDays}일 전`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}개월 전`;
-  return `${Math.floor(diffDays / 365)}년 전`;
-}
 
 // GitHub language colors (common languages)
 const LANGUAGE_COLORS: Record<string, string> = {
@@ -71,7 +55,22 @@ function getLanguageColor(language: string): string {
 
 // ─── Tab Filter ─────────────────────────────────────────────
 
-type TabId = "all" | "llm-nlp" | "cv" | "mlops" | "ai-agents" | "etc";
+type TabId =
+  | "all"
+  | "llm-nlp"
+  | "computer-vision"
+  | "mlops-infra"
+  | "data-science"
+  | "robotics-edge"
+  | "ai-agents"
+  | "rag-search"
+  | "diffusion-genai"
+  | "speech-audio"
+  | "reinforcement-learning"
+  | "ai-security"
+  | "autonomous-driving"
+  | "healthcare-ai"
+  | "etc";
 
 interface TabDef {
   id: TabId;
@@ -87,19 +86,64 @@ const TABS: TabDef[] = [
     keywords: ["llm", "gpt", "bert", "transformer", "language", "nlp", "text", "chat", "rag"],
   },
   {
-    id: "cv",
-    label: "CV",
+    id: "computer-vision",
+    label: "Computer Vision",
     keywords: ["vision", "image", "video", "detection", "segmentation", "diffusion", "stable"],
   },
   {
-    id: "mlops",
-    label: "MLOps",
+    id: "mlops-infra",
+    label: "MLOps/Infra",
     keywords: ["mlops", "deploy", "serving", "kubernetes", "docker", "pipeline", "monitoring", "infra"],
+  },
+  {
+    id: "data-science",
+    label: "Data Science",
+    keywords: ["data-science", "feature-store", "analytics", "feature engineering", "timeseries", "notebook"],
+  },
+  {
+    id: "robotics-edge",
+    label: "Robotics/Edge",
+    keywords: ["robot", "robotics", "ros", "edge ai", "embedded", "iot", "on-device"],
   },
   {
     id: "ai-agents",
     label: "AI Agents",
     keywords: ["agent", "autogen", "crew", "langchain", "langgraph", "tool-use", "function-call"],
+  },
+  {
+    id: "rag-search",
+    label: "RAG/검색",
+    keywords: ["rag", "retrieval", "vector", "search", "rerank", "embedding", "knowledge base"],
+  },
+  {
+    id: "diffusion-genai",
+    label: "Diffusion/생성AI",
+    keywords: ["diffusion", "text-to-image", "generative", "stable-diffusion", "image generation", "video generation"],
+  },
+  {
+    id: "speech-audio",
+    label: "음성/오디오",
+    keywords: ["speech", "audio", "asr", "stt", "tts", "voice", "speaker"],
+  },
+  {
+    id: "reinforcement-learning",
+    label: "강화학습",
+    keywords: ["reinforcement", "rl", "policy optimization", "dqn", "ppo", "control"],
+  },
+  {
+    id: "ai-security",
+    label: "AI 보안",
+    keywords: ["safety", "alignment", "security", "red-team", "adversarial", "guardrail"],
+  },
+  {
+    id: "autonomous-driving",
+    label: "자율주행",
+    keywords: ["autonomous", "self-driving", "autopilot", "adas", "perception", "path planning"],
+  },
+  {
+    id: "healthcare-ai",
+    label: "의료AI",
+    keywords: ["medical", "healthcare", "clinical", "radiology", "ehr", "bioinformatics"],
   },
   { id: "etc", label: "기타", keywords: [] },
 ];
@@ -254,6 +298,7 @@ function ProjectCard({
 }) {
   const primaryDescription =
     project.summary || project.description || "설명이 없습니다.";
+  const createdDate = project.created_at_github || project.created_at;
 
   return (
     <motion.div
@@ -340,6 +385,12 @@ function ProjectCard({
                 )}
               </div>
 
+              {createdDate && (
+                <div className="text-[11px] text-white/35 mb-3">
+                  생성일 {new Date(createdDate).toLocaleDateString("ko-KR")}
+                </div>
+              )}
+
               {/* Topics */}
               {project.topics && project.topics.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -407,6 +458,7 @@ function EmptyState({ filtered = false }: { filtered?: boolean }) {
 export default function GitHubPage() {
   const [projects, setProjects] = useState<GitHubProject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -419,18 +471,21 @@ export default function GitHubPage() {
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
+    setFetchError(false);
     try {
-      const res = await fetch(
+      const json = await apiFetcher<{
+        projects?: GitHubProject[];
+        items?: GitHubProject[];
+        total?: number;
+        total_pages?: number;
+      }>(
         `/api/v1/github/projects?page=${page}&page_size=20`
       );
-      if (res.ok) {
-        const json = await res.json();
-        setProjects(json.projects || json.items || []);
-        setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
-        setTotal(json.total || 0);
-      }
+      setProjects(json.projects || json.items || []);
+      setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
+      setTotal(json.total || 0);
     } catch {
-      // API unavailable
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -521,6 +576,15 @@ export default function GitHubPage() {
             exit={{ opacity: 0 }}
           >
             <LoadingSkeleton />
+          </motion.div>
+        ) : fetchError && projects.length === 0 ? (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <ErrorState onRetry={fetchProjects} />
           </motion.div>
         ) : filteredProjects.length === 0 ? (
           <motion.div

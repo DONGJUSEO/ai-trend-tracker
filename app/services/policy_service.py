@@ -5,9 +5,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import feedparser
 from datetime import datetime
+import logging
 
 from app.models.policy import AIPolicy
 from app.services.ai_summary_service import AISummaryService
+
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    message = sep.join(str(arg) for arg in args)
+    logger.info(message)
+
+
+print = _log_print  # type: ignore[assignment]
 
 
 class PolicyService:
@@ -200,6 +212,7 @@ class PolicyService:
         """데이터베이스에 저장"""
         saved = 0
         ai_service = AISummaryService()
+        can_summarize = await ai_service.can_summarize()
         for item in items:
             # HTML 태그 제거
             if item.get("description"):
@@ -210,7 +223,7 @@ class PolicyService:
             country = item.get("country", "")
 
             # 해외 정책은 저장 시점에 한국어 요약 생성
-            if ai_service.model and (not self._is_korean_policy(country)) and not item.get("summary"):
+            if can_summarize and (not self._is_korean_policy(country)) and not item.get("summary"):
                 summary_data = await ai_service.summarize_policy(
                     title=item.get("title", ""),
                     description=item.get("description", ""),
@@ -239,7 +252,7 @@ class PolicyService:
                         existing.description = self._strip_html(existing.description)
 
                     if (
-                        ai_service.model
+                        can_summarize
                         and (not self._is_korean_policy(existing.country or ""))
                         and not existing.summary
                     ):

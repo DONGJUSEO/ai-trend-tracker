@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { apiFetcher } from "@/lib/fetcher";
 
 
 interface LivePulseResponse {
@@ -48,9 +49,7 @@ export default function LivePulse() {
     let mounted = true;
     async function fetchData() {
       try {
-        const res = await fetch("/api/v1/dashboard/live-pulse");
-        if (!res.ok) throw new Error("live-pulse fetch failed");
-        const json = await res.json();
+        const json = await apiFetcher<LivePulseResponse>("/api/v1/dashboard/live-pulse");
         if (mounted) setData(json);
       } catch {
         if (mounted) setData(null);

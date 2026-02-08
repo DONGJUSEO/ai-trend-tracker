@@ -50,7 +50,7 @@ export default function Sidebar() {
         isLight ? "border-black/[0.06]" : "border-white/10"
       )}>
         <Image
-          src="/AI봄.jpg"
+          src="/logo.jpg"
           alt="AI봄"
           width={44}
           height={44}

@@ -6,10 +6,22 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 import re
 import asyncio
+import logging
 
 import httpx
 
 from app.cache import cache_get, cache_set
+
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    message = sep.join(str(arg) for arg in args)
+    logger.info(message)
+
+
+print = _log_print  # type: ignore[assignment]
 
 
 class ExternalTrendingKeywordService:
@@ -140,12 +152,14 @@ class ExternalTrendingKeywordService:
         max_count = max(counter.values())
         keywords = []
         for keyword, count in counter.most_common(limit):
+            keyword_sources = sorted(list(sources_map[keyword]))
             keywords.append(
                 {
                     "keyword": keyword,
                     "count": count,
                     "weight": round(count / max_count, 3),
-                    "sources": sorted(list(sources_map[keyword])),
+                    "sources": keyword_sources,
+                    "source": keyword_sources[0] if keyword_sources else "unknown",
                 }
             )
 

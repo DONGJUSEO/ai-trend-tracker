@@ -137,21 +137,22 @@ async def get_trending_keywords(
         return cached
 
     all_keywords: List[str] = []
+    keyword_sources_map: Dict[str, set[str]] = {}
 
     # 각 카테고리별 키워드 수집 (필드명이 모델마다 다름)
     keyword_sources = [
-        (HuggingFaceModel, "key_features"),
-        (GitHubProject, "keywords"),
-        (YouTubeVideo, "keywords"),
-        (AIPaper, "keywords"),
-        (AINews, "keywords"),
-        (AIConference, "topics"),
-        (AITool, "key_features"),
-        (AIJobTrend, "required_skills"),
-        (AIPolicy, "impact_areas"),
+        (HuggingFaceModel, "key_features", "huggingface"),
+        (GitHubProject, "keywords", "github"),
+        (YouTubeVideo, "keywords", "youtube"),
+        (AIPaper, "keywords", "papers"),
+        (AINews, "keywords", "news"),
+        (AIConference, "topics", "conferences"),
+        (AITool, "key_features", "platforms"),
+        (AIJobTrend, "required_skills", "jobs"),
+        (AIPolicy, "impact_areas", "policies"),
     ]
 
-    for model, field_name in keyword_sources:
+    for model, field_name, source_name in keyword_sources:
         try:
             col = getattr(model, field_name)
             result = await db.execute(
@@ -160,6 +161,12 @@ async def get_trending_keywords(
             for row in result.scalars():
                 if row and isinstance(row, list):
                     all_keywords.extend(row)
+                    for keyword in row:
+                        if not isinstance(keyword, str):
+                            continue
+                        if keyword not in keyword_sources_map:
+                            keyword_sources_map[keyword] = set()
+                        keyword_sources_map[keyword].add(source_name)
         except Exception:
             continue
 
@@ -180,6 +187,8 @@ async def get_trending_keywords(
             "keyword": kw,
             "count": cnt,
             "weight": round(cnt / max_count, 3),
+            "sources": sorted(list(keyword_sources_map.get(kw, set()))),
+            "source": sorted(list(keyword_sources_map.get(kw, {"unknown"})))[0],
         }
         for kw, cnt in keyword_counts.most_common(limit)
     ]

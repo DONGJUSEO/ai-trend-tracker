@@ -4,12 +4,25 @@ import httpx
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.models.paper import AIPaper
 from app.schemas.paper import AIPaperCreate
 from app.db_compat import has_archive_column, has_columns
 from app.services.ai_summary_service import AISummaryService
+from app.services.keyword_extraction_service import get_keyword_extractor
+
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    message = sep.join(str(arg) for arg in args)
+    logger.info(message)
+
+
+print = _log_print  # type: ignore[assignment]
 
 
 class ArxivService:
@@ -397,6 +410,8 @@ class ArxivService:
         """
         saved_count = 0
         ai_service = AISummaryService()
+        keyword_extractor = get_keyword_extractor()
+        can_summarize = await ai_service.can_summarize()
         column_flags = await has_columns(
             db,
             "ai_papers",
@@ -437,7 +452,7 @@ class ArxivService:
                         if hasattr(existing_paper, "conference_year"):
                             existing_paper.conference_year = paper_data.get("conference_year")
                     # 기존 논문에 한글 요약이 없으면 생성
-                    if ai_service.model and not getattr(existing_paper, "summary", None):
+                    if can_summarize and not getattr(existing_paper, "summary", None):
                         summary_data = await ai_service.summarize_paper(
                             title=existing_paper.title,
                             abstract=existing_paper.abstract,
@@ -448,6 +463,11 @@ class ArxivService:
                             existing_paper.summary = summary_data["summary"]
                         if summary_data.get("keywords"):
                             existing_paper.keywords = summary_data["keywords"]
+                    if not (existing_paper.keywords or []):
+                        existing_paper.keywords = keyword_extractor.extract_keywords(
+                            f"{existing_paper.title or ''} {existing_paper.abstract or ''}",
+                            top_k=8,
+                        )
                     existing_paper.is_trending = True
                     if has_archive_columns:
                         existing_paper.is_archived = False
@@ -455,13 +475,23 @@ class ArxivService:
                 else:
                     # Gemini 한글 요약 생성
                     summary_data = None
-                    if ai_service.model:
+                    if can_summarize:
                         summary_data = await ai_service.summarize_paper(
                             title=paper_data.get("title", ""),
                             abstract=paper_data.get("abstract"),
                             authors=paper_data.get("authors", []),
                             categories=paper_data.get("categories", []),
                         )
+
+                    extracted_keywords = keyword_extractor.extract_keywords(
+                        f"{paper_data.get('title', '')} {paper_data.get('abstract') or ''}",
+                        top_k=8,
+                    )
+                    merged_keywords = list(
+                        dict.fromkeys(
+                            ((summary_data or {}).get("keywords") or []) + extracted_keywords
+                        )
+                    )[:12]
 
                     # 새로 추가
                     paper_payload = {
@@ -477,7 +507,7 @@ class ArxivService:
                         "comment": paper_data.get("comment"),
                         "journal_ref": paper_data.get("journal_ref"),
                         "summary": (summary_data or {}).get("summary"),
-                        "keywords": (summary_data or {}).get("keywords", []),
+                        "keywords": merged_keywords,
                         "is_trending": True,
                     }
                     if has_archive_columns:

@@ -2,12 +2,23 @@
 from __future__ import annotations
 
 from typing import Optional
+import logging
 
 import httpx
 
 from app.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    message = sep.join(str(arg) for arg in args)
+    logger.info(message)
+
+
+print = _log_print  # type: ignore[assignment]
 
 
 def _safe_truncate(text: Optional[str], max_len: int = 1800) -> str:

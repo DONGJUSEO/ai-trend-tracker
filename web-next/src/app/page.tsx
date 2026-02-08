@@ -1,13 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { CATEGORIES, APP_NAME } from "@/lib/constants";
+import { formatNumber, timeAgo } from "@/lib/format";
 import { CATEGORY_ICONS } from "@/components/icons/CategoryIcons";
 import { useTheme } from "@/lib/theme-context";
+import { apiFetcher } from "@/lib/fetcher";
+import type {
+  AIConference,
+  AINews,
+  AIPaper,
+  GitHubProject,
+  HuggingFaceModel,
+} from "@/lib/types";
 import LivePulse from "@/components/dashboard/LivePulse";
 import TrendingKeywords from "@/components/dashboard/TrendingKeywords";
+import CategoryTrendChart from "@/components/dashboard/CategoryTrendChart";
+import ErrorState from "@/components/ui/ErrorState";
 
 // ─── Types ──────────────────────────────────────────────────
 interface SummaryCategory {
@@ -29,80 +40,7 @@ interface KeywordItem {
   weight: number;
 }
 
-interface NewsItem {
-  id: number;
-  title: string;
-  source: string;
-  url: string;
-  published_date: string;
-  summary: string;
-}
-
-interface HuggingFaceItem {
-  model_id: string;
-  model_name: string;
-  author: string;
-  downloads: number;
-  likes: number;
-  task: string;
-  summary: string;
-  url: string;
-  last_modified: string;
-}
-
-interface PaperItem {
-  title: string;
-  authors: string[];
-  abstract: string;
-  summary: string;
-  published_date: string;
-  url: string;
-  arxiv_id: string;
-}
-
-interface GitHubItem {
-  name: string;
-  full_name: string;
-  description: string;
-  stars: number;
-  forks: number;
-  language: string;
-  url: string;
-}
-
-interface ConferenceItem {
-  conference_name: string;
-  location: string;
-  start_date: string;
-  end_date: string;
-  tier: string;
-  website_url: string;
-}
-
 // ─── Helpers ────────────────────────────────────────────────
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
-  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
-  return n.toLocaleString();
-}
-
-function timeAgo(dateStr: string): string {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "방금 전";
-  if (diffMin < 60) return `${diffMin}분 전`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}시간 전`;
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 7) return `${diffDay}일 전`;
-  const diffWeek = Math.floor(diffDay / 7);
-  if (diffWeek < 4) return `${diffWeek}주 전`;
-  const diffMonth = Math.floor(diffDay / 30);
-  if (diffMonth < 12) return `${diffMonth}개월 전`;
-  return `${Math.floor(diffMonth / 12)}년 전`;
-}
 
 function getCategoryColor(id: string): string {
   return CATEGORIES.find((c) => c.id === id)?.color ?? "#6B7280";
@@ -122,6 +60,7 @@ export default function DashboardPage() {
 
   // ── State ──
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [keywords, setKeywords] = useState<KeywordItem[]>([]);
   const [guideOpen, setGuideOpen] = useState<boolean>(() => {
@@ -130,69 +69,82 @@ export default function DashboardPage() {
     }
     return true;
   });
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [hfModels, setHfModels] = useState<HuggingFaceItem[]>([]);
-  const [papers, setPapers] = useState<PaperItem[]>([]);
-  const [githubProjects, setGithubProjects] = useState<GitHubItem[]>([]);
-  const [conferences, setConferences] = useState<ConferenceItem[]>([]);
+  const [news, setNews] = useState<AINews[]>([]);
+  const [hfModels, setHfModels] = useState<HuggingFaceModel[]>([]);
+  const [papers, setPapers] = useState<AIPaper[]>([]);
+  const [githubProjects, setGithubProjects] = useState<GitHubProject[]>([]);
+  const [conferences, setConferences] = useState<AIConference[]>([]);
 
   // ── Data Fetching ──
-  useEffect(() => {
-    async function fetchAll() {
-      const [
-        summaryRes,
-        keywordsRes,
-        newsRes,
-        hfRes,
-        papersRes,
-        githubRes,
-        confRes,
-      ] = await Promise.allSettled([
-        fetch("/api/v1/dashboard/summary"),
-        fetch("/api/v1/dashboard/trending-keywords?limit=20"),
-        fetch("/api/v1/news/news?page=1&page_size=10"),
-        fetch("/api/v1/huggingface/?page=1&page_size=10"),
-        fetch("/api/v1/papers/?page=1&page_size=10"),
-        fetch("/api/v1/github/projects?page=1&page_size=10"),
-        fetch("/api/v1/conferences/?page=1&page_size=5&upcoming=true"),
-      ]);
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    setFetchError(false);
+    const [
+      summaryRes,
+      keywordsRes,
+      newsRes,
+      hfRes,
+      papersRes,
+      githubRes,
+      confRes,
+    ] = await Promise.allSettled([
+      apiFetcher<SummaryResponse>("/api/v1/dashboard/summary"),
+      apiFetcher<{ top_keywords?: KeywordItem[] }>("/api/v1/dashboard/trending-keywords?limit=20"),
+      apiFetcher<{ news?: AINews[]; items?: AINews[] }>("/api/v1/news/news?page=1&page_size=10"),
+      apiFetcher<{ items?: HuggingFaceModel[] }>("/api/v1/huggingface/?page=1&page_size=10"),
+      apiFetcher<{ papers?: AIPaper[]; items?: AIPaper[] }>("/api/v1/papers/?page=1&page_size=10"),
+      apiFetcher<{ items?: GitHubProject[] }>("/api/v1/github/projects?page=1&page_size=10"),
+      apiFetcher<{ items?: AIConference[] }>("/api/v1/conferences/?page=1&page_size=5&upcoming=true"),
+    ]);
 
-      if (summaryRes.status === "fulfilled" && summaryRes.value.ok) {
-        setSummary(await summaryRes.value.json());
-      }
-      if (keywordsRes.status === "fulfilled" && keywordsRes.value.ok) {
-        const data = await keywordsRes.value.json();
-        setKeywords(data.top_keywords ?? []);
-      }
-      if (newsRes.status === "fulfilled" && newsRes.value.ok) {
-        const data = await newsRes.value.json();
-        setNews(data.news ?? []);
-      }
-      if (hfRes.status === "fulfilled" && hfRes.value.ok) {
-        const data = await hfRes.value.json();
-        setHfModels(data.items ?? []);
-      }
-      if (papersRes.status === "fulfilled" && papersRes.value.ok) {
-        const data = await papersRes.value.json();
-        setPapers(data.papers ?? []);
-      }
-      if (githubRes.status === "fulfilled" && githubRes.value.ok) {
-        const data = await githubRes.value.json();
-        setGithubProjects(data.items ?? []);
-      }
-      if (confRes.status === "fulfilled" && confRes.value.ok) {
-        const data = await confRes.value.json();
-        setConferences(data.items ?? []);
-      }
+    const responses = [summaryRes, keywordsRes, newsRes, hfRes, papersRes, githubRes, confRes];
+    const okCount = responses.filter((res) => res.status === "fulfilled").length;
+    setFetchError(okCount < responses.length);
 
-      setLoading(false);
+    if (summaryRes.status === "fulfilled") {
+      setSummary(summaryRes.value);
+    }
+    if (keywordsRes.status === "fulfilled") {
+      const data = keywordsRes.value;
+      setKeywords(data.top_keywords ?? []);
+    }
+    if (newsRes.status === "fulfilled") {
+      const data = newsRes.value;
+      setNews(data.news ?? data.items ?? []);
+    }
+    if (hfRes.status === "fulfilled") {
+      const data = hfRes.value;
+      setHfModels(data.items ?? []);
+    }
+    if (papersRes.status === "fulfilled") {
+      const data = papersRes.value;
+      setPapers(data.papers ?? data.items ?? []);
+    }
+    if (githubRes.status === "fulfilled") {
+      const data = githubRes.value;
+      setGithubProjects(data.items ?? []);
+    }
+    if (confRes.status === "fulfilled") {
+      const data = confRes.value;
+      setConferences(data.items ?? []);
     }
 
-    fetchAll();
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
 
   // ── Derived data ──
   const categoriesTracked = summary ? Object.keys(summary.categories).length : 0;
+  const categoryChartData = summary
+    ? Object.values(summary.categories).map((cat) => ({
+        name: cat.name,
+        total: cat.total,
+        recent_7d: cat.recent_7d,
+      }))
+    : [];
 
   // ════════════════════════════════════════════════════════════
   // LOADING STATE
@@ -265,6 +217,14 @@ export default function DashboardPage() {
   // ════════════════════════════════════════════════════════════
   return (
     <div className="space-y-8">
+      {fetchError && (
+        <ErrorState
+          title="일부 대시보드 데이터를 불러오지 못했습니다"
+          message="백엔드 상태를 확인한 뒤 다시 시도해 주세요."
+          onRetry={fetchAll}
+        />
+      )}
+
       {/* ═══════════════════════════════════════════════════════
           SECTION 0: APP GUIDE (collapsible)
           ═══════════════════════════════════════════════════════ */}
@@ -420,6 +380,17 @@ export default function DashboardPage() {
       </motion.section>
 
       {/* ═══════════════════════════════════════════════════════
+          SECTION 2.5: 카테고리 데이터 차트 (ECharts)
+          ═══════════════════════════════════════════════════════ */}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.65, duration: 0.45 }}
+      >
+        <CategoryTrendChart categories={categoryChartData} isLight={isLight} />
+      </motion.section>
+
+      {/* ═══════════════════════════════════════════════════════
           SECTION 3: "지금 뜨는 것들" - 2x2 Grid (Top 10, scrollable)
           ═══════════════════════════════════════════════════════ */}
       <motion.section
@@ -515,7 +486,7 @@ export default function DashboardPage() {
                         {Array.isArray(paper.authors) && paper.authors.length > 3 ? " 외" : ""}
                       </p>
                       {paper.published_date && (
-                        <span className={`text-xs ${isLight ? "text-gray-400" : "text-white/30"}`}>{timeAgo(paper.published_date)}</span>
+                        <span className={`text-xs ${isLight ? "text-gray-400" : "text-white/30"}`}>{timeAgo(paper.published_date, "elapsed")}</span>
                       )}
                     </div>
                   </a>
@@ -608,7 +579,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">{item.source}</span>
                         {item.published_date && (
-                          <span className={`text-xs ${isLight ? "text-gray-400" : "text-white/30"}`}>{timeAgo(item.published_date)}</span>
+                          <span className={`text-xs ${isLight ? "text-gray-400" : "text-white/30"}`}>{timeAgo(item.published_date, "elapsed")}</span>
                         )}
                       </div>
                     </div>

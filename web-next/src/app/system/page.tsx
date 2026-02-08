@@ -3,81 +3,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
+import { apiFetcher } from "@/lib/fetcher";
+import { timeAgo } from "@/lib/format";
+import { useAuth } from "@/lib/auth-context";
 import { SystemStatus, ServiceStatus, SchedulerJob } from "@/lib/types";
 import CategoryIcon from "@/components/icons/CategoryIcon";
-
-const headers = { "Content-Type": "application/json" };
 
 const category = CATEGORIES.find((c) => c.id === "system")!;
 
 function useAdminAuth() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    const token = localStorage.getItem("admin_token");
-    const expires = localStorage.getItem("admin_expires");
-
-    if (!token || !expires) {
-      setChecking(false);
-      return;
-    }
-
-    if (new Date(expires) < new Date()) {
-      localStorage.removeItem("admin_token");
-      localStorage.removeItem("admin_expires");
-      setChecking(false);
-      return;
-    }
-
-    // Verify token with server
-    fetch("/api/v1/admin/verify", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.valid) {
-          setAuthenticated(true);
-        } else {
-          localStorage.removeItem("admin_token");
-          localStorage.removeItem("admin_expires");
-        }
-      })
-      .catch(() => {
-        // Server unreachable = deny access (never bypass)
-        localStorage.removeItem("admin_token");
-        localStorage.removeItem("admin_expires");
-      })
-      .finally(() => setChecking(false));
-  }, []);
-
-  const login = async (password: string): Promise<string | null> => {
-    try {
-      const res = await fetch("/api/v1/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem("admin_token", data.token);
-        localStorage.setItem("admin_expires", data.expires_at);
-        setAuthenticated(true);
-        return null;
-      }
-      return "비밀번호가 올바르지 않습니다";
-    } catch {
-      return "서버에 연결할 수 없습니다";
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_expires");
-    setAuthenticated(false);
-  };
-
-  return { authenticated, checking, login, logout };
+  const { isAuthenticated, login: loginByToken, logout } = useAuth();
+  const login = useCallback(async (password: string): Promise<string | null> => {
+    const ok = await loginByToken(password);
+    return ok ? null : "비밀번호가 올바르지 않습니다";
+  }, [loginByToken]);
+  return { authenticated: isAuthenticated, checking: false, login, logout };
 }
 
 const STATUS_INDICATOR: Record<
@@ -128,27 +68,6 @@ function LoadingSkeleton() {
       ))}
     </div>
   );
-}
-
-function timeAgo(dateStr: string): string {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) {
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    if (diffHours === 0) {
-      const diffMins = Math.floor(diffMs / (1000 * 60));
-      if (diffMins <= 0) return "방금 전";
-      return `${diffMins}분 전`;
-    }
-    return `${diffHours}시간 전`;
-  }
-  if (diffDays === 1) return "어제";
-  if (diffDays < 7) return `${diffDays}일 전`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}개월 전`;
-  return `${Math.floor(diffDays / 365)}년 전`;
 }
 
 function formatDateTime(dateStr: string): string {
@@ -249,15 +168,14 @@ export default function SystemPage() {
   const fetchStatus = useCallback(async () => {
     try {
       const [statusRes, statsRes] = await Promise.allSettled([
-        fetch(`/api/v1/system/status`, { headers }),
-        fetch(`/api/v1/dashboard/category-stats`, { headers }),
+        apiFetcher<SystemStatus>(`/api/v1/system/status`),
+        apiFetcher<{ categories?: CategoryStatItem[] }>(`/api/v1/dashboard/category-stats`),
       ]);
-      if (statusRes.status === "fulfilled" && statusRes.value.ok) {
-        setSystemStatus(await statusRes.value.json());
+      if (statusRes.status === "fulfilled") {
+        setSystemStatus(statusRes.value);
       }
-      if (statsRes.status === "fulfilled" && statsRes.value.ok) {
-        const data = await statsRes.value.json();
-        setCategoryStats(data.categories ?? []);
+      if (statsRes.status === "fulfilled") {
+        setCategoryStats(statsRes.value.categories ?? []);
       }
     } catch {
       // API unavailable
@@ -396,7 +314,7 @@ export default function SystemPage() {
               </svg>
               시스템 상태
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Status */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                 <p className="text-xs text-white/40 mb-2">상태</p>
@@ -438,6 +356,61 @@ export default function SystemPage() {
                 <p className="text-xs text-white/40 mb-2">버전</p>
                 <p className="text-lg font-bold text-white">
                   {systemStatus.version}
+                </p>
+              </div>
+
+              {/* Visitors */}
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <p className="text-xs text-white/40 mb-2">고유 방문자</p>
+                <p className="text-lg font-bold text-white">
+                  {(systemStatus.visitors?.today ?? 0).toLocaleString()}
+                  <span className="ml-1 text-sm text-white/50">오늘</span>
+                </p>
+                <p className="text-xs text-white/40 mt-1">
+                  월간 {(systemStatus.visitors?.monthly ?? 0).toLocaleString()} · 누적 {(systemStatus.visitors?.total ?? 0).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Recent Updates */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6"
+          >
+            <h2 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+              <svg
+                className="w-5 h-5 text-white/40"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              최근 업데이트
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3">
+                <p className="text-xs text-white/40 mb-1">배포 버전</p>
+                <p className="text-sm text-white font-medium">{systemStatus.version}</p>
+              </div>
+              <div className="bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3">
+                <p className="text-xs text-white/40 mb-1">최근 데이터 수집</p>
+                <p className="text-sm text-white font-medium">
+                  {systemStatus.last_crawl ? formatDateTime(systemStatus.last_crawl) : "-"}
+                </p>
+              </div>
+              <div className="bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3">
+                <p className="text-xs text-white/40 mb-1">다음 데이터 수집</p>
+                <p className="text-sm text-white font-medium">
+                  {systemStatus.next_crawl ? formatDateTime(systemStatus.next_crawl) : "-"}
                 </p>
               </div>
             </div>
@@ -516,7 +489,7 @@ export default function SystemPage() {
                           </span>
                           {service.last_check && (
                             <span className="text-xs text-white/20">
-                              {timeAgo(service.last_check)}
+                              {timeAgo(service.last_check, "elapsed")}
                             </span>
                           )}
                         </div>
@@ -710,7 +683,7 @@ export default function SystemPage() {
                 </p>
                 {systemStatus.last_crawl && (
                   <p className="text-xs text-white/30 mt-1">
-                    {timeAgo(systemStatus.last_crawl)}
+                    {timeAgo(systemStatus.last_crawl, "elapsed")}
                   </p>
                 )}
               </div>
@@ -785,7 +758,7 @@ export default function SystemPage() {
                         </div>
                       </div>
                       {stat.last_update && (
-                        <p className="text-[10px] text-white/25 mt-2">{timeAgo(stat.last_update)}</p>
+                        <p className="text-[10px] text-white/25 mt-2">{timeAgo(stat.last_update, "elapsed")}</p>
                       )}
                     </div>
                   );

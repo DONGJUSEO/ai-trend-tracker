@@ -1,18 +1,29 @@
 "use client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+type ApiFetcherOptions = Omit<RequestInit, "headers"> & {
+  headers?: Record<string, string>;
+};
 
 export function buildApiUrl(path: string): string {
-  if (!path.startsWith("/")) {
-    return `${API_URL}/${path}`;
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
   }
-  return `${API_URL}${path}`;
+  if (!path.startsWith("/")) {
+    return `/${path}`;
+  }
+  return path;
 }
 
-export async function apiFetcher<T = unknown>(path: string): Promise<T> {
+export async function apiFetcher<T = unknown>(
+  path: string,
+  options: ApiFetcherOptions = {}
+): Promise<T> {
+  const { headers: customHeaders, ...fetchOptions } = options;
   const response = await fetch(buildApiUrl(path), {
+    ...fetchOptions,
     headers: {
       "Content-Type": "application/json",
+      ...customHeaders,
     },
   });
 
@@ -22,4 +33,3 @@ export async function apiFetcher<T = unknown>(path: string): Promise<T> {
   }
   return response.json() as Promise<T>;
 }
-

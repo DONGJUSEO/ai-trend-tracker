@@ -63,6 +63,7 @@ class YouTubeVideoList(BaseModel):
 
     total: int
     videos: List[YouTubeVideo]
+    items: List[YouTubeVideo] = Field(default_factory=list)
     page: int = 1
     page_size: int = 20
     total_pages: int = 1

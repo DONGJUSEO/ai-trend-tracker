@@ -1,5 +1,6 @@
 // AI Trend Tracker - API Client
 
+import { apiFetcher } from "./fetcher";
 import type {
   ApiResponse,
   DashboardSummary,
@@ -19,8 +20,6 @@ import type {
   PaginatedResponse,
 } from './types';
 
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-
 interface FetchOptions extends Omit<RequestInit, 'headers'> {
   headers?: Record<string, string>;
   params?: Record<string, string | number | boolean | undefined>;
@@ -36,8 +35,8 @@ export async function fetchApi<T>(
   const { params, headers: customHeaders, ...fetchOptions } = options;
 
   // Build URL with query parameters
-  const fullPath = `${BASE_URL}${endpoint}`;
-  const url = BASE_URL ? new URL(fullPath) : new URL(fullPath, window.location.origin);
+  const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const url = new URL(path, "http://localhost");
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined) {
@@ -46,24 +45,10 @@ export async function fetchApi<T>(
     });
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...customHeaders,
-  };
-
-  const response = await fetch(url.toString(), {
+  return apiFetcher<T>(`${url.pathname}${url.search}`, {
     ...fetchOptions,
-    headers,
+    headers: customHeaders,
   });
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error');
-    throw new Error(
-      `API Error ${response.status}: ${response.statusText} - ${errorBody}`
-    );
-  }
-
-  return response.json() as Promise<T>;
 }
 
 // ─── Dashboard ───────────────────────────────────────────────

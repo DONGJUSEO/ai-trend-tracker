@@ -1,8 +1,9 @@
 """로깅 설정"""
+import json
 import logging
 import logging.handlers
+import os
 from pathlib import Path
-from datetime import datetime
 
 # 로그 디렉토리 생성
 LOG_DIR = Path("logs")
@@ -14,17 +15,39 @@ ERROR_LOG_FILE = LOG_DIR / "error.log"
 COLLECTION_LOG_FILE = LOG_DIR / "collection.log"
 
 
+class JsonFormatter(logging.Formatter):
+    """JSON 구조화 로그 포맷터."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+
 def setup_logging():
     """로깅 설정 초기화"""
 
     # 루트 로거 설정
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
+    # 중복 핸들러 방지
+    root_logger.handlers.clear()
 
     # 포맷터 설정
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+    use_json = os.getenv("LOG_JSON", "true").lower() not in {"0", "false", "no"}
+    formatter = (
+        JsonFormatter()
+        if use_json
+        else logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
     )
 
     # 콘솔 핸들러 (INFO 이상)
@@ -60,6 +83,8 @@ def setup_logging():
     # 데이터 수집 전용 로거 설정
     collection_logger = logging.getLogger('collection')
     collection_logger.setLevel(logging.INFO)
+    collection_logger.handlers.clear()
+    collection_logger.propagate = False
 
     collection_handler = logging.handlers.RotatingFileHandler(
         COLLECTION_LOG_FILE,

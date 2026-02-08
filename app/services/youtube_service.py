@@ -3,6 +3,7 @@ import httpx
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 import re
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.models.youtube import YouTubeVideo
@@ -11,6 +12,16 @@ from app.config import get_settings
 from app.db_compat import has_archive_column, has_columns
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    message = sep.join(str(arg) for arg in args)
+    logger.info(message)
+
+
+print = _log_print  # type: ignore[assignment]
 
 
 class YouTubeService:
@@ -411,6 +422,7 @@ class YouTubeService:
         limit: int = 20,
         trending_only: bool = False,
         include_archived: bool = False,
+        language: Optional[str] = None,
     ) -> List[YouTubeVideo]:
         """
         데이터베이스에서 비디오 목록 가져오기
@@ -432,6 +444,9 @@ class YouTubeService:
 
         if trending_only:
             query = query.where(YouTubeVideo.is_trending == True)
+
+        if language:
+            query = query.where(YouTubeVideo.channel_language == language.lower())
 
         query = query.order_by(desc(YouTubeVideo.view_count)).offset(skip).limit(limit)
 
@@ -456,6 +471,9 @@ class YouTubeService:
                 fallback=fallback_language,
             )
             updated = True
+
+        if updated:
+            await db.commit()
 
         return videos
 
@@ -596,9 +614,12 @@ class YouTubeService:
         Returns:
             큐레이션 채널 딕셔너리
         """
+        if not region:
+            # v4.0 정책: 기본은 국내 채널만 노출
+            return {"korean": self.CURATED_CHANNELS.get("korean", [])}
         if region and region in self.CURATED_CHANNELS:
             return {region: self.CURATED_CHANNELS[region]}
-        return self.CURATED_CHANNELS
+        return {"korean": self.CURATED_CHANNELS.get("korean", [])}
 
     async def fetch_channel_videos_by_handle(
         self,

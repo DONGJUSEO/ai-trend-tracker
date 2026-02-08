@@ -3,6 +3,7 @@ import json
 import os
 import re
 from typing import Dict, Any, Optional
+import logging
 
 import google.generativeai as genai
 import httpx
@@ -10,6 +11,16 @@ import httpx
 from app.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    message = sep.join(str(arg) for arg in args)
+    logger.info(message)
+
+
+print = _log_print  # type: ignore[assignment]
 
 # Ollama 설정
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -35,6 +46,8 @@ class AISummaryService:
         )
         self.ollama_url = OLLAMA_BASE_URL
         self.ollama_model = OLLAMA_MODEL
+        self._ollama_checked = False
+        self._ollama_available = False
 
         if self.api_key:
             genai.configure(api_key=self.api_key)
@@ -42,6 +55,29 @@ class AISummaryService:
         else:
             print("⚠️  Gemini API 키가 없습니다. Ollama 폴백을 시도합니다.")
             self.model = None
+
+    async def _check_ollama_available(self) -> bool:
+        """Ollama 서버 가용성 확인 (프로세스 생명주기 동안 캐시)."""
+        if self._ollama_checked:
+            return self._ollama_available
+
+        self._ollama_checked = True
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                response = await client.get(f"{self.ollama_url}/api/tags")
+                response.raise_for_status()
+            self._ollama_available = True
+        except Exception as e:
+            self._ollama_available = False
+            print(f"⚠️  Ollama 서버 미연결 ({self.ollama_url}): {e}")
+
+        return self._ollama_available
+
+    async def can_summarize(self) -> bool:
+        """Gemini 또는 Ollama 중 사용 가능한 provider가 있는지 확인."""
+        if self.model is not None:
+            return True
+        return await self._check_ollama_available()
 
     @staticmethod
     def _clean_json_text(text: str) -> str:
@@ -93,6 +129,9 @@ class AISummaryService:
         """
         list_fields = list_fields or []
 
+        if self.model is None and not await self._check_ollama_available():
+            return default
+
         result_text = None
 
         # 1) Gemini 시도
@@ -104,7 +143,7 @@ class AISummaryService:
                 print(f"⚠️  Gemini 요약 실패, Ollama 폴백 시도: {e}")
 
         # 2) Ollama 폴백
-        if not result_text:
+        if not result_text and await self._check_ollama_available():
             raw = await self._call_ollama(prompt)
             if raw:
                 result_text = self._clean_json_text(raw)
@@ -150,8 +189,6 @@ class AISummaryService:
             }
         """
         default = {"summary": None, "key_features": [], "use_cases": None}
-        if not self.model:
-            return default
 
         # 프롬프트 구성
         prompt = f"""
@@ -206,8 +243,6 @@ class AISummaryService:
             }
         """
         default = {"summary": None, "keywords": [], "key_points": []}
-        if not self.model:
-            return default
 
         prompt = f"""
 다음은 AI 관련 YouTube 영상 정보입니다.
@@ -262,8 +297,6 @@ class AISummaryService:
             }
         """
         default = {"summary": None, "keywords": [], "key_contributions": []}
-        if not self.model:
-            return default
 
         prompt = f"""
 다음은 arXiv에 게시된 AI 관련 논문 정보입니다.
@@ -317,8 +350,6 @@ class AISummaryService:
             }
         """
         default = {"summary": None, "keywords": [], "key_points": []}
-        if not self.model:
-            return default
 
         prompt = f"""
 다음은 AI 관련 뉴스 또는 블로그 포스트입니다.
@@ -373,8 +404,6 @@ class AISummaryService:
             }
         """
         default = {"summary": None, "keywords": [], "use_cases": []}
-        if not self.model:
-            return default
 
         prompt = f"""
 다음은 GitHub의 AI/ML 관련 오픈소스 프로젝트입니다.
@@ -415,8 +444,6 @@ class AISummaryService:
     ) -> Dict[str, Any]:
         """AI 정책 정보를 한글로 요약."""
         default = {"summary": None, "keywords": [], "key_points": []}
-        if not self.model:
-            return default
 
         prompt = f"""
 다음은 AI 정책/규제 정보입니다.
@@ -448,8 +475,6 @@ class AISummaryService:
     ) -> Dict[str, Any]:
         """AI 컨퍼런스 정보를 한글로 요약."""
         default = {"summary": None, "keywords": [], "highlights": []}
-        if not self.model:
-            return default
 
         prompt = f"""
 다음은 AI 컨퍼런스 정보입니다.
@@ -481,8 +506,6 @@ class AISummaryService:
     ) -> Dict[str, Any]:
         """AI 도구/플랫폼 정보를 한글로 요약."""
         default = {"summary": None, "keywords": [], "best_for": []}
-        if not self.model:
-            return default
 
         prompt = f"""
 다음은 AI 도구/플랫폼 정보입니다.
@@ -515,8 +538,6 @@ class AISummaryService:
     ) -> Dict[str, Any]:
         """AI 채용 공고를 한글로 요약."""
         default = {"summary": None, "keywords": [], "key_points": []}
-        if not self.model:
-            return default
 
         prompt = f"""
 다음은 AI 관련 채용 공고 정보입니다.

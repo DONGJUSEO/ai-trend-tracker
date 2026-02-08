@@ -4,11 +4,22 @@ import feedparser
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import re
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
 from app.models.conference import AIConference
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    logger.info(sep.join(str(arg) for arg in args))
+
+
+print = _log_print  # type: ignore[assignment]
 
 
 class ConferenceService:

@@ -3,29 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import useSWR from "swr";
-import { apiFetcher } from "@/lib/fetcher";
-
-interface DashboardSummary {
-  total_items: number;
-  categories: Record<string, { total: number }>;
-}
 
 export default function LoginPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const { data: summary } = useSWR<DashboardSummary>(
-    "/api/v1/dashboard/summary",
-    apiFetcher,
-    { refreshInterval: 60000 }
-  );
-
-  const trackedModels = summary?.categories?.huggingface?.total ?? 1247;
-  const trackedNews = summary?.categories?.news?.total ?? 2340;
-  const trackedPapers = summary?.categories?.papers?.total ?? 856;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +26,7 @@ export default function LoginPage() {
         const data = await res.json();
         localStorage.setItem("admin_token", data.token);
         localStorage.setItem("admin_expires", data.expires_at);
-        router.push("/system");
+        router.push("/");
       } else {
         setError("비밀번호가 올바르지 않습니다");
       }
@@ -71,7 +54,7 @@ export default function LoginPage() {
         />
       </div>
 
-      <div className="relative z-10 grid lg:grid-cols-2 gap-6 w-full max-w-5xl">
+      <div className="relative z-10 w-full max-w-xl">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -82,7 +65,7 @@ export default function LoginPage() {
             AI봄 Admin
           </p>
           <h1 className="text-3xl font-bold text-white">관리자 로그인</h1>
-          <p className="text-white/55 mt-2">AI 트렌드를 30초 만에 파악하세요</p>
+          <p className="text-white/55 mt-2">관리자 인증 후 대시보드에 접속합니다</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <div>
@@ -112,43 +95,7 @@ export default function LoginPage() {
             </button>
           </form>
         </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.45 }}
-          className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-2xl p-8 lg:p-10"
-        >
-          <h2 className="text-white text-lg font-semibold mb-4">실시간 통계</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <StatCard label="추적 중인 AI 모델" value={trackedModels} />
-            <StatCard label="수집된 논문" value={trackedPapers} />
-            <StatCard label="모니터링 뉴스" value={trackedNews} />
-          </div>
-
-          <h3 className="text-white/70 text-sm mt-7 mb-3">대시보드 미리보기</h3>
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
-            <div className="h-3 w-3/4 rounded bg-white/20 blur-[0.3px]" />
-            <div className="grid grid-cols-3 gap-2">
-              <div className="h-14 rounded-xl bg-white/10" />
-              <div className="h-14 rounded-xl bg-white/10" />
-              <div className="h-14 rounded-xl bg-white/10" />
-            </div>
-            <div className="h-24 rounded-xl bg-white/10" />
-            <div className="h-16 rounded-xl bg-white/10" />
-          </div>
-        </motion.div>
       </div>
     </div>
   );
 }
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-      <p className="text-white text-lg font-bold tabular-nums">{value.toLocaleString()}</p>
-      <p className="text-white/45 text-xs mt-1">{label}</p>
-    </div>
-  );
-}
-

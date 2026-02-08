@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     # 스케줄링 설정
     scheduler_interval_hours: int = 12
+    api_rate_limit_per_minute: int = 240
 
     # 보안 설정 (환경변수 필수 — 미설정 시 기동 실패)
     app_password: str

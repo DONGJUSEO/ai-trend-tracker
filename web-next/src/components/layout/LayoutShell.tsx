@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Clock } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import { getCategoryByHref } from "@/lib/constants";
@@ -10,7 +10,6 @@ import { pushRecentItem } from "@/lib/user-preferences";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import MobileNav from "./MobileNav";
-import LoginScreen from "./LoginScreen";
 
 interface LayoutShellProps {
   children: React.ReactNode;
@@ -21,6 +20,8 @@ export default function LayoutShell({ children }: LayoutShellProps) {
   const { isAuthenticated } = useAuth();
   const { theme } = useTheme();
   const pathname = usePathname();
+  const router = useRouter();
+  const isLoginRoute = pathname === "/login";
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -33,8 +34,22 @@ export default function LayoutShell({ children }: LayoutShellProps) {
     });
   }, [isAuthenticated, pathname]);
 
+  useEffect(() => {
+    if (!isAuthenticated && !isLoginRoute) {
+      router.replace("/login");
+      return;
+    }
+    if (isAuthenticated && isLoginRoute) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, isLoginRoute, router]);
+
+  if (!isAuthenticated && isLoginRoute) {
+    return <>{children}</>;
+  }
+
   if (!isAuthenticated) {
-    return <LoginScreen />;
+    return null;
   }
 
   return (

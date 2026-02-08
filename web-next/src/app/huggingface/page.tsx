@@ -3,9 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
-import type { HuggingFaceModel, PaginatedResponse } from "@/lib/types";
+import { apiFetcher } from "@/lib/fetcher";
+import { formatNumber, timeAgo } from "@/lib/format";
+import type { HuggingFaceModel } from "@/lib/types";
 import GlassmorphicCard from "@/components/shared/GlassmorphicCard";
 import CategoryIcon from "@/components/icons/CategoryIcon";
+import ErrorState from "@/components/ui/ErrorState";
 
 const category = CATEGORIES.find((c) => c.id === "huggingface")!;
 
@@ -42,25 +45,6 @@ function getTaskColor(task?: string) {
 }
 
 // ─── Helpers ────────────────────────────────────────────────
-
-function formatNumber(num: number): string {
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
-  return num.toLocaleString();
-}
-
-function timeAgo(dateStr: string): string {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "오늘";
-  if (diffDays === 1) return "어제";
-  if (diffDays < 7) return `${diffDays}일 전`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}개월 전`;
-  return `${Math.floor(diffDays / 365)}년 전`;
-}
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -322,24 +306,27 @@ function EmptyState() {
 export default function HuggingFacePage() {
   const [models, setModels] = useState<HuggingFaceModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
   const fetchModels = useCallback(async () => {
     setLoading(true);
+    setFetchError(false);
     try {
-      const res = await fetch(
+      const json = await apiFetcher<{
+        items?: HuggingFaceModel[];
+        total?: number;
+        total_pages?: number;
+      }>(
         `/api/v1/huggingface/?page=${page}&page_size=20`
       );
-      if (res.ok) {
-        const json = await res.json();
-        setModels(json.items || []);
-        setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
-        setTotal(json.total || 0);
-      }
+      setModels(json.items || []);
+      setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
+      setTotal(json.total || 0);
     } catch {
-      // API unavailable
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -408,6 +395,15 @@ export default function HuggingFacePage() {
             exit={{ opacity: 0 }}
           >
             <LoadingSkeleton />
+          </motion.div>
+        ) : fetchError && models.length === 0 ? (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <ErrorState onRetry={fetchModels} />
           </motion.div>
         ) : models.length === 0 ? (
           <motion.div

@@ -87,6 +87,13 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
     }
   }
 
+  function goToSearchPage() {
+    const q = trimmedQuery;
+    if (q.length < 2) return;
+    setSearchOpen(false);
+    router.push(`/search?q=${encodeURIComponent(q)}`);
+  }
+
   const categoryLabel = (cat: string) => {
     const labels: Record<string, string> = {
       huggingface: "HuggingFace",
@@ -152,6 +159,12 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
                 setQuery(e.target.value);
                 setSearchOpen(true);
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  goToSearchPage();
+                }
+              }}
               onFocus={() => setSearchOpen(true)}
               onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
               placeholder="전체 검색 (모델/논문/뉴스/레포...)"
@@ -167,6 +180,15 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
                   : "bg-white/95 border-black/10"
               }`}
             >
+              <button
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  goToSearchPage();
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg text-xs text-cyan-300 hover:bg-white/10 mb-1"
+              >
+                전체 검색 결과 보기 →
+              </button>
               {searchLoading && (
                 <div className="px-3 py-2 text-sm text-muted-foreground">검색 중...</div>
               )}

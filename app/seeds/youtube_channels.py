@@ -42,4 +42,5 @@ KOREAN_CHANNELS = [
     {"channel_id": "UCKY6lyoOHnP8Bnrs5dJoVHA", "channel_name": "코딩하는거니", "channel_handle": "@codinghaneungeoni", "description": "AI 코딩 실전", "category": "국내", "priority": 6},
 ]
 
-ALL_CHANNELS = INTERNATIONAL_CHANNELS + KOREAN_CHANNELS
+# v4.0 정책: 국내 AI 채널 우선 운영
+ALL_CHANNELS = KOREAN_CHANNELS

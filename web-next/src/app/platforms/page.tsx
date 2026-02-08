@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
+import { apiFetcher } from "@/lib/fetcher";
 import CategoryIcon from "@/components/icons/CategoryIcon";
+import ErrorState from "@/components/ui/ErrorState";
 
 
 const category = CATEGORIES.find((c) => c.id === "platforms")!;
@@ -25,6 +27,14 @@ interface AITool {
   is_trending?: boolean;
   use_cases: string[];
   supported_platforms: string[];
+}
+
+interface ToolsResponse {
+  items?: AITool[];
+  total?: number;
+  total_pages?: number;
+  data_sources?: string[];
+  last_updated?: string | null;
 }
 
 const CATEGORY_TABS = [
@@ -215,30 +225,36 @@ function Pagination({
 export default function PlatformsPage() {
   const [tools, setTools] = useState<AITool[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [activeTab, setActiveTab] = useState("all");
+  const [dataSources, setDataSources] = useState<string[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  const fetchTools = useCallback(async () => {
+    setLoading(true);
+    setFetchError(false);
+    try {
+      const json = await apiFetcher<ToolsResponse>(
+        `/api/v1/tools/?page=${page}&page_size=20`
+      );
+      setTools(json.items || []);
+      setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
+      setDataSources(json.data_sources || []);
+      setLastUpdated(json.last_updated || null);
+    } catch {
+      setFetchError(true);
+      setDataSources([]);
+      setLastUpdated(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [page]);
 
   useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const res = await fetch(
-          `/api/v1/tools/?page=${page}&page_size=20`
-        );
-        if (res.ok) {
-          const json = await res.json();
-          setTools(json.items || []);
-          setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
-        }
-      } catch {
-        // API unavailable
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [page]);
+    fetchTools();
+  }, [fetchTools]);
 
   const filteredTools = useMemo(() => {
     return tools.filter((tool) => matchesCategory(tool.category || "", activeTab));
@@ -271,8 +287,11 @@ export default function PlatformsPage() {
                 {tools.length}
               </div>
               <div className="text-xs text-white/40">플랫폼</div>
-              <div className="text-[10px] text-white/25 mt-1">
-                출처: Gemini Deep Research
+              <div className="text-[10px] text-white/30 mt-1">
+                데이터 출처: {dataSources.length ? dataSources.join(", ") : "Gemini Deep Research Seed"}
+              </div>
+              <div className="text-[10px] text-white/25 mt-0.5">
+                최종 업데이트: {lastUpdated ? new Date(lastUpdated).toLocaleString("ko-KR") : "-"}
               </div>
             </div>
           )}
@@ -304,6 +323,8 @@ export default function PlatformsPage() {
       {/* Content */}
       {loading ? (
         <LoadingSkeleton />
+      ) : fetchError && tools.length === 0 ? (
+        <ErrorState onRetry={fetchTools} />
       ) : filteredTools.length === 0 ? (
         <motion.div
           initial={{ opacity: 0 }}

@@ -1,49 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { motion } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
+import { apiFetcher } from "@/lib/fetcher";
 import { AIConference } from "@/lib/types";
 import CategoryIcon from "@/components/icons/CategoryIcon";
-import CalendarView from "@/components/conferences/CalendarView";
+import ErrorState from "@/components/ui/ErrorState";
 
 
 const category = CATEGORIES.find((c) => c.id === "conferences")!;
-
-const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-  academic: { bg: "bg-blue-500/20", text: "text-blue-400" },
-  industry: { bg: "bg-purple-500/20", text: "text-purple-400" },
-  workshop: { bg: "bg-amber-500/20", text: "text-amber-400" },
-  meetup: { bg: "bg-green-500/20", text: "text-green-400" },
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  academic: "학술",
-  industry: "산업",
-  workshop: "워크숍",
-  meetup: "밋업",
-};
-
-const TIER_COLORS: Record<
-  string,
-  { bg: string; text: string; border: string }
-> = {
-  "A*": {
-    bg: "bg-amber-500/20",
-    text: "text-amber-400",
-    border: "border-amber-500/30",
-  },
-  A: {
-    bg: "bg-gray-400/20",
-    text: "text-gray-300",
-    border: "border-gray-400/30",
-  },
-  B: {
-    bg: "bg-blue-400/20",
-    text: "text-blue-400",
-    border: "border-blue-400/30",
-  },
-};
 
 function LoadingSkeleton() {
   return (
@@ -130,19 +96,6 @@ function isOngoing(conf: AIConference): boolean {
   return now >= start && now <= end;
 }
 
-function TierBadge({ tier }: { tier?: string }) {
-  if (!tier) return null;
-  const style = TIER_COLORS[tier];
-  if (!style) return null;
-  return (
-    <span
-      className={`px-2 py-0.5 rounded-full text-xs font-bold border ${style.bg} ${style.text} ${style.border}`}
-    >
-      {tier}
-    </span>
-  );
-}
-
 function Pagination({
   page,
   totalPages,
@@ -214,7 +167,6 @@ function ConferenceCard({
   const ongoing = isOngoing(conf);
   const countdown = getCountdown(conf.start_date);
   const dday = getDday(conf.start_date);
-  const typeStyle = TYPE_COLORS[conf.type] || TYPE_COLORS.academic;
 
   return (
     <motion.div
@@ -231,12 +183,6 @@ function ConferenceCard({
     >
       {/* Top Row: Badges */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <TierBadge tier={conf.tier} />
-        <span
-          className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${typeStyle.bg} ${typeStyle.text}`}
-        >
-          {TYPE_LABELS[conf.type] || conf.type}
-        </span>
         {conf.is_virtual && (
           <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-500/20 text-cyan-400">
             온라인
@@ -494,58 +440,33 @@ function ListView({ conferences }: { conferences: AIConference[] }) {
 export default function ConferencesPage() {
   const [conferences, setConferences] = useState<AIConference[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [filterType, setFilterType] = useState<string>("all");
-  const [filterTier, setFilterTier] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const res = await fetch(
-          `/api/v1/conferences/?page=${page}&page_size=20`
-        );
-        if (res.ok) {
-          const json = await res.json();
-          setConferences(json.items || []);
-          setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
-        }
-      } catch {
-        // API unavailable
-      } finally {
-        setLoading(false);
-      }
+  const fetchConferences = useCallback(async () => {
+    setLoading(true);
+    setFetchError(false);
+    try {
+      const json = await apiFetcher<{
+        items?: AIConference[];
+        total?: number;
+        total_pages?: number;
+      }>(
+        `/api/v1/conferences/?page=${page}&page_size=20`
+      );
+      setConferences(json.items || []);
+      setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
+    } catch {
+      setFetchError(true);
+    } finally {
+      setLoading(false);
     }
-    fetchData();
   }, [page]);
 
-  const filteredConferences = useMemo(() => {
-    let result = conferences;
-    if (filterType !== "all") {
-      result = result.filter((c) => c.type === filterType);
-    }
-    if (filterTier !== "all") {
-      result = result.filter((c) => c.tier === filterTier);
-    }
-    return result;
-  }, [conferences, filterType, filterTier]);
-
-  const typeFilterTabs = [
-    { key: "all", label: "전체" },
-    { key: "academic", label: "학술" },
-    { key: "industry", label: "산업" },
-    { key: "workshop", label: "워크숍" },
-    { key: "meetup", label: "밋업" },
-  ];
-
-  const tierFilterTabs = [
-    { key: "all", label: "전체" },
-    { key: "A*", label: "A*" },
-    { key: "A", label: "A" },
-    { key: "B", label: "B" },
-  ];
+  useEffect(() => {
+    fetchConferences();
+  }, [fetchConferences]);
 
   return (
     <div className="space-y-6">
@@ -571,93 +492,36 @@ export default function ConferencesPage() {
         </div>
       </motion.div>
 
-      {/* View Toggle + Filters */}
+      {/* Summary */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
-        className="space-y-3"
+        className="bg-white/5 border border-white/10 rounded-2xl px-5 py-4 flex items-center justify-between"
       >
-        {/* View Toggle */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="bg-white/5 border border-white/10 rounded-full p-1 flex items-center">
-            <button
-              onClick={() => setViewMode("list")}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                viewMode === "list"
-                  ? "bg-white/10 text-white"
-                  : "text-white/50 hover:text-white/70"
-              }`}
-            >
-              리스트
-            </button>
-            <button
-              onClick={() => setViewMode("calendar")}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                viewMode === "calendar"
-                  ? "bg-white/10 text-white"
-                  : "text-white/50 hover:text-white/70"
-              }`}
-            >
-              캘린더
-            </button>
-          </div>
-
-          {/* Tier Filter Tabs */}
-          <div className="bg-white/5 border border-white/10 rounded-full p-1 flex items-center">
-            {tierFilterTabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setFilterTier(tab.key)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  filterTier === tab.key
-                    ? "bg-white/10 text-white"
-                    : "text-white/50 hover:text-white/70"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-white/70">단일 일정 뷰</span>
+          <span className="text-xs px-2 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300">
+            v4.0
+          </span>
         </div>
-
-        {/* Type Filter Tabs */}
-        <div className="flex flex-wrap gap-2">
-          {typeFilterTabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setFilterType(tab.key)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                filterType === tab.key
-                  ? "bg-amber-500/20 border border-amber-400/50 text-amber-300"
-                  : "bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white/80"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <span className="text-sm text-white/50">{conferences.length.toLocaleString()}개 이벤트</span>
       </motion.div>
 
       {/* Content */}
       {loading ? (
         <LoadingSkeleton />
+      ) : fetchError && conferences.length === 0 ? (
+        <ErrorState onRetry={fetchConferences} />
       ) : (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`${viewMode}-${filterType}-${filterTier}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            {viewMode === "list" ? (
-              <ListView conferences={filteredConferences} />
-            ) : (
-              <CalendarView conferences={filteredConferences} />
-            )}
-          </motion.div>
-        </AnimatePresence>
+        <motion.div
+          key={`conference-page-${page}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <ListView conferences={conferences} />
+        </motion.div>
       )}
 
       {/* Pagination */}

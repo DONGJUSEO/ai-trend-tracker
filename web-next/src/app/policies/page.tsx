@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CATEGORIES } from "@/lib/constants";
+import { apiFetcher } from "@/lib/fetcher";
+import { timeAgo } from "@/lib/format";
 import { AIPolicy } from "@/lib/types";
 import CategoryIcon from "@/components/icons/CategoryIcon";
+import ErrorState from "@/components/ui/ErrorState";
 
 
 const category = CATEGORIES.find((c) => c.id === "policies")!;
@@ -166,19 +169,6 @@ function LoadingSkeleton() {
   );
 }
 
-function timeAgo(dateStr: string): string {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "오늘";
-  if (diffDays === 1) return "어제";
-  if (diffDays < 7) return `${diffDays}일 전`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}개월 전`;
-  return `${Math.floor(diffDays / 365)}년 전`;
-}
-
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString("ko-KR", {
@@ -195,6 +185,13 @@ function stripHtml(text?: string | null): string {
     .replace(/&[^;]+;/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function getTimelineDate(policy: AIPolicy): Date | null {
+  const value = policy.effective_date || policy.published_at;
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function Pagination({
@@ -257,30 +254,34 @@ function Pagination({
 export default function PoliciesPage() {
   const [policies, setPolicies] = useState<AIPolicy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [activeRegion, setActiveRegion] = useState<RegionTab>("전체");
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const res = await fetch(
-          `/api/v1/policies/?page=${page}&page_size=20`
-        );
-        if (res.ok) {
-          const json = await res.json();
-          setPolicies(json.items || []);
-          setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
-        }
-      } catch {
-        // API unavailable
-      } finally {
-        setLoading(false);
-      }
+  const fetchPolicies = useCallback(async () => {
+    setLoading(true);
+    setFetchError(false);
+    try {
+      const json = await apiFetcher<{
+        items?: AIPolicy[];
+        total?: number;
+        total_pages?: number;
+      }>(
+        `/api/v1/policies/?page=${page}&page_size=20`
+      );
+      setPolicies(json.items || []);
+      setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
+    } catch {
+      setFetchError(true);
+    } finally {
+      setLoading(false);
     }
-    fetchData();
   }, [page]);
+
+  useEffect(() => {
+    fetchPolicies();
+  }, [fetchPolicies]);
 
   const filteredPolicies = useMemo(() => {
     if (activeRegion === "전체") return policies;
@@ -295,6 +296,23 @@ export default function PoliciesPage() {
       return policyRegion === activeRegion;
     });
   }, [policies, activeRegion]);
+
+  const timelineItems = useMemo(() => {
+    return filteredPolicies
+      .map((policy) => {
+        const date = getTimelineDate(policy);
+        return {
+          id: policy.id,
+          title: policy.title,
+          status: policy.status || "proposed",
+          date,
+          raw: policy,
+        };
+      })
+      .filter((item) => item.date !== null)
+      .sort((a, b) => (b.date!.getTime() - a.date!.getTime()))
+      .slice(0, 8);
+  }, [filteredPolicies]);
 
   return (
     <div className="space-y-6">
@@ -350,9 +368,38 @@ export default function PoliciesPage() {
         ))}
       </motion.div>
 
+      <section className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+        <h2 className="text-sm font-semibold text-white/90 mb-4">정책 타임라인</h2>
+        {timelineItems.length === 0 ? (
+          <p className="text-xs text-white/50">타임라인 데이터가 없습니다.</p>
+        ) : (
+          <div className="space-y-3">
+            {timelineItems.map((item, idx) => {
+              const style = STATUS_STYLES[item.status] || STATUS_STYLES.proposed;
+              return (
+                <div key={`${item.id}-${idx}`} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <span className={`w-2.5 h-2.5 rounded-full ${style.bg} border border-white/20 mt-1`} />
+                    {idx < timelineItems.length - 1 && <span className="w-px flex-1 bg-white/10 mt-1" />}
+                  </div>
+                  <div className="pb-3">
+                    <p className="text-sm text-white font-medium">{item.title}</p>
+                    <p className="text-xs text-white/45 mt-0.5">
+                      {item.date?.toLocaleDateString("ko-KR")} · {style.label}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       {/* Content */}
       {loading ? (
         <LoadingSkeleton />
+      ) : fetchError && policies.length === 0 ? (
+        <ErrorState onRetry={fetchPolicies} />
       ) : filteredPolicies.length === 0 ? (
         <motion.div
           initial={{ opacity: 0 }}

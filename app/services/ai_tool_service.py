@@ -10,12 +10,23 @@
 import httpx
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
 from app.models.ai_tool import AITool
 from app.config import get_settings
 from app.services.ai_summary_service import AISummaryService
+
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    logger.info(sep.join(str(arg) for arg in args))
+
+
+print = _log_print  # type: ignore[assignment]
 
 
 class AIToolService:
@@ -417,6 +428,7 @@ class AIToolService:
 
         saved_count = 0
         ai_service = AISummaryService()
+        can_summarize = await ai_service.can_summarize()
 
         for tool_data in tools:
             try:
@@ -430,7 +442,7 @@ class AIToolService:
                 tool_data["website"] = website
 
                 # 해외 설명문 기반 한글 요약 생성
-                if ai_service.model and not tool_data.get("summary"):
+                if can_summarize and not tool_data.get("summary"):
                     summary_payload = await ai_service.summarize_ai_tool(
                         name=tool_data.get("tool_name", ""),
                         description=tool_data.get("description"),
@@ -457,7 +469,7 @@ class AIToolService:
                         if hasattr(existing, key) and value is not None:
                             setattr(existing, key, value)
 
-                    if ai_service.model and not existing.summary:
+                    if can_summarize and not existing.summary:
                         summary_payload = await ai_service.summarize_ai_tool(
                             name=existing.tool_name,
                             description=existing.description,

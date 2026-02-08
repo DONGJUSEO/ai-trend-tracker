@@ -2,6 +2,7 @@
 import httpx
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -11,6 +12,16 @@ from app.models.huggingface import HuggingFaceModel
 from app.services.ai_summary_service import AISummaryService
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    message = sep.join(str(arg) for arg in args)
+    logger.info(message)
+
+
+print = _log_print  # type: ignore[assignment]
 
 # Hugging Face API 엔드포인트
 HF_API_BASE = "https://huggingface.co/api"
@@ -211,6 +222,7 @@ class HuggingFaceService:
         """
         saved_count = 0
         ai_service = AISummaryService()
+        can_summarize = await ai_service.can_summarize()
         column_flags = await has_columns(
             db,
             "huggingface_models",
@@ -244,7 +256,7 @@ class HuggingFaceService:
                     existing_model.archived_at = None
                 existing_model.collected_at = datetime.now(timezone.utc)
                 # 기존 모델에 한글 요약이 없으면 생성
-                if ai_service.model and not getattr(existing_model, "summary", None):
+                if can_summarize and not getattr(existing_model, "summary", None):
                     summary_data = await ai_service.summarize_huggingface_model(
                         model_name=existing_model.model_id,
                         description=existing_model.description,
@@ -255,7 +267,7 @@ class HuggingFaceService:
                         existing_model.summary = summary_data["summary"]
             else:
                 # Gemini 한글 요약 생성
-                if ai_service.model:
+                if can_summarize:
                     summary_data = await ai_service.summarize_huggingface_model(
                         model_name=parsed_data.get("model_id", ""),
                         description=parsed_data.get("description"),

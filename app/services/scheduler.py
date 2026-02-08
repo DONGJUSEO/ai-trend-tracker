@@ -5,6 +5,7 @@ from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from datetime import datetime, timedelta, timezone
 import asyncio
 import logging
+from typing import Any, Awaitable, Callable, TypeVar
 
 from app.config import get_settings
 from app.database import AsyncSessionLocal
@@ -28,18 +29,31 @@ from app.models.conference import AIConference
 from app.models.ai_tool import AITool
 from app.models.job_trend import AIJobTrend
 from app.models.policy import AIPolicy
-from sqlalchemy import select, desc, update
+from sqlalchemy import select, desc, update, or_
 from app.cache import cache_delete_pattern
 from app.services.notification_service import send_error_webhook
 from app.db_compat import has_columns
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    """기존 print 호출을 구조화 로깅으로 우회."""
+    sep = kwargs.get("sep", " ")
+    message = sep.join(str(arg) for arg in args)
+    logger.info(message)
+
+
+# NOTE: 모듈 내 대량 print를 단계적으로 제거하기 전까지 logger로 라우팅
+print = _log_print  # type: ignore[assignment]
 
 # 스케줄러 인스턴스
 scheduler = AsyncIOScheduler()
 
 # 작업별 최근 실행 상태 (System API에서 사용)
 JOB_RUNTIME_STATUS = {}
+SummaryRow = TypeVar("SummaryRow")
 
 
 async def _invalidate_cache_after_collection(job_id: str):
@@ -158,6 +172,56 @@ async def archive_old_data(days: int = 30):
     await _invalidate_cache_after_collection("archive_old_data")
 
 
+async def _fill_missing_summaries(
+    *,
+    db,
+    model,
+    label: str,
+    item_name: Callable[[Any], str],
+    build_summary: Callable[[AISummaryService, Any], Awaitable[dict[str, Any]]],
+    apply_summary: Callable[[Any, dict[str, Any]], bool],
+    limit: int = 10,
+) -> int:
+    """카테고리별 공통 요약 백필 루틴."""
+    ai_service = AISummaryService()
+    can_summarize = await ai_service.can_summarize()
+    if not can_summarize:
+        print("⚠️  사용 가능한 요약 provider(Gemini/Ollama)가 없어 요약을 건너뜁니다")
+        return 0
+
+    query = select(model).where(or_(model.summary.is_(None), model.summary == "")).limit(limit)
+    result = await db.execute(query)
+    rows = result.scalars().all()
+    if not rows:
+        return 0
+
+    print(f"\n🧠 AI 요약 생성 시작 ({len(rows)}개 {label})...")
+    delay_seconds = 2.0 if ai_service.model is not None else 0.0
+    updated = 0
+
+    for row in rows:
+        row_title = item_name(row)[:40]
+        try:
+            summary_data = await build_summary(ai_service, row)
+            if apply_summary(row, summary_data):
+                updated += 1
+                print(f"  ✅ {row_title} - 요약 완료")
+            else:
+                print(f"  ⚠️  {row_title} - 요약 실패")
+        except Exception as e:
+            print(f"  ❌ {row_title} - 에러: {e}")
+            continue
+
+        if delay_seconds > 0:
+            await asyncio.sleep(delay_seconds)
+
+    if updated > 0:
+        await db.commit()
+        print("✅ AI 요약 완료")
+
+    return updated
+
+
 async def collect_huggingface_data():
     """Hugging Face 데이터 수집 작업"""
     print(f"\n{'='*60}")
@@ -176,45 +240,28 @@ async def collect_huggingface_data():
                 print("⚠️  Hugging Face 수집 실패")
 
             # 2. AI 요약 생성 (요약이 없는 모델들에 대해)
-            ai_service = AISummaryService()
-            if ai_service.model:  # API 키가 있는 경우만
-                query = select(HuggingFaceModel).where(
-                    HuggingFaceModel.summary == None
-                ).limit(10)  # 한번에 10개씩
-                result = await db.execute(query)
-                models_without_summary = result.scalars().all()
+            def _apply_hf_summary(row: HuggingFaceModel, payload: dict[str, Any]) -> bool:
+                if not payload.get("summary"):
+                    return False
+                row.summary = payload.get("summary")
+                row.key_features = payload.get("key_features", [])
+                row.use_cases = payload.get("use_cases")
+                return True
 
-                if models_without_summary:
-                    print(f"\n🧠 AI 요약 생성 시작 ({len(models_without_summary)}개 모델)...")
-
-                    for model in models_without_summary:
-                        try:
-                            summary_data = await ai_service.summarize_huggingface_model(
-                                model_name=model.model_name,
-                                description=model.description,
-                                task=model.task,
-                                tags=model.tags or [],
-                            )
-
-                            if summary_data["summary"]:
-                                model.summary = summary_data["summary"]
-                                model.key_features = summary_data["key_features"]
-                                model.use_cases = summary_data["use_cases"]
-                                print(f"  ✅ {model.model_name[:40]} - 요약 완료")
-                            else:
-                                print(f"  ⚠️  {model.model_name[:40]} - 요약 실패")
-
-                            # API 호출 제한 회피 (무료 티어)
-                            await asyncio.sleep(2)
-
-                        except Exception as e:
-                            print(f"  ❌ {model.model_name[:40]} - 에러: {e}")
-                            continue
-
-                    await db.commit()
-                    print(f"✅ AI 요약 완료")
-            else:
-                print("⚠️  Gemini API 키가 없어 요약을 건너뜁니다")
+            await _fill_missing_summaries(
+                db=db,
+                model=HuggingFaceModel,
+                label="모델",
+                item_name=lambda row: row.model_name or row.model_id or "unknown",
+                build_summary=lambda ai, row: ai.summarize_huggingface_model(
+                    model_name=row.model_name,
+                    description=row.description,
+                    task=row.task,
+                    tags=row.tags or [],
+                ),
+                apply_summary=_apply_hf_summary,
+                limit=10,
+            )
 
         except Exception as e:
             print(f"❌ 수집 중 에러 발생: {e}")
@@ -259,7 +306,11 @@ async def collect_youtube_data():
                         token in category_text
                         for token in ["국내", "korean", "ko"]
                     )
-                    channel_lang = "ko" if is_korean_channel else "en"
+                    # v4.0: YouTube는 국내 채널만 수집
+                    if not is_korean_channel:
+                        continue
+
+                    channel_lang = "ko"
                     videos = await yt_service.get_channel_videos(
                         channel_id=channel.channel_id,
                         max_results=15,  # 채널당 최신 15개
@@ -293,13 +344,12 @@ async def collect_youtube_data():
             # 2. 키워드 검색으로 추가 AI 트렌드 영상 수집
             print("📌 키워드 검색으로 추가 AI 트렌드 영상 수집 중...")
             queries = [
-                ("AI artificial intelligence tutorial 2026", "en"),
-                ("machine learning explained", "en"),
-                ("deep learning tutorial", "en"),
-                ("ChatGPT GPT-4", "en"),
-                ("stable diffusion AI art", "en"),
                 ("인공지능 개발 튜토리얼", "ko"),
                 ("LLM 실무 활용", "ko"),
+                ("머신러닝 입문", "ko"),
+                ("딥러닝 최신 동향", "ko"),
+                ("챗GPT 활용법", "ko"),
+                ("RAG 프로젝트", "ko"),
             ]
 
             keyword_videos_count = 0
@@ -325,44 +375,27 @@ async def collect_youtube_data():
             print(f"\n✅ YouTube 전체: 총 {total_saved}개 신규 비디오 저장")
 
             # 2. AI 요약 생성 (요약이 없는 비디오들에 대해)
-            ai_service = AISummaryService()
-            if ai_service.model:  # API 키가 있는 경우만
-                query = select(YouTubeVideo).where(
-                    YouTubeVideo.summary == None
-                ).limit(10)  # 한번에 10개씩
-                result = await db.execute(query)
-                videos_without_summary = result.scalars().all()
+            def _apply_youtube_summary(row: YouTubeVideo, payload: dict[str, Any]) -> bool:
+                if not payload.get("summary"):
+                    return False
+                row.summary = payload.get("summary")
+                row.keywords = payload.get("keywords", [])
+                row.key_points = payload.get("key_points", [])
+                return True
 
-                if videos_without_summary:
-                    print(f"\n🧠 AI 요약 생성 시작 ({len(videos_without_summary)}개 비디오)...")
-
-                    for video in videos_without_summary:
-                        try:
-                            summary_data = await ai_service.summarize_youtube_video(
-                                title=video.title,
-                                description=video.description,
-                                tags=video.tags or [],
-                            )
-
-                            if summary_data["summary"]:
-                                video.summary = summary_data["summary"]
-                                video.keywords = summary_data["keywords"]
-                                video.key_points = summary_data["key_points"]
-                                print(f"  ✅ {video.title[:40]} - 요약 완료")
-                            else:
-                                print(f"  ⚠️  {video.title[:40]} - 요약 실패")
-
-                            # API 호출 제한 회피
-                            await asyncio.sleep(2)
-
-                        except Exception as e:
-                            print(f"  ❌ {video.title[:40]} - 에러: {e}")
-                            continue
-
-                    await db.commit()
-                    print(f"✅ AI 요약 완료")
-            else:
-                print("⚠️  Gemini API 키가 없어 요약을 건너뜁니다")
+            await _fill_missing_summaries(
+                db=db,
+                model=YouTubeVideo,
+                label="비디오",
+                item_name=lambda row: row.title or row.video_id or "unknown",
+                build_summary=lambda ai, row: ai.summarize_youtube_video(
+                    title=row.title,
+                    description=row.description,
+                    tags=row.tags or [],
+                ),
+                apply_summary=_apply_youtube_summary,
+                limit=10,
+            )
 
         except Exception as e:
             print(f"❌ YouTube 수집 중 에러 발생: {e}")
@@ -399,45 +432,28 @@ async def collect_papers_data():
                 print("⚠️  arXiv에서 논문을 찾을 수 없습니다")
 
             # 2. AI 요약 생성 (요약이 없는 논문들에 대해)
-            ai_service = AISummaryService()
-            if ai_service.model:  # API 키가 있는 경우만
-                query = select(AIPaper).where(
-                    AIPaper.summary == None
-                ).limit(10)  # 한번에 10개씩
-                result = await db.execute(query)
-                papers_without_summary = result.scalars().all()
+            def _apply_paper_summary(row: AIPaper, payload: dict[str, Any]) -> bool:
+                if not payload.get("summary"):
+                    return False
+                row.summary = payload.get("summary")
+                row.keywords = payload.get("keywords", [])
+                row.key_contributions = payload.get("key_contributions", [])
+                return True
 
-                if papers_without_summary:
-                    print(f"\n🧠 AI 요약 생성 시작 ({len(papers_without_summary)}개 논문)...")
-
-                    for paper in papers_without_summary:
-                        try:
-                            summary_data = await ai_service.summarize_paper(
-                                title=paper.title,
-                                abstract=paper.abstract,
-                                authors=paper.authors or [],
-                                categories=paper.categories or [],
-                            )
-
-                            if summary_data["summary"]:
-                                paper.summary = summary_data["summary"]
-                                paper.keywords = summary_data["keywords"]
-                                paper.key_contributions = summary_data["key_contributions"]
-                                print(f"  ✅ {paper.title[:40]} - 요약 완료")
-                            else:
-                                print(f"  ⚠️  {paper.title[:40]} - 요약 실패")
-
-                            # API 호출 제한 회피
-                            await asyncio.sleep(2)
-
-                        except Exception as e:
-                            print(f"  ❌ {paper.title[:40]} - 에러: {e}")
-                            continue
-
-                    await db.commit()
-                    print(f"✅ AI 요약 완료")
-            else:
-                print("⚠️  Gemini API 키가 없어 요약을 건너뜁니다")
+            await _fill_missing_summaries(
+                db=db,
+                model=AIPaper,
+                label="논문",
+                item_name=lambda row: row.title or row.arxiv_id or "unknown",
+                build_summary=lambda ai, row: ai.summarize_paper(
+                    title=row.title,
+                    abstract=row.abstract,
+                    authors=row.authors or [],
+                    categories=row.categories or [],
+                ),
+                apply_summary=_apply_paper_summary,
+                limit=10,
+            )
 
         except Exception as e:
             print(f"❌ Papers 수집 중 에러 발생: {e}")
@@ -471,44 +487,27 @@ async def collect_news_data():
                 print("⚠️  RSS 피드에서 뉴스를 찾을 수 없습니다")
 
             # 2. AI 요약 생성 (요약이 없는 뉴스들에 대해)
-            ai_service = AISummaryService()
-            if ai_service.model:  # API 키가 있는 경우만
-                query = select(AINews).where(
-                    AINews.summary == None
-                ).limit(10)  # 한번에 10개씩
-                result = await db.execute(query)
-                news_without_summary = result.scalars().all()
+            def _apply_news_summary(row: AINews, payload: dict[str, Any]) -> bool:
+                if not payload.get("summary"):
+                    return False
+                row.summary = payload.get("summary")
+                row.keywords = payload.get("keywords", [])
+                row.key_points = payload.get("key_points", [])
+                return True
 
-                if news_without_summary:
-                    print(f"\n🧠 AI 요약 생성 시작 ({len(news_without_summary)}개 뉴스)...")
-
-                    for news_item in news_without_summary:
-                        try:
-                            summary_data = await ai_service.summarize_news(
-                                title=news_item.title,
-                                content=news_item.content or news_item.excerpt,
-                                source=news_item.source,
-                            )
-
-                            if summary_data["summary"]:
-                                news_item.summary = summary_data["summary"]
-                                news_item.keywords = summary_data["keywords"]
-                                news_item.key_points = summary_data["key_points"]
-                                print(f"  ✅ {news_item.title[:40]} - 요약 완료")
-                            else:
-                                print(f"  ⚠️  {news_item.title[:40]} - 요약 실패")
-
-                            # API 호출 제한 회피
-                            await asyncio.sleep(2)
-
-                        except Exception as e:
-                            print(f"  ❌ {news_item.title[:40]} - 에러: {e}")
-                            continue
-
-                    await db.commit()
-                    print(f"✅ AI 요약 완료")
-            else:
-                print("⚠️  Gemini API 키가 없어 요약을 건너뜁니다")
+            await _fill_missing_summaries(
+                db=db,
+                model=AINews,
+                label="뉴스",
+                item_name=lambda row: row.title or row.url or "unknown",
+                build_summary=lambda ai, row: ai.summarize_news(
+                    title=row.title,
+                    content=row.content or row.excerpt,
+                    source=row.source,
+                ),
+                apply_summary=_apply_news_summary,
+                limit=10,
+            )
 
         except Exception as e:
             print(f"❌ News 수집 중 에러 발생: {e}")
@@ -544,45 +543,28 @@ async def collect_github_data():
                 print("⚠️  GitHub에서 프로젝트를 찾을 수 없습니다")
 
             # 2. AI 요약 생성 (요약이 없는 프로젝트들에 대해)
-            ai_service = AISummaryService()
-            if ai_service.model:  # API 키가 있는 경우만
-                query = select(GitHubProject).where(
-                    GitHubProject.summary == None
-                ).limit(10)  # 한번에 10개씩
-                result = await db.execute(query)
-                projects_without_summary = result.scalars().all()
+            def _apply_github_summary(row: GitHubProject, payload: dict[str, Any]) -> bool:
+                if not payload.get("summary"):
+                    return False
+                row.summary = payload.get("summary")
+                row.keywords = payload.get("keywords", [])
+                row.use_cases = payload.get("use_cases", [])
+                return True
 
-                if projects_without_summary:
-                    print(f"\n🧠 AI 요약 생성 시작 ({len(projects_without_summary)}개 프로젝트)...")
-
-                    for project in projects_without_summary:
-                        try:
-                            summary_data = await ai_service.summarize_github_project(
-                                repo_name=project.repo_name,
-                                description=project.description,
-                                language=project.language,
-                                topics=project.topics or [],
-                            )
-
-                            if summary_data["summary"]:
-                                project.summary = summary_data["summary"]
-                                project.keywords = summary_data["keywords"]
-                                project.use_cases = summary_data["use_cases"]
-                                print(f"  ✅ {project.repo_name[:40]} - 요약 완료")
-                            else:
-                                print(f"  ⚠️  {project.repo_name[:40]} - 요약 실패")
-
-                            # API 호출 제한 회피
-                            await asyncio.sleep(2)
-
-                        except Exception as e:
-                            print(f"  ❌ {project.repo_name[:40]} - 에러: {e}")
-                            continue
-
-                    await db.commit()
-                    print(f"✅ AI 요약 완료")
-            else:
-                print("⚠️  Gemini API 키가 없어 요약을 건너뜁니다")
+            await _fill_missing_summaries(
+                db=db,
+                model=GitHubProject,
+                label="프로젝트",
+                item_name=lambda row: row.repo_name or row.name or "unknown",
+                build_summary=lambda ai, row: ai.summarize_github_project(
+                    repo_name=row.repo_name,
+                    description=row.description,
+                    language=row.language,
+                    topics=row.topics or [],
+                ),
+                apply_summary=_apply_github_summary,
+                limit=10,
+            )
 
         except Exception as e:
             print(f"❌ GitHub 수집 중 에러 발생: {e}")
@@ -616,43 +598,26 @@ async def collect_conference_data():
                 print("⚠️  WikiCFP에서 컨퍼런스를 찾을 수 없습니다")
 
             # 2. AI 요약 생성 (요약이 없는 컨퍼런스들에 대해)
-            ai_service = AISummaryService()
-            if ai_service.model:  # API 키가 있는 경우만
-                query = select(AIConference).where(
-                    AIConference.summary == None
-                ).limit(10)  # 한번에 10개씩
-                result = await db.execute(query)
-                conferences_without_summary = result.scalars().all()
+            def _apply_conference_summary(row: AIConference, payload: dict[str, Any]) -> bool:
+                if not payload.get("summary"):
+                    return False
+                row.summary = payload.get("summary")
+                row.keywords = payload.get("keywords", [])
+                return True
 
-                if conferences_without_summary:
-                    print(f"\n🧠 AI 요약 생성 시작 ({len(conferences_without_summary)}개 컨퍼런스)...")
-
-                    for conference in conferences_without_summary:
-                        try:
-                            summary_data = await ai_service.summarize_conference(
-                                name=conference.conference_name,
-                                description=conference.summary or "",
-                                topics=conference.topics or [],
-                            )
-
-                            if summary_data.get("summary"):
-                                conference.summary = summary_data["summary"]
-                                conference.keywords = summary_data.get("keywords", [])
-                                print(f"  ✅ {conference.conference_name[:40]} - 요약 완료")
-                            else:
-                                print(f"  ⚠️  {conference.conference_name[:40]} - 요약 실패")
-
-                            # API 호출 제한 회피
-                            await asyncio.sleep(2)
-
-                        except Exception as e:
-                            print(f"  ❌ {conference.conference_name[:40]} - 에러: {e}")
-                            continue
-
-                    await db.commit()
-                    print(f"✅ AI 요약 완료")
-            else:
-                print("⚠️  Gemini API 키가 없어 요약을 건너뜁니다")
+            await _fill_missing_summaries(
+                db=db,
+                model=AIConference,
+                label="컨퍼런스",
+                item_name=lambda row: row.conference_name or "unknown",
+                build_summary=lambda ai, row: ai.summarize_conference(
+                    name=row.conference_name,
+                    description=row.summary or "",
+                    topics=row.topics or [],
+                ),
+                apply_summary=_apply_conference_summary,
+                limit=10,
+            )
 
         except Exception as e:
             print(f"❌ Conference 수집 중 에러 발생: {e}")
@@ -686,44 +651,27 @@ async def collect_tool_data():
                 print("⚠️  AI 도구를 찾을 수 없습니다")
 
             # 2. AI 요약 생성 (요약이 없는 도구들에 대해)
-            ai_service = AISummaryService()
-            if ai_service.model:  # API 키가 있는 경우만
-                query = select(AITool).where(
-                    AITool.summary == None
-                ).limit(10)  # 한번에 10개씩
-                result = await db.execute(query)
-                tools_without_summary = result.scalars().all()
+            def _apply_tool_summary(row: AITool, payload: dict[str, Any]) -> bool:
+                if not payload.get("summary"):
+                    return False
+                row.summary = payload.get("summary")
+                row.keywords = payload.get("keywords", [])
+                return True
 
-                if tools_without_summary:
-                    print(f"\n🧠 AI 요약 생성 시작 ({len(tools_without_summary)}개 도구)...")
-
-                    for tool in tools_without_summary:
-                        try:
-                            summary_data = await ai_service.summarize_ai_tool(
-                                name=tool.tool_name,
-                                description=tool.description or "",
-                                category=tool.category,
-                                use_cases=tool.use_cases or [],
-                            )
-
-                            if summary_data.get("summary"):
-                                tool.summary = summary_data["summary"]
-                                tool.keywords = summary_data.get("keywords", [])
-                                print(f"  ✅ {tool.tool_name[:40]} - 요약 완료")
-                            else:
-                                print(f"  ⚠️  {tool.tool_name[:40]} - 요약 실패")
-
-                            # API 호출 제한 회피
-                            await asyncio.sleep(2)
-
-                        except Exception as e:
-                            print(f"  ❌ {tool.tool_name[:40]} - 에러: {e}")
-                            continue
-
-                    await db.commit()
-                    print(f"✅ AI 요약 완료")
-            else:
-                print("⚠️  Gemini API 키가 없어 요약을 건너뜁니다")
+            await _fill_missing_summaries(
+                db=db,
+                model=AITool,
+                label="도구",
+                item_name=lambda row: row.tool_name or "unknown",
+                build_summary=lambda ai, row: ai.summarize_ai_tool(
+                    name=row.tool_name,
+                    description=row.description or "",
+                    category=row.category,
+                    use_cases=row.use_cases or [],
+                ),
+                apply_summary=_apply_tool_summary,
+                limit=10,
+            )
 
         except Exception as e:
             print(f"❌ Tool 수집 중 에러 발생: {e}")
@@ -761,44 +709,27 @@ async def collect_job_data():
                 print("⚠️  채용 공고를 찾을 수 없습니다")
 
             # 2. AI 요약 생성 (요약이 없는 채용 공고들에 대해)
-            ai_service = AISummaryService()
-            if ai_service.model:  # API 키가 있는 경우만
-                query = select(AIJobTrend).where(
-                    AIJobTrend.summary == None
-                ).limit(10)  # 한번에 10개씩
-                result = await db.execute(query)
-                jobs_without_summary = result.scalars().all()
+            def _apply_job_summary(row: AIJobTrend, payload: dict[str, Any]) -> bool:
+                if not payload.get("summary"):
+                    return False
+                row.summary = payload.get("summary")
+                row.keywords = payload.get("keywords", [])
+                return True
 
-                if jobs_without_summary:
-                    print(f"\n🧠 AI 요약 생성 시작 ({len(jobs_without_summary)}개 채용 공고)...")
-
-                    for job in jobs_without_summary:
-                        try:
-                            summary_data = await ai_service.summarize_job(
-                                title=job.job_title,
-                                company=job.company_name,
-                                description=job.description or "",
-                                skills=job.required_skills or [],
-                            )
-
-                            if summary_data.get("summary"):
-                                job.summary = summary_data["summary"]
-                                job.keywords = summary_data.get("keywords", [])
-                                print(f"  ✅ {job.job_title[:40]} - 요약 완료")
-                            else:
-                                print(f"  ⚠️  {job.job_title[:40]} - 요약 실패")
-
-                            # API 호출 제한 회피
-                            await asyncio.sleep(2)
-
-                        except Exception as e:
-                            print(f"  ❌ {job.job_title[:40]} - 에러: {e}")
-                            continue
-
-                    await db.commit()
-                    print(f"✅ AI 요약 완료")
-            else:
-                print("⚠️  Gemini API 키가 없어 요약을 건너뜁니다")
+            await _fill_missing_summaries(
+                db=db,
+                model=AIJobTrend,
+                label="채용 공고",
+                item_name=lambda row: row.job_title or row.job_url or "unknown",
+                build_summary=lambda ai, row: ai.summarize_job(
+                    title=row.job_title,
+                    company=row.company_name,
+                    description=row.description or "",
+                    skills=row.required_skills or [],
+                ),
+                apply_summary=_apply_job_summary,
+                limit=10,
+            )
 
         except Exception as e:
             print(f"❌ Job 수집 중 에러 발생: {e}")
@@ -832,44 +763,27 @@ async def collect_policy_data():
                 print("⚠️  정책 정보를 찾을 수 없습니다")
 
             # 2. AI 요약 생성 (요약이 없는 정책들에 대해)
-            ai_service = AISummaryService()
-            if ai_service.model:  # API 키가 있는 경우만
-                query = select(AIPolicy).where(
-                    AIPolicy.summary == None
-                ).limit(10)  # 한번에 10개씩
-                result = await db.execute(query)
-                policies_without_summary = result.scalars().all()
+            def _apply_policy_summary(row: AIPolicy, payload: dict[str, Any]) -> bool:
+                if not payload.get("summary"):
+                    return False
+                row.summary = payload.get("summary")
+                row.keywords = payload.get("keywords", [])
+                return True
 
-                if policies_without_summary:
-                    print(f"\n🧠 AI 요약 생성 시작 ({len(policies_without_summary)}개 정책)...")
-
-                    for policy in policies_without_summary:
-                        try:
-                            summary_data = await ai_service.summarize_policy(
-                                title=policy.title,
-                                description=policy.description or "",
-                                policy_type=policy.policy_type,
-                                impact_areas=policy.impact_areas or [],
-                            )
-
-                            if summary_data.get("summary"):
-                                policy.summary = summary_data["summary"]
-                                policy.keywords = summary_data.get("keywords", [])
-                                print(f"  ✅ {policy.title[:40]} - 요약 완료")
-                            else:
-                                print(f"  ⚠️  {policy.title[:40]} - 요약 실패")
-
-                            # API 호출 제한 회피
-                            await asyncio.sleep(2)
-
-                        except Exception as e:
-                            print(f"  ❌ {policy.title[:40]} - 에러: {e}")
-                            continue
-
-                    await db.commit()
-                    print(f"✅ AI 요약 완료")
-            else:
-                print("⚠️  Gemini API 키가 없어 요약을 건너뜁니다")
+            await _fill_missing_summaries(
+                db=db,
+                model=AIPolicy,
+                label="정책",
+                item_name=lambda row: row.title or row.source_url or "unknown",
+                build_summary=lambda ai, row: ai.summarize_policy(
+                    title=row.title,
+                    description=row.description or "",
+                    policy_type=row.policy_type,
+                    impact_areas=row.impact_areas or [],
+                ),
+                apply_summary=_apply_policy_summary,
+                limit=10,
+            )
 
         except Exception as e:
             print(f"❌ Policy 수집 중 에러 발생: {e}")
@@ -945,105 +859,94 @@ async def collect_all_data():
 def start_scheduler():
     """스케줄러 시작 - 카테고리별 최적 주기 (ChatGPT deep research 2026-02)"""
     logger = logging.getLogger(__name__)
+    job_configs = [
+        # ── 고빈도: 뉴스 (매 1시간) ──
+        {
+            "func": collect_news_data,
+            "trigger": CronTrigger(minute=5),  # 매시 05분
+            "id": "collect_news",
+            "name": "AI 뉴스 수집 (매 1시간)",
+        },
+        # ── 중빈도: YouTube (매 4시간) ──
+        {
+            "func": collect_youtube_data,
+            "trigger": CronTrigger(hour="0,4,8,12,16,20", minute=10),
+            "id": "collect_youtube",
+            "name": "YouTube 수집 (매 4시간)",
+        },
+        # ── 중빈도: HuggingFace (매 6시간) ──
+        {
+            "func": collect_huggingface_data,
+            "trigger": CronTrigger(hour="0,6,12,18", minute=15),
+            "id": "collect_huggingface",
+            "name": "HuggingFace 수집 (매 6시간)",
+        },
+        # ── 중빈도: GitHub (매 6시간) ──
+        {
+            "func": collect_github_data,
+            "trigger": CronTrigger(hour="1,7,13,19", minute=15),
+            "id": "collect_github",
+            "name": "GitHub 수집 (매 6시간)",
+        },
+        # ── 중빈도: 외부 트렌딩 키워드 (매 6시간) ──
+        {
+            "func": collect_external_trending_keywords,
+            "trigger": CronTrigger(hour="0,6,12,18", minute=25),
+            "id": "collect_external_trending_keywords",
+            "name": "외부 트렌딩 키워드 수집 (매 6시간)",
+        },
+        # ── 중빈도: 채용 (매 6시간) ──
+        {
+            "func": collect_job_data,
+            "trigger": CronTrigger(hour="2,8,14,20", minute=15),
+            "id": "collect_jobs",
+            "name": "AI 채용 수집 (매 6시간)",
+        },
+        # ── 저빈도: 논문 (매 12시간) ──
+        {
+            "func": collect_papers_data,
+            "trigger": CronTrigger(hour="3,15", minute=0),
+            "id": "collect_papers",
+            "name": "AI 논문 수집 (매 12시간)",
+        },
+        # ── 일간: 컨퍼런스 (매일 06:00) ──
+        {
+            "func": collect_conference_data,
+            "trigger": CronTrigger(hour=6, minute=0),
+            "id": "collect_conferences",
+            "name": "AI 컨퍼런스 수집 (매일)",
+        },
+        # ── 일간: 정책 (매일 07:00) ──
+        {
+            "func": collect_policy_data,
+            "trigger": CronTrigger(hour=7, minute=0),
+            "id": "collect_policies",
+            "name": "AI 정책 수집 (매일)",
+        },
+        # ── 주간: 플랫폼/도구 (매주 월요일 04:00) ──
+        {
+            "func": collect_tool_data,
+            "trigger": CronTrigger(day_of_week="mon", hour=4, minute=0),
+            "id": "collect_tools",
+            "name": "AI 플랫폼 수집 (매주)",
+        },
+        # ── 일간: 30일 초과 데이터 아카이브 (매일 03:30) ──
+        {
+            "func": archive_old_data,
+            "trigger": CronTrigger(hour=3, minute=30),
+            "id": "archive_old_data",
+            "name": "오래된 데이터 아카이브 (매일)",
+        },
+    ]
 
-    # ── 고빈도: 뉴스 (매 1시간) ──
-    scheduler.add_job(
-        collect_news_data,
-        trigger=CronTrigger(minute=5),  # 매시 05분
-        id="collect_news",
-        name="AI 뉴스 수집 (매 1시간)",
-        replace_existing=True,
-    )
-
-    # ── 중빈도: YouTube (매 4시간) ──
-    scheduler.add_job(
-        collect_youtube_data,
-        trigger=CronTrigger(hour="0,4,8,12,16,20", minute=10),
-        id="collect_youtube",
-        name="YouTube 수집 (매 4시간)",
-        replace_existing=True,
-    )
-
-    # ── 중빈도: HuggingFace (매 6시간) ──
-    scheduler.add_job(
-        collect_huggingface_data,
-        trigger=CronTrigger(hour="0,6,12,18", minute=15),
-        id="collect_huggingface",
-        name="HuggingFace 수집 (매 6시간)",
-        replace_existing=True,
-    )
-
-    # ── 중빈도: GitHub (매 6시간) ──
-    scheduler.add_job(
-        collect_github_data,
-        trigger=CronTrigger(hour="1,7,13,19", minute=15),
-        id="collect_github",
-        name="GitHub 수집 (매 6시간)",
-        replace_existing=True,
-    )
-
-    # ── 중빈도: 외부 트렌딩 키워드 (매 6시간) ──
-    scheduler.add_job(
-        collect_external_trending_keywords,
-        trigger=CronTrigger(hour="0,6,12,18", minute=25),
-        id="collect_external_trending_keywords",
-        name="외부 트렌딩 키워드 수집 (매 6시간)",
-        replace_existing=True,
-    )
-
-    # ── 중빈도: 채용 (매 6시간) ──
-    scheduler.add_job(
-        collect_job_data,
-        trigger=CronTrigger(hour="2,8,14,20", minute=15),
-        id="collect_jobs",
-        name="AI 채용 수집 (매 6시간)",
-        replace_existing=True,
-    )
-
-    # ── 저빈도: 논문 (매 12시간) ──
-    scheduler.add_job(
-        collect_papers_data,
-        trigger=CronTrigger(hour="3,15", minute=0),
-        id="collect_papers",
-        name="AI 논문 수집 (매 12시간)",
-        replace_existing=True,
-    )
-
-    # ── 일간: 컨퍼런스 (매일 06:00) ──
-    scheduler.add_job(
-        collect_conference_data,
-        trigger=CronTrigger(hour=6, minute=0),
-        id="collect_conferences",
-        name="AI 컨퍼런스 수집 (매일)",
-        replace_existing=True,
-    )
-
-    # ── 일간: 정책 (매일 07:00) ──
-    scheduler.add_job(
-        collect_policy_data,
-        trigger=CronTrigger(hour=7, minute=0),
-        id="collect_policies",
-        name="AI 정책 수집 (매일)",
-        replace_existing=True,
-    )
-
-    # ── 주간: 플랫폼/도구 (매주 월요일 04:00) ──
-    scheduler.add_job(
-        collect_tool_data,
-        trigger=CronTrigger(day_of_week="mon", hour=4, minute=0),
-        id="collect_tools",
-        name="AI 플랫폼 수집 (매주)",
-        replace_existing=True,
-    )
-
-    # ── 일간: 30일 초과 데이터 아카이브 (매일 03:30) ──
-    scheduler.add_job(
-        archive_old_data,
-        trigger=CronTrigger(hour=3, minute=30),
-        id="archive_old_data",
-        name="오래된 데이터 아카이브 (매일)",
-        replace_existing=True,
-    )
+    for config in job_configs:
+        scheduler.add_job(
+            config["func"],
+            trigger=config["trigger"],
+            id=config["id"],
+            name=config["name"],
+            replace_existing=True,
+        )
 
     scheduler.add_listener(_scheduler_event_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
 

@@ -15,9 +15,22 @@ async function proxyRequest(request: NextRequest, method: string) {
   // pathname is /api/v1/huggingface etc. — keep as-is
   const targetUrl = `${BACKEND_URL}${pathname}${search}`;
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  const headers: Record<string, string> = {};
+  const passThroughHeaders = [
+    "authorization",
+    "accept",
+    "accept-language",
+    "if-none-match",
+    "if-modified-since",
+    "user-agent",
+  ];
+
+  for (const headerName of passThroughHeaders) {
+    const value = request.headers.get(headerName);
+    if (value) {
+      headers[headerName] = value;
+    }
+  }
 
   // Inject API key from server environment (never exposed to browser)
   if (SERVER_API_KEY) {
@@ -32,6 +45,10 @@ async function proxyRequest(request: NextRequest, method: string) {
 
   if (method !== "GET" && method !== "HEAD") {
     try {
+      const contentType = request.headers.get("content-type");
+      if (contentType) {
+        headers["Content-Type"] = contentType;
+      }
       fetchOptions.body = await request.text();
     } catch {
       // no body

@@ -5,12 +5,25 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 import re
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.models.news import AINews
 from app.schemas.news import AINewsCreate
 from app.db_compat import has_archive_column, has_columns
 from app.services.ai_summary_service import AISummaryService
+from app.services.keyword_extraction_service import get_keyword_extractor
+
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    message = sep.join(str(arg) for arg in args)
+    logger.info(message)
+
+
+print = _log_print  # type: ignore[assignment]
 
 
 class NewsService:
@@ -327,6 +340,8 @@ class NewsService:
         """
         saved_count = 0
         ai_service = AISummaryService()
+        keyword_extractor = get_keyword_extractor()
+        can_summarize = await ai_service.can_summarize()
         column_flags = await has_columns(
             db,
             "ai_news",
@@ -361,7 +376,7 @@ class NewsService:
                     # 업데이트 (트렌딩 플래그)
                     existing_news.is_trending = True
                     if (
-                        ai_service.model
+                        can_summarize
                         and (not is_korean_news)
                         and not existing_news.summary
                     ):
@@ -376,6 +391,17 @@ class NewsService:
                             existing_news.keywords = summary_payload["keywords"]
                         if summary_payload.get("key_points"):
                             existing_news.key_points = summary_payload["key_points"]
+                    if not (existing_news.keywords or []):
+                        existing_news.keywords = keyword_extractor.extract_keywords(
+                            " ".join(
+                                [
+                                    existing_news.title or "",
+                                    existing_news.content or "",
+                                    existing_news.excerpt or "",
+                                ]
+                            ),
+                            top_k=8,
+                        )
                     if has_archive_columns:
                         existing_news.is_archived = False
                         existing_news.archived_at = None
@@ -403,12 +429,29 @@ class NewsService:
                             continue
 
                     summary_payload = None
-                    if ai_service.model and not is_korean_news:
+                    if can_summarize and not is_korean_news:
                         summary_payload = await ai_service.summarize_news(
                             title=article_data.get("title", ""),
                             content=article_data.get("content") or article_data.get("excerpt"),
                             source=article_data.get("source"),
                         )
+
+                    extracted_keywords = keyword_extractor.extract_keywords(
+                        " ".join(
+                            [
+                                article_data.get("title", "") or "",
+                                article_data.get("content") or "",
+                                article_data.get("excerpt") or "",
+                                " ".join(article_data.get("tags") or []),
+                            ]
+                        ),
+                        top_k=8,
+                    )
+                    merged_keywords = list(
+                        dict.fromkeys(
+                            ((summary_payload or {}).get("keywords") or []) + extracted_keywords
+                        )
+                    )[:12]
 
                     # 새로 추가
                     new_news = AINews(
@@ -423,7 +466,7 @@ class NewsService:
                         image_url=article_data.get("image_url"),
                         tags=article_data.get("tags", []),
                         summary=(summary_payload or {}).get("summary"),
-                        keywords=(summary_payload or {}).get("keywords", []),
+                        keywords=merged_keywords,
                         key_points=(summary_payload or {}).get("key_points", []),
                         category=self.classify_news_topic(
                             article_data.get("title", ""),

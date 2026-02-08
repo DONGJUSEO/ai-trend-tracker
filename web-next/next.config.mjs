@@ -10,7 +10,6 @@ const nextConfig = {
       { protocol: "https", hostname: "raw.githubusercontent.com" },
       { protocol: "https", hostname: "opengraph.githubassets.com" },
       { protocol: "https", hostname: "**.googleusercontent.com" },
-      { protocol: "https", hostname: "**" },
     ],
   },
 };

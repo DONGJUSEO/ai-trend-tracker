@@ -2,6 +2,7 @@
 import httpx
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
+import logging
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
@@ -10,6 +11,16 @@ from app.config import get_settings
 from app.db_compat import has_archive_column, has_columns
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+
+def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    message = sep.join(str(arg) for arg in args)
+    logger.info(message)
+
+
+print = _log_print  # type: ignore[assignment]
 
 
 class GitHubService:

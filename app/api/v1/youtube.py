@@ -20,6 +20,7 @@ async def get_videos(
     limit: Optional[int] = Query(None, ge=1, le=100, description="조회 개수 (레거시)"),
     page: int = Query(1, ge=1, description="페이지 번호"),
     page_size: int = Query(20, ge=1, le=100, description="페이지당 항목 수"),
+    language: Optional[str] = Query(None, description="채널 언어 필터 (ko/en)"),
     trending_only: bool = False,
     include_archived: bool = Query(False, description="아카이브 데이터 포함 여부"),
     db: AsyncSession = Depends(get_db),
@@ -42,7 +43,7 @@ async def get_videos(
     cache_key = (
         "list:youtube:"
         f"skip={effective_skip}:limit={effective_limit}:trending={int(trending_only)}:"
-        f"archived={int(include_archived)}"
+        f"lang={language or ''}:archived={int(include_archived)}"
     )
     cached = await cache_get(cache_key)
     if cached is not None:
@@ -56,6 +57,8 @@ async def get_videos(
         count_query = count_query.where(YouTubeVideoModel.is_archived == False)
     if trending_only:
         count_query = count_query.where(YouTubeVideoModel.is_trending == True)
+    if language:
+        count_query = count_query.where(YouTubeVideoModel.channel_language == language.lower())
     total = (await db.execute(count_query)).scalar() or 0
     total_pages = max((total + effective_limit - 1) // effective_limit, 1)
 
@@ -66,12 +69,14 @@ async def get_videos(
         limit=effective_limit,
         trending_only=trending_only,
         include_archived=effective_include_archived,
+        language=language,
     )
 
     current_page = (effective_skip // effective_limit) + 1
     payload = YouTubeVideoList(
         total=total,
         videos=videos,
+        items=videos,
         page=current_page,
         page_size=effective_limit,
         total_pages=total_pages,

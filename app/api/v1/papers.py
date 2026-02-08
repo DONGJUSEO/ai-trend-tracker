@@ -1,4 +1,5 @@
 """AI Papers API 엔드포인트"""
+import re
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -11,6 +12,10 @@ from app.models.paper import AIPaper as AIPaperModel
 from app.cache import cache_get, cache_set, TTL_LIST_QUERY
 
 router = APIRouter()
+ARXIV_ID_PATTERN = re.compile(
+    r"^(?:\d{4}\.\d{4,5}(?:v\d+)?|[a-z\-]+(?:\.[a-z\-]+)?/\d{7}(?:v\d+)?)$",
+    re.IGNORECASE,
+)
 
 
 @router.get("/", response_model=AIPaperList)
@@ -76,6 +81,7 @@ async def get_papers(
     payload = AIPaperList(
         total=total,
         papers=papers,
+        items=papers,
         page=current_page,
         page_size=effective_limit,
         total_pages=total_pages,
@@ -123,6 +129,9 @@ async def get_paper(
 
     - **arxiv_id**: arXiv ID (예: 2301.12345)
     """
+    if not ARXIV_ID_PATTERN.fullmatch(arxiv_id):
+        raise HTTPException(status_code=400, detail="유효하지 않은 arXiv ID 형식입니다")
+
     service = ArxivService()
     paper = await service.get_paper_by_arxiv_id(db=db, arxiv_id=arxiv_id)
 

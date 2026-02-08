@@ -4,9 +4,12 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { CATEGORIES } from "@/lib/constants";
+import { apiFetcher } from "@/lib/fetcher";
+import { timeAgo } from "@/lib/format";
 import type { AINews } from "@/lib/types";
 import GlassmorphicCard from "@/components/shared/GlassmorphicCard";
 import CategoryIcon from "@/components/icons/CategoryIcon";
+import ErrorState from "@/components/ui/ErrorState";
 
 const category = CATEGORIES.find((c) => c.id === "news")!;
 
@@ -21,19 +24,6 @@ function isKoreanSource(source: string): boolean {
 }
 
 // ─── Helpers ────────────────────────────────────────────────
-
-function timeAgo(dateStr: string): string {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "오늘";
-  if (diffDays === 1) return "어제";
-  if (diffDays < 7) return `${diffDays}일 전`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}개월 전`;
-  return `${Math.floor(diffDays / 365)}년 전`;
-}
 
 function truncateText(text: string, maxLen: number): string {
   if (!text) return "";
@@ -341,6 +331,7 @@ function EmptyState() {
 export default function NewsPage() {
   const [news, setNews] = useState<AINews[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -354,18 +345,21 @@ export default function NewsPage() {
 
   const fetchNews = useCallback(async () => {
     setLoading(true);
+    setFetchError(false);
     try {
-      const res = await fetch(
+      const json = await apiFetcher<{
+        news?: AINews[];
+        items?: AINews[];
+        total?: number;
+        total_pages?: number;
+      }>(
         `/api/v1/news/news?page=${page}&page_size=20`
       );
-      if (res.ok) {
-        const json = await res.json();
-        setNews(json.news || json.items || []);
-        setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
-        setTotal(json.total || 0);
-      }
+      setNews(json.news || json.items || []);
+      setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
+      setTotal(json.total || 0);
     } catch {
-      // API unavailable
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -451,6 +445,15 @@ export default function NewsPage() {
             exit={{ opacity: 0 }}
           >
             <LoadingSkeleton />
+          </motion.div>
+        ) : fetchError && news.length === 0 ? (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <ErrorState onRetry={fetchNews} />
           </motion.div>
         ) : filteredNews.length === 0 ? (
           <motion.div

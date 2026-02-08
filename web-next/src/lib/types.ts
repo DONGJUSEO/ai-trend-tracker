@@ -140,6 +140,7 @@ export interface GitHubProject {
   topics: string[];
   url?: string;
   created_at?: string;
+  created_at_github?: string;
   updated_at?: string;
   updated_at_github?: string;
   open_issues: number;
@@ -194,6 +195,8 @@ export interface AIJob {
   location?: string;
   type: 'full-time' | 'part-time' | 'contract' | 'internship' | 'remote';
   description?: string;
+  salary_min?: number;
+  salary_max?: number;
   requirements: string[];
   salary_range?: string;
   url?: string;
@@ -202,9 +205,11 @@ export interface AIJob {
   posted_date?: string;
   skills: string[];
   required_skills?: string[];
+  role_category?: string;
   summary?: string;
   keywords?: string[];
   is_remote?: boolean;
+  created_at?: string;
   experience_level: 'junior' | 'mid' | 'senior' | 'lead';
 }
 
@@ -246,6 +251,12 @@ export interface SystemStatus {
     active_jobs: number;
     completed_today: number;
     failed_today: number;
+  };
+  visitors?: {
+    today: number;
+    yesterday: number;
+    monthly: number;
+    total: number;
   };
   scheduler_jobs?: SchedulerJob[];
   categories?: Record<string, {

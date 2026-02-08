@@ -4,8 +4,29 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# PostgreSQL URL을 asyncpg용으로 변환
-database_url = settings.database_url.replace("postgresql://", "postgresql+asyncpg://")
+
+def _normalize_async_database_url(raw_url: str) -> str:
+    """환경별 DB URL을 SQLAlchemy async URL로 정규화."""
+    url = (raw_url or "").strip()
+    if not url:
+        raise ValueError("DATABASE_URL is empty")
+
+    if url.startswith("postgresql+asyncpg://"):
+        return url
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+
+    if url.startswith("sqlite+aiosqlite://"):
+        return url
+    if url.startswith("sqlite://"):
+        return url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+
+    raise ValueError("Unsupported DATABASE_URL scheme. Use postgresql:// or sqlite://")
+
+
+database_url = _normalize_async_database_url(settings.database_url)
 
 # 비동기 엔진 생성
 engine = create_async_engine(

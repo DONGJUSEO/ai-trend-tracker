@@ -4,9 +4,11 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 from starlette.responses import Response
 from sqlalchemy import text
 from datetime import datetime, timezone
+import asyncio
 
 from app.config import get_settings
 from app.database import init_db, AsyncSessionLocal
@@ -34,6 +36,9 @@ from app.cache import get_redis, track_visitor
 import logging
 
 settings = get_settings()
+API_RATE_LIMIT_PER_MINUTE = max(1, int(getattr(settings, "api_rate_limit_per_minute", 240)))
+_rate_limit_lock = asyncio.Lock()
+_rate_limit_buckets: dict[tuple[str, int], int] = {}
 
 
 # 보안 헤더 미들웨어
@@ -82,7 +87,30 @@ app = FastAPI(
 
 @app.middleware("http")
 async def count_api_requests(request: Request, call_next):
-    """API 요청 횟수를 일자별로 Redis에 기록 + HyperLogLog 방문자 추적."""
+    """API 요청 횟수 집계 + IP 단위 rate limiting + 방문자 추적."""
+    if request.url.path.startswith("/api/"):
+        visitor_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown")
+        client_ip = visitor_ip.split(",")[0].strip()
+        minute_bucket = int(datetime.now(timezone.utc).timestamp() // 60)
+        bucket_key = (client_ip, minute_bucket)
+
+        async with _rate_limit_lock:
+            # 메모리 누수 방지를 위해 2분 이상 지난 버킷 제거
+            stale_keys = [key for key in _rate_limit_buckets if key[1] < minute_bucket - 2]
+            for key in stale_keys:
+                _rate_limit_buckets.pop(key, None)
+
+            current_count = _rate_limit_buckets.get(bucket_key, 0)
+            if current_count >= API_RATE_LIMIT_PER_MINUTE:
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "detail": "요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.",
+                        "limit_per_minute": API_RATE_LIMIT_PER_MINUTE,
+                    },
+                )
+            _rate_limit_buckets[bucket_key] = current_count + 1
+
     response = await call_next(request)
     if request.url.path.startswith("/api/"):
         try:

@@ -4,22 +4,58 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { CATEGORIES } from "@/lib/constants";
+import { apiFetcher } from "@/lib/fetcher";
+import { formatNumber, timeAgo } from "@/lib/format";
 import type { YouTubeVideo } from "@/lib/types";
 import GlassmorphicCard from "@/components/shared/GlassmorphicCard";
 import CategoryIcon from "@/components/icons/CategoryIcon";
+import ErrorState from "@/components/ui/ErrorState";
 
 const category = CATEGORIES.find((c) => c.id === "youtube")!;
 
 
-const KOREAN_CHANNELS = ["조코딩", "테디노트", "빵형의 개발도상국", "나도코딩", "노마드코더", "노마드 코더", "안될공학", "잇섭", "코드팩토리", "생활코딩", "AI톡톡", "EO", "슈카월드", "딥다이브", "코딩하는거니"];
-
-type TabFilter = "all" | "korean" | "international";
-
-const TABS: { id: TabFilter; label: string }[] = [
-  { id: "all", label: "전체" },
-  { id: "korean", label: "국내" },
-  { id: "international", label: "해외" },
+const KOREAN_CHANNELS = [
+  "조코딩",
+  "테디노트",
+  "빵형의 개발도상국",
+  "나도코딩",
+  "노마드코더",
+  "노마드 코더",
+  "안될공학",
+  "잇섭",
+  "코드팩토리",
+  "생활코딩",
+  "AI톡톡",
+  "EO",
+  "슈카월드",
+  "딥다이브",
+  "코딩하는거니",
+  "패스트캠퍼스",
+  "드림코딩",
+  "얄팍한코딩사전",
+  "코드깎는노인",
 ];
+
+const KOREAN_CHANNEL_IDS = new Set([
+  "UCQNE2JmbasNYbjGAcuBiRRg", // 조코딩
+  "UCt2wAAXgm87ACiqqnDIjOjg", // 테디노트
+  "UC9PB9nKYVIvRzn9M9KDftbg", // 빵형의 개발도상국
+  "UCdfcSGOM6-U6jP2fj8sL4yA", // 코드팩토리
+  "UCRpOIr-NJpK9S483ge20Pgw", // 코드깎는노인
+  "UCUpJs89fSBXNolQGOYKn0YQ", // 노마드코더
+  "UC_4u-bXaba7yrRz_6x6kb_w", // 드림코딩
+  "UC2nkWbaJt1KQDi2r2XclzTQ", // 얄팍한코딩사전
+  "UCDWyhDdoX7F1kA_QMXx6Yig", // 패스트캠퍼스
+  "UCxkickmF3xdJv7sU0hBERDQ", // AI톡톡
+  "UCGx4_xr7cMATgEsOR-GwKJg", // 안될공학
+  "UC1JmT0jMpGOyGgW6_X23wew", // 딥다이브
+  "UCQ2DWm5Md16Dc3xRwwhVE7Q", // EO
+  "UCsJ6RuBiTVWRX156FVbeaGg", // 슈카월드
+  "UC7iAOLiALt2rtMVAWWF4ZXg", // 나도코딩
+  "UCvc8kv-i5fvFTJBFAk6n1SA", // 생활코딩
+  "UCF4Wxdo3inmxP-Y59wXDsFw", // 잇섭
+  "UCKY6lyoOHnP8Bnrs5dJoVHA", // 코딩하는거니
+]);
 
 function isKoreanChannelName(channelName?: string): boolean {
   if (!channelName) return false;
@@ -29,30 +65,12 @@ function isKoreanChannelName(channelName?: string): boolean {
 function isKoreanVideo(video: YouTubeVideo): boolean {
   const lang = (video.channel_language || "").toLowerCase();
   if (lang.startsWith("ko")) return true;
+  if (video.channel_id && KOREAN_CHANNEL_IDS.has(video.channel_id)) return true;
   const channel = video.channel_name || video.channel_title || "";
   return isKoreanChannelName(channel);
 }
 
 // ─── Helpers ────────────────────────────────────────────────
-
-function formatNumber(num: number): string {
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
-  return num.toLocaleString();
-}
-
-function timeAgo(dateStr: string): string {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "오늘";
-  if (diffDays === 1) return "어제";
-  if (diffDays < 7) return `${diffDays}일 전`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}개월 전`;
-  return `${Math.floor(diffDays / 365)}년 전`;
-}
 
 function formatDuration(duration: string): string {
   // Handle ISO 8601 duration format (PT1H2M3S) or already formatted strings
@@ -332,31 +350,33 @@ function EmptyState() {
 export default function YouTubePage() {
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [activeTab, setActiveTab] = useState<TabFilter>("all");
 
   const filteredVideos = useMemo(() => {
-    if (activeTab === "all") return videos;
-    if (activeTab === "korean") return videos.filter((v) => isKoreanVideo(v));
-    return videos.filter((v) => !isKoreanVideo(v));
-  }, [videos, activeTab]);
+    return videos.filter((v) => isKoreanVideo(v));
+  }, [videos]);
 
   const fetchVideos = useCallback(async () => {
     setLoading(true);
+    setFetchError(false);
     try {
-      const res = await fetch(
-        `/api/v1/youtube/videos?page=${page}&page_size=20`
+      const json = await apiFetcher<{
+        videos?: YouTubeVideo[];
+        items?: YouTubeVideo[];
+        total?: number;
+        total_pages?: number;
+      }>(
+        `/api/v1/youtube/videos?page=${page}&page_size=20&language=ko`
       );
-      if (res.ok) {
-        const json = await res.json();
-        setVideos(json.videos || json.items || []);
-        setTotalPages(json.total_pages || Math.ceil((json.total || 0) / 20));
-        setTotal(json.total || 0);
-      }
+      const koreanOnly = (json.videos || json.items || []).filter(isKoreanVideo);
+      setVideos(koreanOnly);
+      setTotalPages(json.total_pages || Math.max(1, Math.ceil((json.total || 0) / 20)));
+      setTotal(json.total ?? koreanOnly.length);
     } catch {
-      // API unavailable
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -415,23 +435,6 @@ export default function YouTubePage() {
         </div>
       </GlassmorphicCard>
 
-      {/* Tab Filter */}
-      <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-1 w-fit">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              activeTab === tab.id
-                ? "bg-white/10 text-white"
-                : "text-white/50 hover:text-white/70"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       {/* Content */}
       <AnimatePresence mode="wait">
         {loading ? (
@@ -442,6 +445,15 @@ export default function YouTubePage() {
             exit={{ opacity: 0 }}
           >
             <LoadingSkeleton />
+          </motion.div>
+        ) : fetchError && videos.length === 0 ? (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <ErrorState onRetry={fetchVideos} />
           </motion.div>
         ) : filteredVideos.length === 0 ? (
           <motion.div

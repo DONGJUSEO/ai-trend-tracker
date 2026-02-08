@@ -49,6 +49,7 @@ def test_api_key_not_in_frontend_env():
         "web-next/.env",
         "web-next/.env.local",
         "web-next/.env.production",
+        "web-next/.env.development",
     ]
     import pathlib
 
