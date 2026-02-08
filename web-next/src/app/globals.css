@@ -220,6 +220,43 @@
   background-color: rgba(166, 133, 6, 0.1);
 }
 
+/* ── Additional text opacity levels (used by Codex components) ── */
+.light .text-white\/90 {
+  color: rgba(26, 26, 46, 0.92);
+}
+.light .text-white\/80 {
+  color: rgba(26, 26, 46, 0.85);
+}
+
+/* ── Additional border opacity ── */
+.light .border-white\/15 {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+/* ── Additional hover backgrounds ── */
+.light .hover\:bg-white\/\[0\.07\]:hover {
+  background-color: rgba(0, 0, 0, 0.035);
+}
+
+/* ── Dark-specific backgrounds for light mode ── */
+.light .bg-\[\#11131a\] {
+  background-color: #ffffff;
+}
+.light .bg-black\/85 {
+  background-color: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Light-colored badge text (100/200 level → darker for readability) ── */
+.light .text-amber-100 { color: #92400e; }
+.light .text-amber-200 { color: #b45309; }
+.light .text-slate-100 { color: #475569; }
+.light .text-blue-100 { color: #1d4ed8; }
+.light .text-blue-200 { color: #2563eb; }
+.light .text-cyan-200 { color: #0e7490; }
+.light .text-emerald-200 { color: #047857; }
+
 /* ── Placeholder text ── */
 .light .placeholder-white\/20::placeholder {
   color: rgba(26, 26, 46, 0.35);
@@ -365,4 +402,40 @@
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FULLCALENDAR LIGHT MODE OVERRIDES
+   ═══════════════════════════════════════════════════════════════ */
+
+.light .fc {
+  --fc-border-color: #e5e7eb;
+  --fc-today-bg-color: rgba(59, 130, 246, 0.06);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: rgba(0, 0, 0, 0.02);
+  --fc-neutral-text-color: #6b7280;
+}
+.light .fc .fc-toolbar-title {
+  color: #1f2937;
+}
+.light .fc .fc-button {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+  color: #374151;
+}
+.light .fc .fc-button:hover {
+  background-color: #e5e7eb;
+  color: #1f2937;
+}
+.light .fc .fc-button-active,
+.light .fc .fc-button:active {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+.light .fc .fc-col-header-cell-cushion {
+  color: #6b7280;
+}
+.light .fc .fc-daygrid-day-number {
+  color: #374151;
 }
