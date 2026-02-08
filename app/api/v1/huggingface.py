@@ -4,6 +4,7 @@ from sqlalchemy import select, func
 from typing import List
 
 from app.database import get_db
+from app.db_compat import has_archive_column
 from app.models.huggingface import HuggingFaceModel
 from app.schemas.huggingface import (
     HuggingFaceModelResponse,
@@ -21,6 +22,7 @@ async def get_models(
     task: str = Query(None, description="태스크 필터 (예: text-generation)"),
     author: str = Query(None, description="작성자 필터"),
     trending: bool = Query(None, description="트렌딩 모델만 보기"),
+    include_archived: bool = Query(False, description="아카이브 데이터 포함 여부"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -32,22 +34,32 @@ async def get_models(
     - **author**: 작성자 필터 (선택사항)
     - **trending**: 트렌딩 모델만 보기 (선택사항)
     """
+    supports_archive = await has_archive_column(db, "huggingface_models")
+    effective_include_archived = include_archived or not supports_archive
+
     # 기본 쿼리
     query = select(HuggingFaceModel)
+    count_query = select(func.count()).select_from(HuggingFaceModel)
+
+    if not effective_include_archived:
+        query = query.where(HuggingFaceModel.is_archived == False)
+        count_query = count_query.where(HuggingFaceModel.is_archived == False)
 
     # 필터 적용
     if task:
         query = query.where(HuggingFaceModel.task == task)
+        count_query = count_query.where(HuggingFaceModel.task == task)
     if author:
         query = query.where(HuggingFaceModel.author == author)
+        count_query = count_query.where(HuggingFaceModel.author == author)
     if trending is not None:
         query = query.where(HuggingFaceModel.is_trending == trending)
+        count_query = count_query.where(HuggingFaceModel.is_trending == trending)
 
     # 정렬 (최신순)
     query = query.order_by(HuggingFaceModel.collected_at.desc())
 
     # 전체 개수 조회
-    count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar()
 
@@ -64,6 +76,7 @@ async def get_models(
         items=models,
         page=page,
         page_size=page_size,
+        total_pages=max((total + page_size - 1) // page_size, 1),
     )
 
 

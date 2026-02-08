@@ -5,13 +5,32 @@ from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+from sqlalchemy import text
+from datetime import datetime
 
 from app.config import get_settings
-from app.database import init_db
-from app.api.v1 import huggingface, collect, scheduler, youtube, papers, news, github, system, conferences, tools, jobs, policies, dashboard, admin
-from app.services.scheduler import start_scheduler, stop_scheduler
+from app.database import init_db, AsyncSessionLocal
+from app.api.v1 import (
+    huggingface,
+    collect,
+    scheduler,
+    youtube,
+    papers,
+    news,
+    github,
+    system,
+    conferences,
+    tools,
+    jobs,
+    policies,
+    dashboard,
+    admin,
+    search,
+)
+from app.services.scheduler import start_scheduler, stop_scheduler, scheduler as app_scheduler
 from app.auth import verify_api_key
 from app.logging_config import setup_logging
+from app.cache import get_redis
 import logging
 
 settings = get_settings()
@@ -106,8 +125,44 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """헬스 체크 엔드포인트"""
-    return {"status": "healthy", "service": settings.app_name}
+    """헬스 체크 엔드포인트 (DB/Redis/Scheduler 진단 포함)."""
+    db_status = "error"
+    redis_status = "error"
+    scheduler_status = "running" if app_scheduler.running else "stopped"
+
+    try:
+        async with AsyncSessionLocal() as db:
+            await db.execute(text("SELECT 1"))
+            db_status = "ok"
+    except Exception:
+        db_status = "error"
+
+    try:
+        redis = await get_redis()
+        redis_ok = await redis.ping()
+        redis_status = "ok" if redis_ok else "error"
+    except Exception:
+        redis_status = "error"
+
+    if db_status == "ok" and redis_status == "ok":
+        status = "healthy"
+    elif db_status == "ok":
+        status = "degraded"
+    else:
+        status = "down"
+
+    return {
+        "status": status,
+        "service": settings.app_name,
+        "version": settings.app_version,
+        "environment": settings.app_env,
+        "timestamp": datetime.utcnow().isoformat(),
+        "checks": {
+            "database": db_status,
+            "redis": redis_status,
+            "scheduler": scheduler_status,
+        },
+    }
 
 
 # API 라우터 등록 (인증 필요)
@@ -199,6 +254,13 @@ app.include_router(
     dashboard.router,
     prefix="/api/v1/dashboard",
     tags=["Dashboard"],
+    dependencies=[Depends(verify_api_key)],
+)
+
+app.include_router(
+    search.router,
+    prefix="/api/v1/search",
+    tags=["Search"],
     dependencies=[Depends(verify_api_key)],
 )
 

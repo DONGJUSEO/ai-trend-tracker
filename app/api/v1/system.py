@@ -17,10 +17,13 @@ from app.models.conference import AIConference
 from app.models.ai_tool import AITool
 from app.models.job_trend import AIJobTrend
 from app.models.policy import AIPolicy
-from app.services.scheduler import collect_all_data
+from app.services.scheduler import collect_all_data, scheduler, get_scheduler_runtime_status
+from app.config import get_settings
+from app.cache import cache_get, cache_set, TTL_SYSTEM_STATUS, TTL_KEYWORDS, get_redis
 import asyncio
 
 router = APIRouter()
+settings = get_settings()
 
 
 @router.get("/status")
@@ -32,6 +35,10 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
     - 데이터베이스 연결 상태
     - 각 카테고리별 데이터 개수 및 최신 업데이트 시간
     """
+    cache_key = "system:status"
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return cached
 
     # Database connectivity test
     db_connected = False
@@ -308,16 +315,130 @@ async def get_system_status(db: AsyncSession = Depends(get_db)) -> Dict[str, Any
     # Overall system status
     total_items = sum(cat.get("total", 0) for cat in categories_status.values())
     healthy_categories = sum(1 for cat in categories_status.values() if cat.get("status") == "healthy")
+    now_iso = datetime.utcnow().isoformat()
 
-    return {
+    # DB size (가능한 경우)
+    db_size = "unknown"
+    try:
+        db_size_query = await db.execute(
+            text("SELECT pg_size_pretty(pg_database_size(current_database()))")
+        )
+        db_size = db_size_query.scalar() or "unknown"
+    except Exception:
+        pass
+
+    # Redis connectivity
+    redis_running = False
+    try:
+        redis = await get_redis()
+        redis_running = bool(await redis.ping())
+    except Exception:
+        redis_running = False
+
+    # Scheduler runtime metrics
+    runtime = get_scheduler_runtime_status()
+    scheduler_jobs = []
+    next_run_candidates = []
+    completed_today = 0
+    failed_today = 0
+    today = datetime.utcnow().date()
+
+    for job in scheduler.get_jobs():
+        meta = runtime.get(job.id, {})
+        next_run = job.next_run_time.isoformat() if job.next_run_time else None
+        last_run = meta.get("last_run")
+        if next_run:
+            next_run_candidates.append(next_run)
+        if last_run:
+            try:
+                parsed_last = datetime.fromisoformat(last_run).date()
+                if parsed_last == today:
+                    if meta.get("last_status") == "success":
+                        completed_today += 1
+                    elif meta.get("last_status") == "error":
+                        failed_today += 1
+            except Exception:
+                pass
+
+        scheduler_jobs.append(
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run": next_run,
+                "last_run": last_run,
+                "last_status": meta.get("last_status"),
+                "last_error": meta.get("last_error"),
+            }
+        )
+
+    last_crawl = None
+    if runtime:
+        last_runs = [v.get("last_run") for v in runtime.values() if v.get("last_run")]
+        if last_runs:
+            last_crawl = sorted(last_runs)[-1]
+
+    next_crawl = sorted(next_run_candidates)[0] if next_run_candidates else None
+
+    if db_connected and healthy_categories == len(categories_status):
+        status = "healthy"
+    elif db_connected:
+        status = "degraded"
+    else:
+        status = "down"
+
+    services = [
+        {
+            "name": "backend",
+            "status": "running",
+            "last_check": now_iso,
+        },
+        {
+            "name": "database",
+            "status": "running" if db_connected else "error",
+            "last_check": now_iso,
+        },
+        {
+            "name": "scheduler",
+            "status": "running" if scheduler.running else "stopped",
+            "last_check": now_iso,
+        },
+        {
+            "name": "redis-cache",
+            "status": "running" if redis_running else "error",
+            "last_check": now_iso,
+        },
+    ]
+
+    response = {
+        "status": status,
+        "uptime": "unknown",
+        "version": settings.app_version,
+        "services": services,
+        "last_crawl": last_crawl,
+        "next_crawl": next_crawl,
+        "database": {
+            "status": "connected" if db_connected else "disconnected",
+            "size": db_size,
+            "collections": len(categories_status),
+        },
+        "crawler": {
+            "status": "running" if scheduler.running else "stopped",
+            "active_jobs": len(scheduler.get_jobs()) if scheduler.running else 0,
+            "completed_today": completed_today,
+            "failed_today": failed_today,
+        },
+        "scheduler_jobs": scheduler_jobs,
+        # backward-compat fields
         "backend_status": "online",
         "database_status": "connected" if db_connected else "disconnected",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": now_iso,
         "total_items": total_items,
         "healthy_categories": healthy_categories,
         "total_categories": len(categories_status),
-        "categories": categories_status
+        "categories": categories_status,
     }
+    await cache_set(cache_key, response, ttl=TTL_SYSTEM_STATUS)
+    return response
 
 
 @router.get("/keywords")
@@ -332,6 +453,11 @@ async def get_keywords(
     - 빈도수 기준으로 정렬
     - 워드 클라우드 및 키워드 순위용 데이터 제공
     """
+
+    cache_key = f"system:keywords:{limit}"
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return cached
 
     all_keywords = []
 
@@ -454,12 +580,14 @@ async def get_keywords(
 
     # Count keywords
     if not all_keywords:
-        return {
+        payload = {
             "total_keywords": 0,
             "unique_keywords": 0,
             "top_keywords": [],
             "all_keywords": []
         }
+        await cache_set(cache_key, payload, ttl=TTL_KEYWORDS)
+        return payload
 
     keyword_counts = Counter(all_keywords)
 
@@ -480,11 +608,49 @@ async def get_keywords(
         for keyword, count in keyword_counts.items()
     ]
 
-    return {
+    payload = {
         "total_keywords": len(all_keywords),
         "unique_keywords": len(keyword_counts),
         "top_keywords": top_keywords,
         "all_keywords": all_keywords_normalized[:limit]
+    }
+    await cache_set(cache_key, payload, ttl=TTL_KEYWORDS)
+    return payload
+
+
+@router.get("/collection-logs")
+async def get_collection_logs() -> Dict[str, Any]:
+    """카테고리별 수집 로그 요약 (스케줄러 런타임 상태 기반)."""
+    runtime = get_scheduler_runtime_status()
+    jobs = []
+    success_count = 0
+    error_count = 0
+
+    for job in scheduler.get_jobs():
+        meta = runtime.get(job.id, {})
+        last_status = meta.get("last_status")
+        if last_status == "success":
+            success_count += 1
+        elif last_status == "error":
+            error_count += 1
+
+        jobs.append(
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
+                "last_run": meta.get("last_run"),
+                "last_status": last_status,
+                "last_error": meta.get("last_error"),
+            }
+        )
+
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "total_jobs": len(jobs),
+        "successful_jobs": success_count,
+        "failed_jobs": error_count,
+        "jobs": jobs,
     }
 
 
