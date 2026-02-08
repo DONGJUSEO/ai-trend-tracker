@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import { CATEGORIES, APP_NAME } from "@/lib/constants";
 import { CATEGORY_ICONS } from "@/components/icons/CategoryIcons";
 import { useTheme } from "@/lib/theme-context";
@@ -34,16 +35,6 @@ interface KeywordItem {
   weight: number;
 }
 
-interface CategoryStat {
-  category: string;
-  name: string;
-  total: number;
-  recent_7d: number;
-  prev_7d: number;
-  trend: "up" | "down" | "stable";
-  last_update: string | null;
-}
-
 interface NewsItem {
   id: number;
   title: string;
@@ -54,12 +45,15 @@ interface NewsItem {
 }
 
 interface HuggingFaceItem {
+  model_id: string;
   model_name: string;
   author: string;
   downloads: number;
   likes: number;
   task: string;
   summary: string;
+  url: string;
+  last_modified: string;
 }
 
 interface PaperItem {
@@ -68,6 +62,8 @@ interface PaperItem {
   abstract: string;
   summary: string;
   published_date: string;
+  url: string;
+  arxiv_id: string;
 }
 
 interface GitHubItem {
@@ -77,13 +73,16 @@ interface GitHubItem {
   stars: number;
   forks: number;
   language: string;
+  url: string;
 }
 
 interface ConferenceItem {
   conference_name: string;
   location: string;
   start_date: string;
+  end_date: string;
   tier: string;
+  website_url: string;
 }
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -131,7 +130,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [keywords, setKeywords] = useState<KeywordItem[]>([]);
-  const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([]);
+  const [guideOpen, setGuideOpen] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("aibom-guide-collapsed") !== "true";
+    }
+    return true;
+  });
   const [news, setNews] = useState<NewsItem[]>([]);
   const [hfModels, setHfModels] = useState<HuggingFaceItem[]>([]);
   const [papers, setPapers] = useState<PaperItem[]>([]);
@@ -144,7 +148,6 @@ export default function DashboardPage() {
       const [
         summaryRes,
         keywordsRes,
-        statsRes,
         newsRes,
         hfRes,
         papersRes,
@@ -153,12 +156,11 @@ export default function DashboardPage() {
       ] = await Promise.allSettled([
         fetch(`${API_URL}/api/v1/dashboard/summary`, { headers: HEADERS }),
         fetch(`${API_URL}/api/v1/dashboard/trending-keywords?limit=20`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/dashboard/category-stats`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/news/news?page=1&page_size=5`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/huggingface/?page=1&page_size=3`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/papers/?page=1&page_size=3`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/github/projects?page=1&page_size=3`, { headers: HEADERS }),
-        fetch(`${API_URL}/api/v1/conferences/?page=1&page_size=3&upcoming=true`, { headers: HEADERS }),
+        fetch(`${API_URL}/api/v1/news/news?page=1&page_size=10`, { headers: HEADERS }),
+        fetch(`${API_URL}/api/v1/huggingface/?page=1&page_size=10`, { headers: HEADERS }),
+        fetch(`${API_URL}/api/v1/papers/?page=1&page_size=10`, { headers: HEADERS }),
+        fetch(`${API_URL}/api/v1/github/projects?page=1&page_size=10`, { headers: HEADERS }),
+        fetch(`${API_URL}/api/v1/conferences/?page=1&page_size=5&upcoming=true`, { headers: HEADERS }),
       ]);
 
       if (summaryRes.status === "fulfilled" && summaryRes.value.ok) {
@@ -167,10 +169,6 @@ export default function DashboardPage() {
       if (keywordsRes.status === "fulfilled" && keywordsRes.value.ok) {
         const data = await keywordsRes.value.json();
         setKeywords(data.top_keywords ?? []);
-      }
-      if (statsRes.status === "fulfilled" && statsRes.value.ok) {
-        const data = await statsRes.value.json();
-        setCategoryStats(data.categories ?? []);
       }
       if (newsRes.status === "fulfilled" && newsRes.value.ok) {
         const data = await newsRes.value.json();
@@ -261,11 +259,90 @@ export default function DashboardPage() {
     );
   }
 
+  // ── Guide toggle handler ──
+  const toggleGuide = () => {
+    const next = !guideOpen;
+    setGuideOpen(next);
+    localStorage.setItem("aibom-guide-collapsed", next ? "false" : "true");
+  };
+
   // ════════════════════════════════════════════════════════════
   // RENDERED DASHBOARD
   // ════════════════════════════════════════════════════════════
   return (
     <div className="space-y-8">
+      {/* ═══════════════════════════════════════════════════════
+          SECTION 0: APP GUIDE (collapsible)
+          ═══════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {guideOpen ? (
+          <motion.section
+            key="guide"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className={`relative ${isLight ? "bg-white/70 border-black/5" : "bg-white/5 border-white/10"} backdrop-blur-xl border rounded-2xl p-6`}>
+              <button
+                onClick={toggleGuide}
+                className={`absolute top-4 right-4 p-1.5 rounded-lg transition-colors ${isLight ? "hover:bg-black/5 text-gray-400" : "hover:bg-white/10 text-white/40"}`}
+                aria-label="가이드 닫기"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <h3 className={`text-lg font-bold mb-3 ${isLight ? "text-gray-900" : "text-white"}`}>
+                {APP_NAME}에 오신 것을 환영합니다!
+              </h3>
+
+              <div className={`space-y-3 text-sm ${isLight ? "text-gray-600" : "text-white/60"}`}>
+                <p>{APP_NAME}은 AI 업계의 최신 트렌드를 한 화면에서 파악할 수 있는 올인원 큐레이션 서비스입니다.</p>
+
+                <div>
+                  <p className="font-semibold mb-1">9개 카테고리 실시간 추적</p>
+                  <p className="text-xs leading-relaxed">HuggingFace 트렌딩 모델 · YouTube AI 채널 · 최신 AI 논문 · AI 뉴스 (국내/해외) · GitHub 트렌딩 · 컨퍼런스 일정 · AI 플랫폼 · AI 채용 · AI 정책</p>
+                </div>
+
+                <div>
+                  <p className="font-semibold mb-1">사용 방법</p>
+                  <ol className="text-xs space-y-0.5 list-decimal list-inside">
+                    <li>좌측 사이드바에서 관심 카테고리를 선택하세요</li>
+                    <li>상단 검색바로 키워드를 검색하세요 (전체 카테고리 통합 검색)</li>
+                    <li>각 카테고리의 탭 필터로 세부 분류를 확인하세요</li>
+                  </ol>
+                </div>
+
+                <p className="text-xs opacity-70">
+                  데이터 수집 주기: 뉴스 1시간 | 유튜브 4시간 | 허깅페이스/깃헙 6시간 | 논문 12시간 | 컨퍼런스/정책 매일 | 플랫폼 매주
+                </p>
+              </div>
+            </div>
+          </motion.section>
+        ) : (
+          <motion.button
+            key="guide-toggle"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={toggleGuide}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-colors ${
+              isLight
+                ? "bg-white/60 border border-black/5 text-gray-500 hover:bg-white/80"
+                : "bg-white/5 border border-white/10 text-white/40 hover:bg-white/10"
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {APP_NAME} 가이드 보기
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* ═══════════════════════════════════════════════════════
           SECTION 1: HERO - "AI Pulse"
           ═══════════════════════════════════════════════════════ */}
@@ -299,7 +376,7 @@ export default function DashboardPage() {
             <h1 className="text-4xl lg:text-5xl font-bold mb-2">
               <span className="text-gradient">{APP_NAME}</span>
             </h1>
-            <p className="text-lg text-white/60 font-medium">
+            <p className={`text-lg font-medium ${isLight ? "text-gray-500" : "text-white/60"}`}>
               AI Trending &mdash; 실시간 AI 트렌드 펄스
             </p>
           </motion.div>
@@ -330,7 +407,7 @@ export default function DashboardPage() {
                 <div className="text-2xl lg:text-3xl font-bold text-gradient">
                   {formatNumber(stat.value)}{stat.suffix}
                 </div>
-                <div className="text-sm text-white/50 mt-1">{stat.label}</div>
+                <div className={`text-sm mt-1 ${isLight ? "text-gray-500" : "text-white/50"}`}>{stat.label}</div>
               </motion.div>
             ))}
           </motion.div>
@@ -397,14 +474,14 @@ export default function DashboardPage() {
       )}
 
       {/* ═══════════════════════════════════════════════════════
-          SECTION 3: "지금 뜨는 것들" - 2x2 Grid
+          SECTION 3: "지금 뜨는 것들" - 2x2 Grid (Top 10, scrollable)
           ═══════════════════════════════════════════════════════ */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7, duration: 0.6 }}
       >
-        <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
+        <h2 className={`text-xl font-bold mb-5 flex items-center gap-2 ${isLight ? "text-gray-900" : "text-white"}`}>
           <span className="text-2xl">🔥</span> 지금 뜨는 것들
         </h2>
 
@@ -414,47 +491,43 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8, duration: 0.5 }}
-            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 group hover:border-white/20 transition-all duration-300"
+            className={`${isLight ? "bg-white/70 border-black/5" : "bg-white/5 border-white/10"} backdrop-blur-xl border rounded-2xl p-6 group hover:border-white/20 transition-all duration-300`}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: `${getCategoryColor("huggingface")}20` }}
-              >
-                {(() => {
-                  const Icon = CATEGORY_ICONS["huggingface"];
-                  return Icon ? <Icon size={20} className="text-[#FFD21E]" /> : null;
-                })()}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${getCategoryColor("huggingface")}20` }}>
+                  {(() => { const Icon = CATEGORY_ICONS["huggingface"]; return Icon ? <Icon size={20} className="text-[#FFD21E]" /> : null; })()}
+                </div>
+                <div>
+                  <h3 className={`font-semibold text-sm ${isLight ? "text-gray-900" : "text-white"}`}>이번 주 뜨는 AI 모델</h3>
+                  <p className={`text-xs ${isLight ? "text-gray-400" : "text-white/40"}`}>Hugging Face Top 10</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-white text-sm">이번 주 뜨는 AI 모델</h3>
-                <p className="text-xs text-white/40">Hugging Face</p>
-              </div>
+              <Link href="/huggingface" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">전체 보기 →</Link>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-1 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin">
               {hfModels.length > 0 ? (
                 hfModels.map((model, i) => (
-                  <div
+                  <a
                     key={i}
-                    className={`flex items-start gap-3 p-3 rounded-xl ${
-                      isLight ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.05]"
-                    } transition-colors`}
+                    href={model.url || `https://huggingface.co/${model.model_id || model.model_name}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-start gap-3 p-3 rounded-xl ${isLight ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.05]"} transition-colors`}
                   >
-                    <span className="text-lg font-bold text-white/20 mt-0.5 w-5 text-right flex-shrink-0">
-                      {i + 1}
-                    </span>
+                    <span className={`text-lg font-bold mt-0.5 w-5 text-right flex-shrink-0 ${isLight ? "text-gray-300" : "text-white/20"}`}>{i + 1}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-white truncate">{model.model_name}</p>
-                      <p className="text-xs text-white/40 mt-0.5">{model.author} &middot; {model.task || "general"}</p>
+                      <p className={`text-sm font-medium truncate ${isLight ? "text-gray-900" : "text-white"}`}>{model.model_name}</p>
+                      <p className={`text-xs mt-0.5 ${isLight ? "text-gray-400" : "text-white/40"}`}>{model.author} · {model.task || "general"}</p>
                       <div className="flex gap-3 mt-1">
-                        <span className="text-xs text-white/30">⬇ {formatNumber(model.downloads)}</span>
-                        <span className="text-xs text-white/30">❤ {formatNumber(model.likes)}</span>
+                        <span className={`text-xs ${isLight ? "text-gray-400" : "text-white/30"}`}>⬇ {formatNumber(model.downloads)}</span>
+                        <span className={`text-xs ${isLight ? "text-gray-400" : "text-white/30"}`}>❤ {formatNumber(model.likes)}</span>
                       </div>
                     </div>
-                  </div>
+                  </a>
                 ))
               ) : (
-                <p className="text-sm text-white/30 text-center py-4">데이터를 불러오는 중...</p>
+                <p className={`text-sm text-center py-4 ${isLight ? "text-gray-400" : "text-white/30"}`}>데이터를 불러오는 중...</p>
               )}
             </div>
           </motion.div>
@@ -464,49 +537,45 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9, duration: 0.5 }}
-            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 group hover:border-white/20 transition-all duration-300"
+            className={`${isLight ? "bg-white/70 border-black/5" : "bg-white/5 border-white/10"} backdrop-blur-xl border rounded-2xl p-6 group hover:border-white/20 transition-all duration-300`}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: `${getCategoryColor("papers")}20` }}
-              >
-                {(() => {
-                  const Icon = CATEGORY_ICONS["papers"];
-                  return Icon ? <Icon size={20} className="text-blue-400" /> : null;
-                })()}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${getCategoryColor("papers")}20` }}>
+                  {(() => { const Icon = CATEGORY_ICONS["papers"]; return Icon ? <Icon size={20} className="text-blue-400" /> : null; })()}
+                </div>
+                <div>
+                  <h3 className={`font-semibold text-sm ${isLight ? "text-gray-900" : "text-white"}`}>이번 주 뜨는 논문</h3>
+                  <p className={`text-xs ${isLight ? "text-gray-400" : "text-white/40"}`}>AI Papers Top 10</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-white text-sm">이번 주 뜨는 논문</h3>
-                <p className="text-xs text-white/40">AI Papers</p>
-              </div>
+              <Link href="/papers" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">전체 보기 →</Link>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-1 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin">
               {papers.length > 0 ? (
                 papers.map((paper, i) => (
-                  <div
+                  <a
                     key={i}
-                    className={`flex items-start gap-3 p-3 rounded-xl ${
-                      isLight ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.05]"
-                    } transition-colors`}
+                    href={paper.url || (paper.arxiv_id ? `https://arxiv.org/abs/${paper.arxiv_id}` : "#")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-start gap-3 p-3 rounded-xl ${isLight ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.05]"} transition-colors`}
                   >
-                    <span className="text-lg font-bold text-white/20 mt-0.5 w-5 text-right flex-shrink-0">
-                      {i + 1}
-                    </span>
+                    <span className={`text-lg font-bold mt-0.5 w-5 text-right flex-shrink-0 ${isLight ? "text-gray-300" : "text-white/20"}`}>{i + 1}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-white line-clamp-2">{paper.title}</p>
-                      <p className="text-xs text-white/40 mt-0.5 truncate">
+                      <p className={`text-sm font-medium line-clamp-2 ${isLight ? "text-gray-900" : "text-white"}`}>{paper.title}</p>
+                      <p className={`text-xs mt-0.5 truncate ${isLight ? "text-gray-400" : "text-white/40"}`}>
                         {Array.isArray(paper.authors) ? paper.authors.slice(0, 3).join(", ") : ""}
                         {Array.isArray(paper.authors) && paper.authors.length > 3 ? " 외" : ""}
                       </p>
                       {paper.published_date && (
-                        <span className="text-xs text-white/30">{timeAgo(paper.published_date)}</span>
+                        <span className={`text-xs ${isLight ? "text-gray-400" : "text-white/30"}`}>{timeAgo(paper.published_date)}</span>
                       )}
                     </div>
-                  </div>
+                  </a>
                 ))
               ) : (
-                <p className="text-sm text-white/30 text-center py-4">데이터를 불러오는 중...</p>
+                <p className={`text-sm text-center py-4 ${isLight ? "text-gray-400" : "text-white/30"}`}>데이터를 불러오는 중...</p>
               )}
             </div>
           </motion.div>
@@ -516,53 +585,44 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.0, duration: 0.5 }}
-            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 group hover:border-white/20 transition-all duration-300"
+            className={`${isLight ? "bg-white/70 border-black/5" : "bg-white/5 border-white/10"} backdrop-blur-xl border rounded-2xl p-6 group hover:border-white/20 transition-all duration-300`}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: `${getCategoryColor("github")}20` }}
-              >
-                {(() => {
-                  const Icon = CATEGORY_ICONS["github"];
-                  return Icon ? <Icon size={20} className="text-purple-400" /> : null;
-                })()}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${getCategoryColor("github")}20` }}>
+                  {(() => { const Icon = CATEGORY_ICONS["github"]; return Icon ? <Icon size={20} className="text-purple-400" /> : null; })()}
+                </div>
+                <div>
+                  <h3 className={`font-semibold text-sm ${isLight ? "text-gray-900" : "text-white"}`}>이번 주 뜨는 GitHub</h3>
+                  <p className={`text-xs ${isLight ? "text-gray-400" : "text-white/40"}`}>GitHub Trending Top 10</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-white text-sm">이번 주 뜨는 GitHub</h3>
-                <p className="text-xs text-white/40">GitHub Trending</p>
-              </div>
+              <Link href="/github" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">전체 보기 →</Link>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-1 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin">
               {githubProjects.length > 0 ? (
                 githubProjects.map((repo, i) => (
                   <a
                     key={i}
-                    href={`https://github.com/${repo.full_name}`}
+                    href={repo.url || `https://github.com/${repo.full_name}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-start gap-3 p-3 rounded-xl ${
-                      isLight ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.05]"
-                    } transition-colors block`}
+                    className={`flex items-start gap-3 p-3 rounded-xl ${isLight ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.05]"} transition-colors`}
                   >
-                    <span className="text-lg font-bold text-white/20 mt-0.5 w-5 text-right flex-shrink-0">
-                      {i + 1}
-                    </span>
+                    <span className={`text-lg font-bold mt-0.5 w-5 text-right flex-shrink-0 ${isLight ? "text-gray-300" : "text-white/20"}`}>{i + 1}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-white truncate">{repo.full_name}</p>
-                      <p className="text-xs text-white/40 mt-0.5 line-clamp-1">{repo.description}</p>
+                      <p className={`text-sm font-medium truncate ${isLight ? "text-gray-900" : "text-white"}`}>{repo.full_name}</p>
+                      <p className={`text-xs mt-0.5 line-clamp-1 ${isLight ? "text-gray-400" : "text-white/40"}`}>{repo.description}</p>
                       <div className="flex gap-3 mt-1 items-center">
-                        <span className="text-xs text-white/30">⭐ {formatNumber(repo.stars)}</span>
-                        <span className="text-xs text-white/30">🍴 {formatNumber(repo.forks)}</span>
-                        {repo.language && (
-                          <span className="text-xs text-white/30">{repo.language}</span>
-                        )}
+                        <span className={`text-xs ${isLight ? "text-gray-400" : "text-white/30"}`}>⭐ {formatNumber(repo.stars)}</span>
+                        <span className={`text-xs ${isLight ? "text-gray-400" : "text-white/30"}`}>🍴 {formatNumber(repo.forks)}</span>
+                        {repo.language && <span className={`text-xs ${isLight ? "text-gray-400" : "text-white/30"}`}>{repo.language}</span>}
                       </div>
                     </div>
                   </a>
                 ))
               ) : (
-                <p className="text-sm text-white/30 text-center py-4">데이터를 불러오는 중...</p>
+                <p className={`text-sm text-center py-4 ${isLight ? "text-gray-400" : "text-white/30"}`}>데이터를 불러오는 중...</p>
               )}
             </div>
           </motion.div>
@@ -572,132 +632,49 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.1, duration: 0.5 }}
-            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 group hover:border-white/20 transition-all duration-300"
+            className={`${isLight ? "bg-white/70 border-black/5" : "bg-white/5 border-white/10"} backdrop-blur-xl border rounded-2xl p-6 group hover:border-white/20 transition-all duration-300`}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: `${getCategoryColor("news")}20` }}
-              >
-                {(() => {
-                  const Icon = CATEGORY_ICONS["news"];
-                  return Icon ? <Icon size={20} className="text-emerald-400" /> : null;
-                })()}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${getCategoryColor("news")}20` }}>
+                  {(() => { const Icon = CATEGORY_ICONS["news"]; return Icon ? <Icon size={20} className="text-emerald-400" /> : null; })()}
+                </div>
+                <div>
+                  <h3 className={`font-semibold text-sm ${isLight ? "text-gray-900" : "text-white"}`}>최신 AI 뉴스</h3>
+                  <p className={`text-xs ${isLight ? "text-gray-400" : "text-white/40"}`}>AI News Top 10</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-white text-sm">최신 AI 뉴스</h3>
-                <p className="text-xs text-white/40">AI News</p>
-              </div>
+              <Link href="/news" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">전체 보기 →</Link>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-1 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin">
               {news.length > 0 ? (
-                news.slice(0, 3).map((item, i) => (
+                news.map((item, i) => (
                   <a
                     key={item.id}
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-start gap-3 p-3 rounded-xl ${
-                      isLight ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.05]"
-                    } transition-colors block`}
+                    className={`flex items-start gap-3 p-3 rounded-xl ${isLight ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.05]"} transition-colors`}
                   >
-                    <span className="text-lg font-bold text-white/20 mt-0.5 w-5 text-right flex-shrink-0">
-                      {i + 1}
-                    </span>
+                    <span className={`text-lg font-bold mt-0.5 w-5 text-right flex-shrink-0 ${isLight ? "text-gray-300" : "text-white/20"}`}>{i + 1}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-white line-clamp-2">{item.title}</p>
+                      <p className={`text-sm font-medium line-clamp-2 ${isLight ? "text-gray-900" : "text-white"}`}>{item.title}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
-                          {item.source}
-                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">{item.source}</span>
                         {item.published_date && (
-                          <span className="text-xs text-white/30">{timeAgo(item.published_date)}</span>
+                          <span className={`text-xs ${isLight ? "text-gray-400" : "text-white/30"}`}>{timeAgo(item.published_date)}</span>
                         )}
                       </div>
                     </div>
                   </a>
                 ))
               ) : (
-                <p className="text-sm text-white/30 text-center py-4">데이터를 불러오는 중...</p>
+                <p className={`text-sm text-center py-4 ${isLight ? "text-gray-400" : "text-white/30"}`}>데이터를 불러오는 중...</p>
               )}
             </div>
           </motion.div>
         </div>
       </motion.section>
-
-      {/* ═══════════════════════════════════════════════════════
-          SECTION 4: CATEGORY STATS GRID
-          ═══════════════════════════════════════════════════════ */}
-      {categoryStats.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2, duration: 0.6 }}
-        >
-          <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
-            {(() => {
-              const Icon = CATEGORY_ICONS["dashboard"];
-              return Icon ? <Icon size={22} className="text-white/70" /> : null;
-            })()}
-            카테고리 현황
-          </h2>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {categoryStats.map((stat, i) => {
-              const displayCategory = stat.category === "tools" ? "platforms" : stat.category;
-              const color = getCategoryColor(displayCategory);
-              const trendArrow = stat.trend === "up" ? "↑" : stat.trend === "down" ? "↓" : "→";
-              const trendColor =
-                stat.trend === "up"
-                  ? "text-green-400"
-                  : stat.trend === "down"
-                  ? "text-red-400"
-                  : "text-white/40";
-              const Icon = CATEGORY_ICONS[displayCategory];
-
-              return (
-                <motion.div
-                  key={stat.category}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1.2 + i * 0.05, duration: 0.3 }}
-                  className={`${
-                    isLight
-                      ? "bg-white/60 border-black/5 hover:bg-white/80"
-                      : "bg-white/5 border-white/10 hover:bg-white/[0.08]"
-                  } backdrop-blur-xl border rounded-xl p-4 transition-all duration-300 cursor-default`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    {Icon ? (
-                      <span style={{ color }}>
-                        <Icon size={18} />
-                      </span>
-                    ) : (
-                      <span className="text-lg" />
-                    )}
-                    <span className="text-xs font-medium text-white/60 truncate">
-                      {stat.name}
-                    </span>
-                  </div>
-                  <div className="flex items-end justify-between">
-                    <span className="text-xl font-bold text-white">
-                      {formatNumber(stat.total)}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <span className={`text-sm font-bold ${trendColor}`}>
-                        {trendArrow}
-                      </span>
-                      <span className="text-xs text-white/40">
-                        {stat.recent_7d > 0 ? `+${stat.recent_7d}` : stat.recent_7d}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.section>
-      )}
 
       {/* ═══════════════════════════════════════════════════════
           SECTION 5: TRENDING KEYWORDS (Tag Cloud)

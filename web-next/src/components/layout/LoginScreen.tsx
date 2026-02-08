@@ -210,7 +210,7 @@ export default function LoginScreen() {
               className="rounded-2xl mb-5 overflow-hidden"
             >
               <Image
-                src="/logo.png"
+                src="/AI봄.jpg"
                 alt={APP_NAME}
                 width={100}
                 height={100}

@@ -1,18 +1,46 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { CATEGORIES, APP_NAME, APP_VERSION } from "@/lib/constants";
+import { Clock } from "lucide-react";
+import { CATEGORIES, APP_NAME } from "@/lib/constants";
 import { CATEGORY_ICONS } from "@/components/icons/CategoryIcons";
 import { useTheme } from "@/lib/theme-context";
 import { cn } from "@/lib/utils";
+
+function useKSTClock() {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const fmt = () => {
+      const now = new Date();
+      const kst = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+      const days = ["일", "월", "화", "수", "목", "금", "토"];
+      const y = kst.getFullYear();
+      const m = kst.getMonth() + 1;
+      const d = kst.getDate();
+      const day = days[kst.getDay()];
+      const h = kst.getHours();
+      const ampm = h < 12 ? "오전" : "오후";
+      const h12 = h % 12 || 12;
+      const min = String(kst.getMinutes()).padStart(2, "0");
+      const sec = String(kst.getSeconds()).padStart(2, "0");
+      return `${y}년 ${m}월 ${d}일 (${day}) ${ampm} ${h12}:${min}:${sec}`;
+    };
+    setTime(fmt());
+    const id = setInterval(() => setTime(fmt()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return time;
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { theme } = useTheme();
   const isLight = theme === "light";
+  const kstTime = useKSTClock();
 
   return (
     <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[280px] z-40 glass-sidebar">
@@ -22,7 +50,7 @@ export default function Sidebar() {
         isLight ? "border-black/[0.06]" : "border-white/10"
       )}>
         <Image
-          src="/logo.png"
+          src="/AI봄.jpg"
           alt="AI봄"
           width={44}
           height={44}
@@ -30,7 +58,7 @@ export default function Sidebar() {
         />
         <div>
           <h1 className="text-lg font-bold text-gradient">{APP_NAME}</h1>
-          <p className="text-xs text-muted-foreground">{APP_VERSION}</p>
+          <p className="text-xs text-muted-foreground">AI Trend Tracker</p>
         </div>
       </div>
 
@@ -120,14 +148,17 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Footer */}
+      {/* Footer — KST Clock */}
       <div className={cn(
-        "px-6 py-4 border-t",
+        "px-4 py-3 border-t",
         isLight ? "border-black/[0.06]" : "border-white/10"
       )}>
-        <p className="text-[10px] text-muted-foreground text-center">
-          {APP_NAME} {APP_VERSION}
-        </p>
+        <div className="flex items-center gap-2 justify-center">
+          <Clock size={12} className="text-muted-foreground flex-shrink-0" />
+          <p className="text-[10px] text-muted-foreground whitespace-nowrap">
+            {kstTime || "로딩 중..."}
+          </p>
+        </div>
       </div>
     </aside>
   );

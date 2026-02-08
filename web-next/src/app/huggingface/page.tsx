@@ -34,6 +34,14 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diffDays / 365)}년 전`;
 }
 
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}.${m}.${d}`;
+}
+
 // ─── Loading Skeleton ───────────────────────────────────────
 
 function LoadingSkeleton() {
@@ -167,21 +175,32 @@ function ModelCard({
         className="block"
       >
         <GlassmorphicCard className="p-6 h-full">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex-1 min-w-0">
-              <h3 className="text-white font-semibold text-base truncate">
-                {model.model_name || model.name}
-              </h3>
-              <p className="text-white/40 text-sm mt-0.5">
-                {model.author}
-              </p>
+          {/* Date badge - top right */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              {(model.task || model.pipeline_tag) && (
+                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-category-huggingface/15 text-category-huggingface border border-category-huggingface/20">
+                  {model.task || model.pipeline_tag}
+                </span>
+              )}
             </div>
-            {(model.task || model.pipeline_tag) && (
-              <span className="shrink-0 px-2.5 py-1 rounded-full text-xs font-medium bg-category-huggingface/15 text-category-huggingface border border-category-huggingface/20">
-                {model.task || model.pipeline_tag}
-              </span>
-            )}
+            <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-500/15 text-blue-400 border border-blue-500/20">
+              {model.last_modified
+                ? `${formatDate(model.last_modified)} (${timeAgo(model.last_modified)})`
+                : model.collected_at
+                ? `${formatDate(model.collected_at)} (${timeAgo(model.collected_at)})`
+                : "날짜 정보 없음"}
+            </span>
+          </div>
+
+          {/* Header */}
+          <div className="mb-3">
+            <h3 className="text-white font-semibold text-base truncate">
+              {model.model_name || model.name}
+            </h3>
+            <p className="text-white/40 text-sm mt-0.5">
+              {model.author}
+            </p>
           </div>
 
           {/* Description - prefer AI summary over raw description */}
@@ -219,11 +238,6 @@ function ModelCard({
               </svg>
               <span>{formatNumber(model.likes)}</span>
             </div>
-            {model.last_modified && (
-              <span className="text-white/40 text-xs ml-auto">
-                {timeAgo(model.last_modified)}
-              </span>
-            )}
           </div>
 
           {/* Tags */}

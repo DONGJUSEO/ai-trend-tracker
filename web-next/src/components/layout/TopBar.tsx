@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Bell,
-  Bookmark,
   LogOut,
   Menu,
   Moon,
@@ -13,37 +11,29 @@ import {
   Sun,
 } from "lucide-react";
 import useSWR from "swr";
-import { CATEGORIES, getCategoryByHref } from "@/lib/constants";
+import { getCategoryByHref } from "@/lib/constants";
 import { useTheme } from "@/lib/theme-context";
 import { useAuth } from "@/lib/auth-context";
 import CategoryIcon from "@/components/icons/CategoryIcon";
 import type { GlobalSearchResponse, SearchResultItem } from "@/lib/types";
 import { apiFetcher } from "@/lib/fetcher";
-import {
-  getAlertSettings,
-  getBookmarks,
-  getRecentItems,
-  setAlertSetting,
-  pushRecentItem,
-  type SavedItem,
-} from "@/lib/user-preferences";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface TopBarProps {
   onMenuToggle: () => void;
 }
 
-function getResultId(category: string, id: string): string {
-  return `${category}:${id}`;
-}
+const CATEGORY_ROUTES: Record<string, string> = {
+  huggingface: "/huggingface",
+  youtube: "/youtube",
+  papers: "/papers",
+  news: "/news",
+  github: "/github",
+  conferences: "/conferences",
+  platforms: "/platforms",
+  tools: "/platforms",
+  jobs: "/jobs",
+  policies: "/policies",
+};
 
 export default function TopBar({ onMenuToggle }: TopBarProps) {
   const pathname = usePathname();
@@ -54,14 +44,11 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
 
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [bookmarks, setBookmarks] = useState<SavedItem[]>([]);
-  const [recentItems, setRecentItems] = useState<SavedItem[]>([]);
-  const [alertSettings, setAlertSettings] = useState<Record<string, boolean>>({});
 
   const trimmedQuery = query.trim();
   const searchKey =
     trimmedQuery.length >= 2
-      ? `/api/v1/search?q=${encodeURIComponent(trimmedQuery)}&page=1&page_size=12`
+      ? `/api/v1/search?q=${encodeURIComponent(trimmedQuery)}&page=1&page_size=20`
       : null;
 
   const { data: searchData, isLoading: searchLoading } = useSWR<GlobalSearchResponse>(
@@ -80,46 +67,41 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
     return groups;
   }, [searchData]);
 
-  useEffect(() => {
-    const refresh = () => {
-      setBookmarks(getBookmarks());
-      setRecentItems(getRecentItems());
-      setAlertSettings(getAlertSettings());
-    };
-    refresh();
-    window.addEventListener("storage", refresh);
-    window.addEventListener("focus", refresh);
-    return () => {
-      window.removeEventListener("storage", refresh);
-      window.removeEventListener("focus", refresh);
-    };
-  }, []);
-
   function handleRefresh() {
     router.refresh();
     window.location.reload();
   }
 
-  function handleResultClick(item: {
-    category: string;
-    id: string;
-    title: string;
-    url?: string;
-  }) {
-    pushRecentItem({
-      id: getResultId(item.category, item.id),
-      title: item.title,
-      url: item.url,
-      category: item.category,
-    });
-    setRecentItems(getRecentItems());
+  function handleResultClick(item: SearchResultItem) {
     setSearchOpen(false);
+    setQuery("");
+    // External URL이 있으면 새 탭으로 열기
+    if (item.url && item.url.startsWith("http")) {
+      window.open(item.url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    // 없으면 해당 카테고리 페이지로 이동
+    const route = CATEGORY_ROUTES[item.category];
+    if (route) {
+      router.push(route);
+    }
   }
 
-  function updateAlert(categoryId: string, checked: boolean | "indeterminate") {
-    const next = setAlertSetting(categoryId, !!checked);
-    setAlertSettings(next);
-  }
+  const categoryLabel = (cat: string) => {
+    const labels: Record<string, string> = {
+      huggingface: "HuggingFace",
+      youtube: "YouTube",
+      papers: "AI 논문",
+      news: "AI 뉴스",
+      github: "GitHub",
+      conferences: "컨퍼런스",
+      platforms: "AI 플랫폼",
+      tools: "AI 플랫폼",
+      jobs: "AI 채용",
+      policies: "AI 정책",
+    };
+    return labels[cat] || cat;
+  };
 
   return (
     <header
@@ -154,6 +136,7 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
           </div>
         </div>
 
+        {/* Search */}
         <div className="hidden md:block relative w-full max-w-md">
           <div
             className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${
@@ -170,7 +153,7 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
                 setSearchOpen(true);
               }}
               onFocus={() => setSearchOpen(true)}
-              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+              onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
               placeholder="전체 검색 (모델/논문/뉴스/레포...)"
               className="w-full bg-transparent text-sm outline-none placeholder:opacity-50"
             />
@@ -193,17 +176,31 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
               {!searchLoading &&
                 Object.entries(groupedResults).map(([group, items]) => (
                   <div key={group} className="mb-2">
-                    <p className="px-3 py-1 text-xs uppercase tracking-wider text-muted-foreground">
-                      {group}
-                    </p>
+                    <div className="flex items-center justify-between px-3 py-1">
+                      <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                        {categoryLabel(group)}
+                      </p>
+                      <button
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSearchOpen(false);
+                          setQuery("");
+                          const route = CATEGORY_ROUTES[group];
+                          if (route) router.push(route);
+                        }}
+                        className="text-[10px] text-blue-400 hover:text-blue-300"
+                      >
+                        전체 보기 →
+                      </button>
+                    </div>
                     {items.slice(0, 4).map((item) => (
-                      <a
+                      <button
                         key={`${item.category}-${item.id}`}
-                        href={item.url || "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onMouseDown={() => handleResultClick(item)}
-                        className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleResultClick(item);
+                        }}
+                        className={`block w-full text-left rounded-lg px-3 py-2 text-sm transition-colors ${
                           theme === "dark" ? "hover:bg-white/10" : "hover:bg-black/5"
                         }`}
                       >
@@ -213,7 +210,7 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
                             {item.snippet}
                           </p>
                         )}
-                      </a>
+                      </button>
                     ))}
                   </div>
                 ))}
@@ -221,77 +218,8 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
           )}
         </div>
 
+        {/* Action Buttons — 검색 / 새로고침 / 테마 / 로그아웃 */}
         <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={`p-2 rounded-lg transition-colors ${
-                  theme === "dark"
-                    ? "hover:bg-white/10 text-white/60 hover:text-white"
-                    : "hover:bg-black/5 text-gray-500 hover:text-gray-800"
-                }`}
-                aria-label="북마크"
-                title="북마크"
-              >
-                <Bookmark className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <DropdownMenuLabel>북마크</DropdownMenuLabel>
-              {bookmarks.length === 0 && (
-                <DropdownMenuItem disabled>저장된 항목이 없습니다</DropdownMenuItem>
-              )}
-              {bookmarks.slice(0, 8).map((item) => (
-                <DropdownMenuItem key={`${item.category}:${item.id}`} asChild>
-                  <a href={item.url || "#"} target="_blank" rel="noopener noreferrer">
-                    <span className="truncate">{item.title}</span>
-                  </a>
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>최근 본 항목</DropdownMenuLabel>
-              {recentItems.length === 0 && (
-                <DropdownMenuItem disabled>최근 기록이 없습니다</DropdownMenuItem>
-              )}
-              {recentItems.slice(0, 6).map((item) => (
-                <DropdownMenuItem key={`recent:${item.category}:${item.id}`} asChild>
-                  <a href={item.url || "#"} target="_blank" rel="noopener noreferrer">
-                    <span className="truncate">{item.title}</span>
-                  </a>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={`p-2 rounded-lg transition-colors ${
-                  theme === "dark"
-                    ? "hover:bg-white/10 text-white/60 hover:text-white"
-                    : "hover:bg-black/5 text-gray-500 hover:text-gray-800"
-                }`}
-                aria-label="알림 설정"
-                title="알림 설정"
-              >
-                <Bell className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel>카테고리 알림 설정</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {CATEGORIES.filter((x) => x.id !== "dashboard" && x.id !== "system").map((cat) => (
-                <DropdownMenuCheckboxItem
-                  key={cat.id}
-                  checked={!!alertSettings[cat.id]}
-                  onCheckedChange={(checked) => updateAlert(cat.id, checked)}
-                >
-                  {cat.koreanName}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           <button
             onClick={handleRefresh}
             className={`p-2 rounded-lg transition-colors ${

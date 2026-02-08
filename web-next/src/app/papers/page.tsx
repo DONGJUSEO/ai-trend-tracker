@@ -300,25 +300,33 @@ function PaperCard({
           </div>
 
           {/* AI Korean Summary */}
-          {paper.summary && (
+          {paper.summary ? (
             <p className="text-white/50 text-sm line-clamp-2 leading-relaxed">
               {paper.summary}
             </p>
+          ) : (
+            <p className="text-white/30 text-sm italic">요약 준비 중...</p>
           )}
 
-          {/* Authors & date */}
+          {/* Date badge + Conference badge */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {paper.published_date && (
+              <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-500/15 text-blue-400 border border-blue-500/20">
+                {new Date(paper.published_date).toLocaleDateString("ko-KR")} ({timeAgo(paper.published_date)})
+              </span>
+            )}
+            {paper.conference_name && (
+              <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-500/15 text-purple-300 border border-purple-500/20">
+                {paper.conference_name}{paper.conference_year ? ` ${paper.conference_year}` : ""}
+              </span>
+            )}
+          </div>
+
+          {/* Authors & citations */}
           <div className="flex items-center gap-3 text-sm">
             <span className="text-white/50">
               {formatAuthors(paper.authors)}
             </span>
-            {paper.published_date && (
-              <>
-                <span className="text-white/20">|</span>
-                <span className="text-white/40">
-                  {timeAgo(paper.published_date)}
-                </span>
-              </>
-            )}
             {paper.citations !== undefined && paper.citations > 0 && (
               <>
                 <span className="text-white/20">|</span>

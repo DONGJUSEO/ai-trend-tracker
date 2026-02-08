@@ -264,10 +264,17 @@ function NewsCard({
                 </span>
               )}
 
+              {/* Region badge */}
+              {!isKoreanSource(news.source) && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-300 border border-blue-500/20">
+                  해외
+                </span>
+              )}
+
               {/* Time */}
-              {news.published_at && (
+              {(news.published_at || news.published_date) && (
                 <span className="text-xs text-white/30 ml-auto">
-                  {timeAgo(news.published_at)}
+                  {timeAgo(news.published_at || news.published_date || "")}
                 </span>
               )}
             </div>

@@ -230,18 +230,35 @@ function InlineAdminLogin({ onLogin }: { onLogin: (password: string) => Promise<
   );
 }
 
+interface CategoryStatItem {
+  category: string;
+  name: string;
+  total: number;
+  recent_7d: number;
+  prev_7d: number;
+  trend: "up" | "down" | "stable";
+  last_update: string | null;
+}
+
 export default function SystemPage() {
   const { authenticated, checking, login, logout } = useAdminAuth();
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [categoryStats, setCategoryStats] = useState<CategoryStatItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/system/status`, { headers });
-      if (res.ok) {
-        const json = await res.json();
-        setSystemStatus(json);
+      const [statusRes, statsRes] = await Promise.allSettled([
+        fetch(`${API_URL}/api/v1/system/status`, { headers }),
+        fetch(`${API_URL}/api/v1/dashboard/category-stats`, { headers }),
+      ]);
+      if (statusRes.status === "fulfilled" && statusRes.value.ok) {
+        setSystemStatus(await statusRes.value.json());
+      }
+      if (statsRes.status === "fulfilled" && statsRes.value.ok) {
+        const data = await statsRes.value.json();
+        setCategoryStats(data.categories ?? []);
       }
     } catch {
       // API unavailable
@@ -723,6 +740,60 @@ export default function SystemPage() {
               </div>
             </div>
           </motion.div>
+
+          {/* Category Data Stats (moved from dashboard) */}
+          {categoryStats.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.6 }}
+              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6"
+            >
+              <h2 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                </svg>
+                카테고리별 데이터 현황
+              </h2>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                {categoryStats.map((stat) => {
+                  const displayCategory = stat.category === "tools" ? "platforms" : stat.category;
+                  const catDef = CATEGORIES.find((c) => c.id === displayCategory);
+                  const color = catDef?.color ?? "#6B7280";
+                  const trendArrow = stat.trend === "up" ? "↑" : stat.trend === "down" ? "↓" : "→";
+                  const trendColor =
+                    stat.trend === "up" ? "text-green-400" : stat.trend === "down" ? "text-red-400" : "text-white/40";
+
+                  return (
+                    <div
+                      key={stat.category}
+                      className="bg-white/[0.03] border border-white/5 rounded-xl p-4 transition-all duration-200 hover:bg-white/[0.06]"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        {catDef && (
+                          <span style={{ color }}>
+                            <CategoryIcon iconKey={catDef.iconKey} size={16} />
+                          </span>
+                        )}
+                        <span className="text-xs font-medium text-white/60 truncate">{stat.name}</span>
+                      </div>
+                      <div className="flex items-end justify-between">
+                        <span className="text-xl font-bold text-white">{stat.total.toLocaleString()}</span>
+                        <div className="flex items-center gap-1">
+                          <span className={`text-sm font-bold ${trendColor}`}>{trendArrow}</span>
+                          <span className="text-xs text-white/40">{stat.recent_7d > 0 ? `+${stat.recent_7d}` : stat.recent_7d}</span>
+                        </div>
+                      </div>
+                      {stat.last_update && (
+                        <p className="text-[10px] text-white/25 mt-2">{timeAgo(stat.last_update)}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
         </>
       )}
     </div>

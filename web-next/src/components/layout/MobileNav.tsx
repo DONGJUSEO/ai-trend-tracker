@@ -41,7 +41,7 @@ export default function MobileNav({ open, onOpenChange }: MobileNavProps) {
         )}>
           <div className="flex items-center gap-3">
             <Image
-              src="/logo.png"
+              src="/AI봄.jpg"
               alt="AI봄"
               width={44}
               height={44}
